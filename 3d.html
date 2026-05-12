@@ -1221,6 +1221,7 @@ setTimeout(function() {
     <button class="ctrl-btn" data-action="explode"><span>內部拆解 Exploded</span><span class="key">E</span></button>
     <button class="ctrl-btn active" data-action="casing"><span>顯示殼體 Casing</span><span class="key">C</span></button>
     <button class="ctrl-btn active" data-action="duct"><span>顯示風管 Ducts</span><span class="key">D</span></button>
+    <button class="ctrl-btn" data-action="labels"><span>📝 元件標籤 Labels</span><span class="key">N</span></button>
     <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
   </div>
 </div>
@@ -1670,28 +1671,97 @@ canvas.addEventListener('click', (e) => {
   selectedEl.classList.remove('show');
 });
 
-// HUD Controls
+// ============ HUD Controls + 平滑 Explode 動畫 ============
 let exploded = false;
+let explodeProgress = 0;   // 0 = 收起, 1 = 拆開
+let explodeTarget = 0;
 function setExplode(on) {
   exploded = on;
-  const f = on ? 1 : 0;
+  explodeTarget = on ? 1 : 0;
+}
+function updateExplode() {
+  if (Math.abs(explodeProgress - explodeTarget) < 0.001) {
+    if (explodeProgress !== explodeTarget) explodeProgress = explodeTarget;
+    return;
+  }
+  // ease-out: 每幀往目標靠 8%
+  explodeProgress += (explodeTarget - explodeProgress) * 0.08;
+  const f = explodeProgress;
   filterGroup.position.set(filterGroup.userData.basePos.x - f*1.0, filterGroup.userData.basePos.y + f*1.5, filterGroup.userData.basePos.z);
   coilGroup.position.set(coilGroup.userData.basePos.x, coilGroup.userData.basePos.y + f*2.5, coilGroup.userData.basePos.z);
   fanGroup.position.set(fanGroup.userData.basePos.x + f*1.0, fanGroup.userData.basePos.y + f*1.8, fanGroup.userData.basePos.z);
   damperGroup.position.set(damperGroup.userData.basePos.x - f*1.5, damperGroup.userData.basePos.y + f*1.0, damperGroup.userData.basePos.z);
 }
 
-let casingOn = true, ductOn = true;
+let casingOn = true, ductOn = true, labelsOn = false;
 function setCasingVis(on) { casingOn = on; casing.visible = on; casingEdges.visible = on; }
 function setDuctVis(on) { ductOn = on; ductGroup.visible = on; }
+
+// ============ Floating Labels — 每個元件浮 floating tag ============
+function makeLabel(text, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 384; canvas.height = 96;
+  const ctx = canvas.getContext('2d');
+  // 圓角底色
+  ctx.fillStyle = 'rgba(15,15,17,0.92)';
+  ctx.strokeStyle = color || '#A3E635';
+  ctx.lineWidth = 3;
+  const r = 14;
+  ctx.beginPath();
+  ctx.moveTo(r, 4);
+  ctx.lineTo(380, 4); ctx.arcTo(380, 4, 380, 18, r);
+  ctx.lineTo(380, 78); ctx.arcTo(380, 92, 366, 92, r);
+  ctx.lineTo(18, 92); ctx.arcTo(4, 92, 4, 78, r);
+  ctx.lineTo(4, 18); ctx.arcTo(4, 4, 18, 4, r);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // 文字
+  ctx.font = 'bold 32px -apple-system, "SF Pro Display", "Noto Sans TC", sans-serif';
+  ctx.fillStyle = '#f5f5f7';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 192, 48);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+  sprite.scale.set(1.2, 0.3, 1);
+  sprite.renderOrder = 999;
+  return sprite;
+}
+// 加 label 到關鍵元件（按 N 切換）
+const labelTargets = [
+  { obj: damperGroup,   text: 'DM 外氣風閥',     dy: 1.5 },
+  { obj: filterGroup,   text: 'F7 袋式濾網',     dy: 2.2 },
+  { obj: coilGroup,     text: '冰水盤管',        dy: 1.4 },
+  { obj: fanGroup,      text: '送風機',          dy: 1.0 },
+  { obj: vfdGroup,      text: 'VFD 變頻器',      dy: 0.7 },
+  { obj: valveGroup,    text: 'MV 比例式二通閥', dy: 0.8 },
+  { obj: baGroup,       text: 'BA Controller',  dy: 0.8 },
+  { obj: drainGroup,    text: '排水盤 + P-trap', dy: 0.6 },
+  { obj: co2Group,      text: 'CO₂ 感測器',      dy: 0.3 },
+  { obj: fsGroup,       text: 'FS 風速計',       dy: 0.3 },
+];
+labelTargets.forEach(function(t) {
+  if (!t.obj) return;
+  const label = makeLabel(t.text);
+  label.position.set(0, t.dy, 0);
+  label.visible = false;
+  t.obj.add(label);
+  t.obj.userData.label = label;
+});
+function setLabelsVis(on) {
+  labelsOn = on;
+  labelTargets.forEach(function(t) { if (t.obj && t.obj.userData.label) t.obj.userData.label.visible = on; });
+}
 
 document.querySelectorAll('.ctrl-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const a = btn.dataset.action;
-    if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
-    else if (a === 'casing') { setCasingVis(!casingOn); btn.classList.toggle('active', casingOn); }
-    else if (a === 'duct')   { setDuctVis(!ductOn);     btn.classList.toggle('active', ductOn); }
-    else if (a === 'reset')  { camera.position.set(7, 4.5, 9); controls.target.set(0, 1, 0); }
+    if (a === 'explode')      { setExplode(!exploded); btn.classList.toggle('active', exploded); }
+    else if (a === 'casing')  { setCasingVis(!casingOn); btn.classList.toggle('active', casingOn); }
+    else if (a === 'duct')    { setDuctVis(!ductOn);     btn.classList.toggle('active', ductOn); }
+    else if (a === 'labels')  { setLabelsVis(!labelsOn); btn.classList.toggle('active', labelsOn); }
+    else if (a === 'reset')   { camera.position.set(7, 4.5, 9); controls.target.set(0, 1, 0); }
   });
 });
 
@@ -1700,11 +1770,13 @@ window.addEventListener('keydown', (e) => {
   if (k === 'e') setExplode(!exploded);
   else if (k === 'c') setCasingVis(!casingOn);
   else if (k === 'd') setDuctVis(!ductOn);
+  else if (k === 'n') setLabelsVis(!labelsOn);
   else if (k === 'r') { camera.position.set(7, 4.5, 9); controls.target.set(0, 1, 0); }
 });
 
 function animate() {
   requestAnimationFrame(animate);
+  updateExplode();   // 平滑拆解動畫
   if (fanGroup.userData.impeller) fanGroup.userData.impeller.rotation.y += 0.18;
   controls.update();
   renderer.render(scene, camera);
