@@ -1,0 +1,2332 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>青禾半導體 路竹廠 · HVAC Systems</title>
+<script src="tailwind.js"></script>
+<style>
+  :root {
+    --pipe-chws: #00D4FF;
+    --pipe-chwr: #0080FF;
+    --pipe-cws:  #34D399;
+    --pipe-cwr:  #10B981;
+    --pipe-mau:  #A78BFA;
+    --pipe-exh:  #F472B6;
+    --sensor:    #A3E635;  /* 感應元件 lime */
+    --actuator:  #FB923C;  /* 控制元件 orange */
+    --ink: #f5f5f7;
+    --sub: #86868b;
+  }
+  html, body { background: #000; color: var(--ink); font-family: -apple-system, "SF Pro Display", "Noto Sans TC", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; }
+  body { scroll-behavior: smooth; }
+  .hero-num { font-feature-settings: "tnum"; letter-spacing: -0.04em; }
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 1s cubic-bezier(.2,.7,.2,1), transform 1s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  .gradient-fade-bottom { mask-image: linear-gradient(to bottom, #000 70%, transparent 100%); }
+  .pid-stroke { stroke: #f5f5f7; stroke-width: 1.4; fill: none; }
+  .pid-fill   { fill: #0a0a0a; stroke: #f5f5f7; stroke-width: 1.4; }
+  .pid-label  { fill: #f5f5f7; font-size: 11px; font-family: "SF Mono", "Menlo", monospace; }
+  .pid-tag    { fill: none; stroke: #f5f5f7; stroke-width: 1; }
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .chip { display:inline-flex; align-items:center; gap:.4rem; padding:.25rem .75rem; border:1px solid rgba(255,255,255,.18); border-radius:999px; font-size:.75rem; color:#d4d4d8; }
+  .nav-pill { backdrop-filter: blur(20px); background: rgba(20,20,22,.72); border:1px solid rgba(255,255,255,.08); }
+  /* scroll snap container - softer than full snap */
+  .snap-y { scroll-snap-type: y proximity; }
+  .snap-section { scroll-snap-align: start; }
+  /* pipe animation */
+  @keyframes flow { to { stroke-dashoffset: -40; } }
+  .flow { stroke-dasharray: 6 6; animation: flow 1.6s linear infinite; }
+
+  /* AHU 控制邏輯 — 互動高亮 */
+  .ahu-control [data-loop]    { transition: opacity .25s ease; }
+  .ahu-control [data-loop] *  { transition: opacity .25s ease; }
+  .ahu-control [data-trigger] { transition: opacity .2s ease, border-color .2s ease, background-color .2s ease, box-shadow .2s ease; cursor: pointer; }
+  .ahu-control[data-focus] [data-loop]    { opacity: 0.16; }
+  .ahu-control[data-focus] [data-trigger] { opacity: 0.4; }
+  .ahu-control[data-focus="static"]  [data-loop~="static"],
+  .ahu-control[data-focus="temp"]    [data-loop~="temp"],
+  .ahu-control[data-focus="co2"]     [data-loop~="co2"],
+  .ahu-control[data-focus="fire"]    [data-loop~="fire"],
+  .ahu-control[data-focus="airflow"] [data-loop~="airflow"],
+  .ahu-control[data-focus="filter"]  [data-loop~="filter"]   { opacity: 1; }
+  .ahu-control[data-focus="static"]  [data-trigger="static"],
+  .ahu-control[data-focus="temp"]    [data-trigger="temp"],
+  .ahu-control[data-focus="co2"]     [data-trigger="co2"],
+  .ahu-control[data-focus="fire"]    [data-trigger="fire"],
+  .ahu-control[data-focus="airflow"] [data-trigger="airflow"],
+  .ahu-control[data-focus="filter"]  [data-trigger="filter"] {
+    opacity: 1;
+    border-color: rgba(255,255,255,.5);
+    background-color: rgba(255,255,255,.04);
+  }
+  .ahu-control[data-locked="static"]  [data-trigger="static"],
+  .ahu-control[data-locked="temp"]    [data-trigger="temp"],
+  .ahu-control[data-locked="co2"]     [data-trigger="co2"],
+  .ahu-control[data-locked="fire"]    [data-trigger="fire"],
+  .ahu-control[data-locked="airflow"] [data-trigger="airflow"],
+  .ahu-control[data-locked="filter"]  [data-trigger="filter"] {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.55);
+  }
+  .ahu-control [data-loop] { cursor: pointer; }
+
+  /* AHU control — 左側功能卡 horizontal row */
+  .ahu-control .card-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    background: rgba(10,10,12,1);
+    cursor: pointer;
+    transition: border-color .2s ease, background-color .2s ease, transform .2s ease, box-shadow .2s ease;
+  }
+  .ahu-control .card-row:hover {
+    border-color: rgba(255,255,255,0.25);
+    background: rgba(20,20,25,1);
+  }
+  .ahu-control .card-num {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 11px; color: rgba(255,255,255,0.5);
+    letter-spacing: 0.1em;
+    flex-shrink: 0;
+    width: 22px;
+  }
+  .ahu-control .card-arrow {
+    color: rgba(255,255,255,0.3);
+    font-size: 18px;
+    flex-shrink: 0;
+    transition: transform .2s, color .2s;
+  }
+  .ahu-control .card-row:hover .card-arrow { transform: translateX(3px); color: rgba(163,230,53,0.7); }
+  /* Active (locked) state — 卡片高亮 */
+  .ahu-control[data-locked="static"]  [data-detail="static"],
+  .ahu-control[data-locked="temp"]    [data-detail="temp"],
+  .ahu-control[data-locked="co2"]     [data-detail="co2"],
+  .ahu-control[data-locked="fire"]    [data-detail="fire"],
+  .ahu-control[data-locked="airflow"] [data-detail="airflow"],
+  .ahu-control[data-locked="filter"]  [data-detail="filter"] {
+    border-color: rgba(163,230,53,0.55);
+    background: rgba(163,230,53,0.05);
+    box-shadow: inset 0 0 0 1px rgba(163,230,53,0.35), 0 0 24px -8px rgba(163,230,53,0.3);
+  }
+  .ahu-control[data-locked="static"]  [data-detail="static"]  .card-arrow,
+  .ahu-control[data-locked="temp"]    [data-detail="temp"]    .card-arrow,
+  .ahu-control[data-locked="co2"]     [data-detail="co2"]     .card-arrow,
+  .ahu-control[data-locked="fire"]    [data-detail="fire"]    .card-arrow,
+  .ahu-control[data-locked="airflow"] [data-detail="airflow"] .card-arrow,
+  .ahu-control[data-locked="filter"]  [data-detail="filter"]  .card-arrow { color: #A3E635; transform: translateX(4px); }
+  .ahu-control[data-locked="static"]  [data-detail="static"]  .card-num,
+  .ahu-control[data-locked="temp"]    [data-detail="temp"]    .card-num,
+  .ahu-control[data-locked="co2"]     [data-detail="co2"]     .card-num,
+  .ahu-control[data-locked="fire"]    [data-detail="fire"]    .card-num,
+  .ahu-control[data-locked="airflow"] [data-detail="airflow"] .card-num,
+  .ahu-control[data-locked="filter"]  [data-detail="filter"]  .card-num { color: #A3E635; }
+
+  /* Detail panel swap */
+  .ahu-control .detail-panel { display: none; }
+  .ahu-control .detail-panel.is-active { display: block; animation: fadePanel .25s ease; }
+  @keyframes fadePanel { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* Sequence playback — 動作流程閃光 */
+  @keyframes sequencePulse {
+    0%, 100% { filter: none; }
+    40%      { filter: drop-shadow(0 0 14px rgba(163,230,53,.95)) drop-shadow(0 0 6px rgba(163,230,53,.8)); }
+  }
+  .ahu-control svg .sequence-pulse circle,
+  .ahu-control svg .sequence-pulse rect,
+  .ahu-control svg .sequence-pulse line,
+  .ahu-control svg .sequence-pulse path {
+    animation: sequencePulse 1.4s ease-in-out;
+  }
+  .ahu-control .seq-stage {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(163,230,53,.06);
+    border: 1px solid rgba(163,230,53,.25);
+    border-radius: 10px;
+    min-height: 64px;
+    transition: opacity .3s;
+  }
+  .ahu-control .seq-step-num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #A3E635;
+    color: #0a0a0a;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 22px;
+    margin-right: 10px;
+    vertical-align: middle;
+    font-family: "SF Mono", monospace;
+  }
+  .ahu-control .seq-step-text {
+    font-size: 13px;
+    color: #f5f5f7;
+    vertical-align: middle;
+  }
+  .ahu-control .seq-progress {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+  }
+  .ahu-control .seq-dot {
+    height: 3px;
+    flex: 1;
+    background: rgba(255,255,255,.08);
+    border-radius: 2px;
+    transition: background .3s;
+  }
+  .ahu-control .seq-dot.done { background: #A3E635; }
+  .ahu-control .seq-dot.active { background: #FB923C; box-shadow: 0 0 8px rgba(251,146,60,.6); }
+  .ahu-control .seq-play {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+    background: #A3E635; color: #0a0a0a;
+    border: none; border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    transition: transform .15s, background .2s;
+  }
+  .ahu-control .seq-play:hover { background: #C4F757; transform: translateX(2px); }
+  .ahu-control .seq-play:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+  /* System selector tab bar */
+  .ahu-control .sys-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    font-size: 11px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 7px;
+    background: rgba(10,10,12,1);
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: border-color .2s ease, background-color .2s ease, color .2s ease;
+    font-family: inherit;
+  }
+  .ahu-control .sys-tab:hover:not(:disabled) {
+    border-color: rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.9);
+  }
+  .ahu-control .sys-tab.is-active {
+    background: rgba(163,230,53,0.08);
+    border-color: rgba(163,230,53,0.55);
+    color: #A3E635;
+    font-weight: 600;
+  }
+  .ahu-control .sys-tab:disabled {
+    opacity: 0.32;
+    cursor: not-allowed;
+  }
+  .ahu-control .sys-tab .sys-code {
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.1em;
+  }
+  .ahu-control .sys-tab.is-active .sys-code { color: rgba(163,230,53,0.6); }
+</style>
+</head>
+<body class="snap-y">
+
+<!-- ─────────────────────────  Top Nav  ───────────────────────── -->
+<nav class="fixed top-4 left-1/2 -translate-x-1/2 z-50 nav-pill rounded-full px-2 py-1.5 flex gap-1 text-xs">
+  <a href="#hero"     class="px-3 py-1.5 rounded-full hover:bg-white/10">總覽</a>
+  <a href="#campus"   class="px-3 py-1.5 rounded-full hover:bg-white/10">廠區</a>
+  <a href="#a"        class="px-3 py-1.5 rounded-full hover:bg-white/10">A 棟</a>
+  <a href="#b"        class="px-3 py-1.5 rounded-full hover:bg-white/10">B 棟</a>
+  <a href="#c"        class="px-3 py-1.5 rounded-full hover:bg-white/10">C 棟</a>
+  <a href="#d"        class="px-3 py-1.5 rounded-full hover:bg-white/10">D 棟</a>
+  <a href="#e"        class="px-3 py-1.5 rounded-full hover:bg-white/10">E 棟</a>
+  <a href="#specs"    class="px-3 py-1.5 rounded-full hover:bg-white/10">總規格</a>
+</nav>
+
+<!-- ─────────────────────────  HERO  ───────────────────────── -->
+<section id="hero" class="snap-section min-h-screen flex flex-col items-center justify-center text-center grid-bg relative overflow-hidden">
+  <div class="absolute inset-0 gradient-fade-bottom pointer-events-none"></div>
+  <p class="text-xs tracking-[0.4em] text-zinc-400 mb-6 reveal">QING&nbsp;HE&nbsp;SEMICONDUCTOR · LU&nbsp;ZHU&nbsp;FAB</p>
+  <h1 class="text-6xl md:text-8xl font-semibold tracking-tight reveal">
+    一座工廠的<br>
+    <span class="bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">空氣，重新被設計。</span>
+  </h1>
+  <p class="mt-8 text-zinc-400 max-w-xl text-lg reveal">5 棟建築。5 種空調策略。一致的能源語言。</p>
+  <div class="mt-10 flex gap-3 reveal">
+    <span class="chip">Class 1000 Cleanroom</span>
+    <span class="chip">1,200 RT 中央冰水</span>
+    <span class="chip">EUI &lt; 280</span>
+  </div>
+  <div class="absolute bottom-10 text-zinc-600 text-xs animate-bounce">向下捲動 ↓</div>
+</section>
+
+<!-- ─────────────────────────  Campus Iso View  ───────────────────────── -->
+<section id="campus" class="snap-section min-h-screen flex flex-col items-center justify-center px-6 py-24">
+  <p class="text-xs tracking-[0.3em] text-zinc-500 mb-3 reveal">廠 區 配 置</p>
+  <h2 class="text-4xl md:text-6xl font-semibold tracking-tight reveal mb-12">五棟，各司其職。</h2>
+
+  <div class="reveal w-full max-w-5xl">
+    <svg viewBox="0 0 900 480" class="w-full">
+      <!-- ground grid -->
+      <g stroke="#222" stroke-width="0.8">
+        <path d="M 100 380 L 800 380 L 880 320 L 180 320 Z" fill="#0a0a0a"/>
+        <path d="M 100 380 L 800 380" />
+        <path d="M 180 320 L 880 320" />
+        <path d="M 100 380 L 180 320" />
+        <path d="M 800 380 L 880 320" />
+      </g>
+
+      <!-- A 棟 Fab (large central) -->
+      <g class="cursor-pointer" onclick="document.getElementById('a').scrollIntoView()">
+        <path d="M 360 360 L 600 360 L 640 326 L 400 326 Z" fill="#1a1a1d" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 360 360 L 360 240 L 400 206 L 400 326" fill="#0d0d0f" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 600 360 L 600 240 L 640 206 L 640 326" fill="#15151a" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 360 240 L 600 240 L 640 206 L 400 206 Z" fill="#1f1f24" stroke="#f5f5f7" stroke-width="1.2"/>
+        <!-- roof MAUs -->
+        <rect x="430" y="190" width="40" height="14" fill="#2a2a30" stroke="#f5f5f7" stroke-width="1"/>
+        <rect x="490" y="190" width="40" height="14" fill="#2a2a30" stroke="#f5f5f7" stroke-width="1"/>
+        <rect x="550" y="190" width="40" height="14" fill="#2a2a30" stroke="#f5f5f7" stroke-width="1"/>
+        <text x="500" y="296" text-anchor="middle" class="pid-label" style="font-size:14px;font-weight:600">A · FAB</text>
+      </g>
+
+      <!-- B 棟 Office (back-left, taller) -->
+      <g class="cursor-pointer" onclick="document.getElementById('b').scrollIntoView()">
+        <path d="M 200 320 L 320 320 L 360 286 L 240 286 Z" fill="#1a1a1d" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 200 320 L 200 160 L 240 126 L 240 286" fill="#0d0d0f" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 320 320 L 320 160 L 360 126 L 360 286" fill="#15151a" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 200 160 L 320 160 L 360 126 L 240 126 Z" fill="#1f1f24" stroke="#f5f5f7" stroke-width="1.2"/>
+        <!-- glass facade lines -->
+        <g stroke="#3a3a44" stroke-width="0.8">
+          <path d="M 200 200 L 320 200"/>
+          <path d="M 200 240 L 320 240"/>
+          <path d="M 200 280 L 320 280"/>
+          <path d="M 240 320 L 240 160"/>
+          <path d="M 280 320 L 280 160"/>
+        </g>
+        <text x="265" y="244" text-anchor="middle" class="pid-label" style="font-size:13px;font-weight:600">B · OFFICE</text>
+      </g>
+
+      <!-- C 棟 Warehouse (front-right, low long) -->
+      <g class="cursor-pointer" onclick="document.getElementById('c').scrollIntoView()">
+        <path d="M 660 380 L 820 380 L 860 346 L 700 346 Z" fill="#1a1a1d" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 660 380 L 660 320 L 700 286 L 700 346" fill="#0d0d0f" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 820 380 L 820 320 L 860 286 L 860 346" fill="#15151a" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 660 320 L 820 320 L 860 286 L 700 286 Z" fill="#1f1f24" stroke="#f5f5f7" stroke-width="1.2"/>
+        <!-- loading docks -->
+        <rect x="690" y="356" width="12" height="20" fill="#000" stroke="#f5f5f7" stroke-width="0.8"/>
+        <rect x="715" y="356" width="12" height="20" fill="#000" stroke="#f5f5f7" stroke-width="0.8"/>
+        <rect x="740" y="356" width="12" height="20" fill="#000" stroke="#f5f5f7" stroke-width="0.8"/>
+        <text x="755" y="338" text-anchor="middle" class="pid-label" style="font-size:12px;font-weight:600">C · WAREHOUSE</text>
+      </g>
+
+      <!-- D 棟 Utility (back-right) -->
+      <g class="cursor-pointer" onclick="document.getElementById('d').scrollIntoView()">
+        <path d="M 680 320 L 800 320 L 840 286 L 720 286 Z" fill="#1a1a1d" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 680 320 L 680 220 L 720 186 L 720 286" fill="#0d0d0f" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 800 320 L 800 220 L 840 186 L 840 286" fill="#15151a" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 680 220 L 800 220 L 840 186 L 720 186 Z" fill="#1f1f24" stroke="#f5f5f7" stroke-width="1.2"/>
+        <!-- cooling towers -->
+        <ellipse cx="730" cy="180" rx="14" ry="5" fill="#2a2a30" stroke="#f5f5f7" stroke-width="1"/>
+        <rect x="716" y="160" width="28" height="20" fill="#1a1a1d" stroke="#f5f5f7" stroke-width="1"/>
+        <ellipse cx="730" cy="160" rx="14" ry="5" fill="#0d0d0f" stroke="#f5f5f7" stroke-width="1"/>
+        <ellipse cx="790" cy="180" rx="14" ry="5" fill="#2a2a30" stroke="#f5f5f7" stroke-width="1"/>
+        <rect x="776" y="160" width="28" height="20" fill="#1a1a1d" stroke="#f5f5f7" stroke-width="1"/>
+        <ellipse cx="790" cy="160" rx="14" ry="5" fill="#0d0d0f" stroke="#f5f5f7" stroke-width="1"/>
+        <text x="760" y="258" text-anchor="middle" class="pid-label" style="font-size:12px;font-weight:600">D · UTILITY</text>
+      </g>
+
+      <!-- E 棟 Welfare (front-left) -->
+      <g class="cursor-pointer" onclick="document.getElementById('e').scrollIntoView()">
+        <path d="M 140 380 L 280 380 L 320 346 L 180 346 Z" fill="#1a1a1d" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 140 380 L 140 286 L 180 252 L 180 346" fill="#0d0d0f" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 280 380 L 280 286 L 320 252 L 320 346" fill="#15151a" stroke="#f5f5f7" stroke-width="1.2"/>
+        <path d="M 140 286 L 280 286 L 320 252 L 180 252 Z" fill="#1f1f24" stroke="#f5f5f7" stroke-width="1.2"/>
+        <text x="220" y="338" text-anchor="middle" class="pid-label" style="font-size:12px;font-weight:600">E · WELFARE</text>
+      </g>
+
+      <!-- compass -->
+      <g transform="translate(60,60)" stroke="#666" fill="#666">
+        <circle r="20" fill="none"/>
+        <path d="M 0 -16 L 4 0 L 0 16 L -4 0 Z" fill="#f5f5f7" stroke="none"/>
+        <text x="0" y="-26" text-anchor="middle" font-size="11" fill="#f5f5f7">N</text>
+      </g>
+    </svg>
+  </div>
+
+  <p class="text-zinc-400 text-sm mt-6 reveal">點擊棟別進入細節</p>
+</section>
+
+<!-- ─────────────────────────  Building Section Template Macro  ───────────────────────── -->
+
+<!-- A棟 FAB -->
+<section id="a" class="snap-section min-h-screen px-6 md:px-16 py-24 border-t border-white/5">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex items-baseline gap-4 mb-2 reveal">
+      <span class="text-zinc-500 text-sm tracking-[0.3em]">BUILDING&nbsp;A</span>
+      <span class="chip">最高等級</span>
+    </div>
+    <h2 class="text-5xl md:text-7xl font-semibold tracking-tight reveal">FAB 主廠房</h2>
+    <p class="text-zinc-400 mt-4 max-w-2xl reveal">Class 1000 cleanroom。±0.5°C 恆溫、±5%RH 恆濕。<br>外氣處理 → 乾盤管降溫 → FFU 高速循環 → 製程排氣。</p>
+
+    <div class="grid md:grid-cols-3 gap-10 mt-16 reveal">
+      <!-- 外觀 -->
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">外 觀</p>
+        <svg viewBox="0 0 240 200" class="w-full">
+          <path d="M 30 180 L 210 180 L 210 60 L 30 60 Z" class="pid-fill"/>
+          <!-- window grid -->
+          <g stroke="#3a3a44" stroke-width="0.8">
+            <path d="M 30 90 L 210 90"/>
+            <path d="M 30 120 L 210 120"/>
+            <path d="M 30 150 L 210 150"/>
+            <path d="M 70 60 L 70 180"/>
+            <path d="M 110 60 L 110 180"/>
+            <path d="M 150 60 L 150 180"/>
+            <path d="M 180 60 L 180 180"/>
+          </g>
+          <!-- roof MAUs -->
+          <rect x="50" y="44" width="22" height="16" class="pid-fill"/>
+          <rect x="80" y="44" width="22" height="16" class="pid-fill"/>
+          <rect x="110" y="44" width="22" height="16" class="pid-fill"/>
+          <rect x="140" y="44" width="22" height="16" class="pid-fill"/>
+          <!-- exhaust stacks -->
+          <rect x="180" y="30" width="8" height="30" class="pid-fill"/>
+          <rect x="195" y="30" width="8" height="30" class="pid-fill"/>
+          <text x="120" y="195" text-anchor="middle" class="pid-label">4F · 18,000 m²</text>
+        </svg>
+      </div>
+
+      <!-- 設備 -->
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">設 備</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>MAU 外氣處理機</span><span class="text-zinc-400">×4 / 80,000 CMH</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>DCC 乾盤管</span><span class="text-zinc-400">×16 區</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>FFU 風機過濾單元</span><span class="text-zinc-400">×2,400</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>製程排氣 Scrubber</span><span class="text-zinc-400">酸/鹼/VOC ×3</span></li>
+          <li class="flex justify-between"><span>HEPA 濾網等級</span><span class="text-zinc-400">H14 (99.995%)</span></li>
+        </ul>
+      </div>
+
+      <!-- 數據 -->
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">數 據</p>
+        <div class="space-y-6">
+          <div><div class="hero-num text-5xl font-semibold">600 <span class="text-2xl text-zinc-500">RT</span></div><div class="text-xs text-zinc-500 mt-1">冷凍能力</div></div>
+          <div><div class="hero-num text-5xl font-semibold">320k <span class="text-2xl text-zinc-500">CMH</span></div><div class="text-xs text-zinc-500 mt-1">外氣風量</div></div>
+          <div><div class="hero-num text-5xl font-semibold">±0.5 <span class="text-2xl text-zinc-500">°C</span></div><div class="text-xs text-zinc-500 mt-1">控溫精度</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P&ID -->
+    <div class="mt-20 reveal">
+      <p class="text-xs text-zinc-500 mb-3">P & I D</p>
+      <div class="border border-white/10 rounded-2xl p-6 md:p-10 bg-zinc-950">
+        <svg viewBox="0 0 900 360" class="w-full">
+          <!-- OA inlet -->
+          <g class="pid-fill">
+            <text x="40" y="50" class="pid-label">OA</text>
+            <path class="pid-stroke" d="M 30 60 L 80 60"/>
+            <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 80 60 L 140 60"/>
+          </g>
+          <!-- MAU -->
+          <rect x="140" y="40" width="80" height="40" class="pid-fill"/>
+          <text x="180" y="65" text-anchor="middle" class="pid-label">MAU</text>
+          <circle cx="180" cy="100" r="10" class="pid-tag"/><text x="180" y="103" text-anchor="middle" class="pid-label" style="font-size:9px">A-101</text>
+          <!-- supply duct -->
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 220 60 L 320 60 L 320 160"/>
+          <!-- DCC -->
+          <rect x="280" y="160" width="80" height="40" class="pid-fill"/>
+          <text x="320" y="185" text-anchor="middle" class="pid-label">DCC</text>
+          <!-- chilled water in/out to DCC -->
+          <path class="pid-stroke flow" stroke="var(--pipe-chws)" d="M 240 180 L 280 180"/>
+          <text x="232" y="174" class="pid-label" style="font-size:9px">CHWS 7°C</text>
+          <path class="pid-stroke flow" stroke="var(--pipe-chwr)" d="M 360 180 L 400 180"/>
+          <text x="408" y="184" class="pid-label" style="font-size:9px">CHWR 13°C</text>
+          <!-- FFU array -->
+          <g>
+            <rect x="500" y="120" width="280" height="20" class="pid-fill"/>
+            <text x="640" y="135" text-anchor="middle" class="pid-label">FFU ARRAY · 2,400 units</text>
+          </g>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 320 200 L 320 240 L 500 240 L 500 140"/>
+          <!-- cleanroom space -->
+          <rect x="500" y="160" width="280" height="100" fill="none" stroke="#444" stroke-dasharray="4 4"/>
+          <text x="640" y="215" text-anchor="middle" class="pid-label" style="fill:#666">Class 1000 Cleanroom</text>
+          <!-- return -->
+          <path class="pid-stroke" d="M 780 220 L 820 220 L 820 60 L 240 60 L 240 80"/>
+          <text x="788" y="216" class="pid-label" style="font-size:9px">RA</text>
+          <!-- process exhaust -->
+          <rect x="500" y="290" width="80" height="34" class="pid-fill"/>
+          <text x="540" y="312" text-anchor="middle" class="pid-label">SCRUBBER</text>
+          <path class="pid-stroke flow" stroke="var(--pipe-exh)" d="M 600 260 L 600 290"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-exh)" d="M 580 290 L 540 290"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-exh)" d="M 580 307 L 700 307 L 700 250"/>
+          <text x="708" y="240" class="pid-label" style="font-size:9px">STACK ↑</text>
+          <!-- legend -->
+          <g transform="translate(30 320)">
+            <line x1="0" y1="0" x2="20" y2="0" class="pid-stroke" stroke="var(--pipe-mau)"/>
+            <text x="26" y="3" class="pid-label">MAKE-UP AIR</text>
+            <line x1="120" y1="0" x2="140" y2="0" class="pid-stroke" stroke="var(--pipe-chws)"/>
+            <text x="146" y="3" class="pid-label">CHW</text>
+            <line x1="190" y1="0" x2="210" y2="0" class="pid-stroke" stroke="var(--pipe-exh)"/>
+            <text x="216" y="3" class="pid-label">PROCESS EXH</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- B棟 OFFICE -->
+<section id="b" class="snap-section min-h-screen px-6 md:px-16 py-24 border-t border-white/5">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex items-baseline gap-4 mb-2 reveal">
+      <span class="text-zinc-500 text-sm tracking-[0.3em]">BUILDING&nbsp;B</span>
+      <span class="chip">舒適空調</span>
+    </div>
+    <h2 class="text-5xl md:text-7xl font-semibold tracking-tight reveal">行政研發大樓</h2>
+    <p class="text-zinc-400 mt-4 max-w-2xl reveal">8 層辦公空間。離心式冰水主機 → AHU 處理外氣 → VAV 分區送風 → FCU 補偏差。<br>全熱交換器回收 70% 排氣能量。</p>
+
+    <div class="grid md:grid-cols-3 gap-10 mt-16 reveal">
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">外 觀</p>
+        <svg viewBox="0 0 240 200" class="w-full">
+          <path d="M 60 180 L 180 180 L 180 30 L 60 30 Z" class="pid-fill"/>
+          <g stroke="#3a3a44" stroke-width="0.8">
+            <path d="M 60 50 L 180 50"/><path d="M 60 70 L 180 70"/><path d="M 60 90 L 180 90"/>
+            <path d="M 60 110 L 180 110"/><path d="M 60 130 L 180 130"/><path d="M 60 150 L 180 150"/>
+            <path d="M 60 170 L 180 170"/>
+            <path d="M 90 30 L 90 180"/><path d="M 120 30 L 120 180"/><path d="M 150 30 L 150 180"/>
+          </g>
+          <!-- entry canopy -->
+          <rect x="100" y="170" width="40" height="10" class="pid-fill"/>
+          <text x="120" y="195" text-anchor="middle" class="pid-label">8F · 6,000 m²</text>
+        </svg>
+      </div>
+
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">設 備</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>離心式冰水主機</span><span class="text-zinc-400">600 RT ×2</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>冷卻水塔</span><span class="text-zinc-400">800 RT ×2</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>AHU 空調箱</span><span class="text-zinc-400">×8（每層 1 台）</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>VAV 變風量箱</span><span class="text-zinc-400">×96</span></li>
+          <li class="flex justify-between"><span>全熱交換器 ERV</span><span class="text-zinc-400">×8 / 70% 回收</span></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">數 據</p>
+        <div class="space-y-6">
+          <div><div class="hero-num text-5xl font-semibold">1,200 <span class="text-2xl text-zinc-500">RT</span></div><div class="text-xs text-zinc-500 mt-1">中央冷源</div></div>
+          <div><div class="hero-num text-5xl font-semibold">48k <span class="text-2xl text-zinc-500">CMH</span></div><div class="text-xs text-zinc-500 mt-1">總外氣量</div></div>
+          <div><div class="hero-num text-5xl font-semibold">0.58 <span class="text-2xl text-zinc-500">kW/RT</span></div><div class="text-xs text-zinc-500 mt-1">主機 IPLV</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-20 reveal">
+      <p class="text-xs text-zinc-500 mb-3">P & I D</p>
+      <div class="border border-white/10 rounded-2xl p-6 md:p-10 bg-zinc-950">
+        <svg viewBox="0 0 900 380" class="w-full">
+          <!-- Cooling tower -->
+          <g>
+            <rect x="40" y="40" width="80" height="60" class="pid-fill"/>
+            <text x="80" y="75" text-anchor="middle" class="pid-label">CT-01</text>
+            <path d="M 60 40 Q 60 28 80 28 Q 100 28 100 40" class="pid-stroke"/>
+          </g>
+          <!-- Cooling water loop -->
+          <path class="pid-stroke flow" stroke="var(--pipe-cws)" d="M 60 100 L 60 160 L 200 160"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-cwr)" d="M 100 100 L 100 140 L 200 140"/>
+          <text x="40" y="135" class="pid-label" style="font-size:9px">CWS</text>
+          <text x="40" y="178" class="pid-label" style="font-size:9px">CWR</text>
+          <!-- Chiller -->
+          <rect x="200" y="120" width="120" height="60" class="pid-fill"/>
+          <text x="260" y="155" text-anchor="middle" class="pid-label">CHILLER 600 RT</text>
+          <circle cx="260" cy="200" r="10" class="pid-tag"/><text x="260" y="203" text-anchor="middle" class="pid-label" style="font-size:9px">B-201</text>
+          <!-- Pump CHWP -->
+          <circle cx="380" cy="160" r="14" class="pid-fill"/>
+          <path d="M 366 160 L 380 152 L 380 168 Z" fill="#f5f5f7"/>
+          <text x="380" y="190" text-anchor="middle" class="pid-label" style="font-size:9px">CHWP</text>
+          <!-- chilled water to AHUs -->
+          <path class="pid-stroke flow" stroke="var(--pipe-chws)" d="M 320 150 L 366 150 L 366 160"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-chws)" d="M 394 160 L 480 160"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-chwr)" d="M 480 180 L 320 180"/>
+          <!-- AHU stack -->
+          <g>
+            <rect x="480" y="60" width="100" height="40" class="pid-fill"/><text x="530" y="84" text-anchor="middle" class="pid-label">AHU-8F</text>
+            <rect x="480" y="120" width="100" height="40" class="pid-fill"/><text x="530" y="144" text-anchor="middle" class="pid-label">AHU-7F</text>
+            <rect x="480" y="180" width="100" height="40" class="pid-fill"/><text x="530" y="204" text-anchor="middle" class="pid-label">AHU-…</text>
+            <text x="530" y="240" text-anchor="middle" class="pid-label" style="fill:#666">×8 typ.</text>
+          </g>
+          <!-- VAV / FCU symbols on right -->
+          <g transform="translate(640 60)">
+            <rect width="60" height="20" class="pid-fill"/><text x="30" y="14" text-anchor="middle" class="pid-label" style="font-size:9px">VAV</text>
+            <rect y="40" width="60" height="20" class="pid-fill"/><text x="30" y="54" text-anchor="middle" class="pid-label" style="font-size:9px">VAV</text>
+            <rect y="80" width="60" height="20" class="pid-fill"/><text x="30" y="94" text-anchor="middle" class="pid-label" style="font-size:9px">VAV</text>
+            <rect y="120" width="60" height="20" class="pid-fill"/><text x="30" y="134" text-anchor="middle" class="pid-label" style="font-size:9px">VAV</text>
+          </g>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 580 80 L 640 80"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 580 140 L 640 140"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 580 200 L 620 200 L 620 220 L 640 220"/>
+          <!-- ERV -->
+          <rect x="760" y="120" width="100" height="40" class="pid-fill"/>
+          <text x="810" y="144" text-anchor="middle" class="pid-label">ERV (70%)</text>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 700 80 L 800 80 L 800 120"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-exh)" d="M 760 140 L 720 140 L 720 280 L 200 280"/>
+          <text x="180" y="284" text-anchor="end" class="pid-label" style="font-size:9px">EA →</text>
+
+          <!-- legend -->
+          <g transform="translate(30 340)">
+            <line x1="0" y1="0" x2="20" y2="0" class="pid-stroke" stroke="var(--pipe-chws)"/>
+            <text x="26" y="3" class="pid-label">CHW SUPPLY</text>
+            <line x1="120" y1="0" x2="140" y2="0" class="pid-stroke" stroke="var(--pipe-chwr)"/>
+            <text x="146" y="3" class="pid-label">CHW RETURN</text>
+            <line x1="240" y1="0" x2="260" y2="0" class="pid-stroke" stroke="var(--pipe-cws)"/>
+            <text x="266" y="3" class="pid-label">COND WATER</text>
+            <line x1="360" y1="0" x2="380" y2="0" class="pid-stroke" stroke="var(--pipe-mau)"/>
+            <text x="386" y="3" class="pid-label">SUPPLY AIR</text>
+            <line x1="460" y1="0" x2="480" y2="0" class="pid-stroke" stroke="var(--pipe-exh)"/>
+            <text x="486" y="3" class="pid-label">EXHAUST</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ─────────  AHU 控制邏輯（單台 typical）  ───────── -->
+    <div class="mt-24 reveal ahu-control">
+
+      <!-- ============ 系統選擇器：12 個預設系統模板 ============ -->
+      <div class="mb-8 pb-6 border-b border-white/5">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-3">
+          <p class="text-[10px] text-zinc-500 tracking-[0.3em] uppercase">系統模板 · 12 個</p>
+          <p class="text-[10px] text-zinc-600 font-mono">1 ready · 11 開發中</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button class="sys-tab is-active" title="行政辦公空調機 · 已完成">
+            <span class="sys-code">A1</span>B-AHU
+          </button>
+          <button class="sys-tab" disabled title="100% 外氣機 · 潔淨室 / 製程">
+            <span class="sys-code">A2</span>MAU
+          </button>
+          <button class="sys-tab" disabled title="風機盤管 · 小區域空調">
+            <span class="sys-code">A3</span>FCU
+          </button>
+          <button class="sys-tab" disabled title="變風量分區控制">
+            <span class="sys-code">A4</span>VAV
+          </button>
+          <button class="sys-tab" disabled title="一般作業區進排氣換氣">
+            <span class="sys-code">A5</span>進排氣
+          </button>
+          <button class="sys-tab" disabled title="高位水箱 + 加壓泵">
+            <span class="sys-code">B1</span>給水
+          </button>
+          <button class="sys-tab" disabled title="重力 / 排水泵">
+            <span class="sys-code">B2</span>排水
+          </button>
+          <button class="sys-tab" disabled title="三段式化糞池 + 過濾床">
+            <span class="sys-code">B3</span>化糞池
+          </button>
+          <button class="sys-tab" disabled title="沉沙井 + 雙泵備援">
+            <span class="sys-code">B4</span>廢水泵
+          </button>
+          <button class="sys-tab" disabled title="循環過濾 + UV + 化學監控">
+            <span class="sys-code">B5</span>生態池
+          </button>
+          <button class="sys-tab" disabled title="多衛浴共管排氣">
+            <span class="sys-code">C1</span>廁所排氣
+          </button>
+          <button class="sys-tab" disabled title="走道排煙 / 樓梯加壓 / 防煙閘門">
+            <span class="sys-code">C2</span>消防排煙
+          </button>
+        </div>
+      </div>
+
+      <!-- Section header：標題 + metadata stats（工程圖紙風） -->
+      <div class="flex items-end justify-between mb-8 flex-wrap gap-6 pb-6 border-b border-white/10">
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="inline-block w-1 h-4 bg-white/40"></span>
+            <p class="text-[11px] text-zinc-400 tracking-[0.32em] uppercase">AHU Control System</p>
+            <span class="chip">BACnet/IP</span>
+          </div>
+          <h3 class="text-3xl md:text-5xl font-semibold tracking-tight leading-[1.05]">
+            每一台 AHU<br><span class="text-zinc-500">都會自己決策</span>
+          </h3>
+        </div>
+        <div class="grid grid-cols-4 gap-x-8 gap-y-2 text-right">
+          <div>
+            <p class="text-[10px] text-zinc-500 tracking-widest uppercase">控制迴路</p>
+            <p class="text-3xl font-semibold mt-1 hero-num">6</p>
+          </div>
+          <div>
+            <p class="text-[10px] text-zinc-500 tracking-widest uppercase">監測點</p>
+            <p class="text-3xl font-semibold mt-1 hero-num">11</p>
+          </div>
+          <div>
+            <p class="text-[10px] text-zinc-500 tracking-widest uppercase">控制器</p>
+            <p class="text-base font-semibold mt-2">Honeywell</p>
+            <p class="text-[10px] text-zinc-500 font-mono">Niagara&nbsp;4</p>
+          </div>
+          <div>
+            <p class="text-[10px] text-zinc-500 tracking-widest uppercase">機型</p>
+            <p class="text-base font-semibold mt-2 font-mono">B-AHU</p>
+            <p class="text-[10px] text-zinc-500">每層 1 台</p>
+          </div>
+        </div>
+      </div>
+      <p class="text-zinc-400 mt-1 max-w-3xl text-sm leading-relaxed">行政研發大樓 8F · 風管靜壓 / 出風溫度 / 二氧化碳 三軸獨立閉環；火警警報 / 外氣風量 / 濾網壓差 安全與保養監測。所有警報、運轉時數、調適參數均由中央 BA Controller 集中管理。</p>
+      <p class="text-[10px] text-zinc-600 mt-3 font-mono">▸ 點卡片或元件 → 鎖定該迴路 &nbsp;·&nbsp; hover 元件 → 顯示廠牌型號 &nbsp;·&nbsp; 按 ✎ Edit → 進入編輯模式</p>
+
+      <!-- ============ 互動主面板：左側功能卡 vertical list + 右側 P&ID + Detail Stage ============ -->
+      <div class="grid lg:grid-cols-[300px_1fr] gap-5 mt-10 items-start">
+
+        <!-- LEFT：6 功能卡 vertical list -->
+        <aside class="space-y-2 lg:sticky lg:top-20">
+          <p class="text-[10px] text-zinc-500 tracking-widest uppercase mb-3 px-1">控制功能 · 點選查看詳情</p>
+
+          <div data-trigger="static" data-detail="static" class="card-row">
+            <span class="card-num">01</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold tracking-tight">SA 風管靜壓</p>
+              <p class="text-[10px] text-zinc-500 font-mono mt-0.5">PDT → VFD · PI control</p>
+            </div>
+            <span class="card-arrow">›</span>
+          </div>
+
+          <div data-trigger="temp" data-detail="temp" class="card-row">
+            <span class="card-num">02</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold tracking-tight">SA 出風溫度</p>
+              <p class="text-[10px] text-zinc-500 font-mono mt-0.5">TT → MV · 4 modes</p>
+            </div>
+            <span class="card-arrow">›</span>
+          </div>
+
+          <div data-trigger="co2" data-detail="co2" class="card-row">
+            <span class="card-num">03</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold tracking-tight">SA 二氧化碳</p>
+              <p class="text-[10px] text-zinc-500 font-mono mt-0.5">CO2 → DM · IAQ</p>
+            </div>
+            <span class="card-arrow">›</span>
+          </div>
+
+          <div data-trigger="fire" data-detail="fire" class="card-row">
+            <span class="card-num">04</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold tracking-tight">火警警報</p>
+              <p class="text-[10px] text-zinc-500 font-mono mt-0.5">SD ↔ FIRE · NFPA 90A</p>
+            </div>
+            <span class="card-arrow">›</span>
+          </div>
+
+          <div data-trigger="airflow" data-detail="airflow" class="card-row">
+            <span class="card-num">05</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold tracking-tight">外氣風量換算</p>
+              <p class="text-[10px] text-zinc-500 font-mono mt-0.5">FS → CMH · 節能依據</p>
+            </div>
+            <span class="card-arrow">›</span>
+          </div>
+
+          <div data-trigger="filter" data-detail="filter" class="card-row">
+            <span class="card-num">06</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold tracking-tight">濾網壓差</p>
+              <p class="text-[10px] text-zinc-500 font-mono mt-0.5">ΔP → 保養警報</p>
+            </div>
+            <span class="card-arrow">›</span>
+          </div>
+        </aside>
+
+        <!-- RIGHT：P&ID + Detail Stage -->
+        <main class="space-y-5 min-w-0">
+
+          <!-- 2. AHU 控制 P&ID 細節圖 -->
+          <div class="border border-white/10 rounded-2xl bg-zinc-950 overflow-hidden">
+        <!-- P&ID 圖紙 header bar（工程圖標準框格） -->
+        <div class="flex items-center justify-between px-6 md:px-10 py-4 border-b border-white/10 bg-black/40">
+          <div class="flex items-center gap-4">
+            <p class="text-xs text-zinc-300 font-semibold tracking-[0.32em] uppercase">P&amp;ID</p>
+            <span class="text-zinc-700">/</span>
+            <p class="text-[11px] text-zinc-400 tracking-wide">AHU INTERNAL — Single Unit Typical</p>
+          </div>
+          <div class="hidden md:flex items-center gap-5 text-[10px] text-zinc-500 font-mono tracking-wider">
+            <span><span class="text-zinc-600">DWG</span> &nbsp;B-AHU-XF</span>
+            <span class="text-zinc-700">|</span>
+            <span><span class="text-zinc-600">REV</span> &nbsp;03</span>
+            <span class="text-zinc-700">|</span>
+            <span><span class="text-zinc-600">DATE</span> &nbsp;2026·05·12</span>
+            <span class="text-zinc-700">|</span>
+            <span><span class="text-zinc-600">SCALE</span> &nbsp;NTS</span>
+          </div>
+        </div>
+        <div class="p-6 md:p-10">
+        <svg viewBox="0 0 900 520" class="w-full">
+          <!-- ============ clipPath：訊號線經過設備/風管時自動隱藏（hidden line 慣例）============ -->
+          <defs>
+            <clipPath id="hideUnderEq" clipPathUnits="userSpaceOnUse">
+              <path fill-rule="evenodd" d="
+                M 0 0 H 900 V 520 H 0 Z
+                M 200 160 H 740 V 320 H 200 Z
+                M 42 222 H 128 V 258 H 42 Z
+                M 130 220 H 170 V 260 H 130 Z
+                M 744 222 H 875 V 258 H 744 Z
+                M 420 380 H 480 V 415 H 420 Z
+                M 380 445 H 580 V 485 H 380 Z
+                M 780 448 H 860 V 483 H 780 Z
+              "/>
+            </clipPath>
+          </defs>
+
+          <!-- ============ AHU 殼體（雙皮夾層 + 內部段隔 + 底座基腳）============ -->
+          <!-- 主殼體 -->
+          <rect x="200" y="160" width="540" height="160" fill="#0a0a0a" stroke="#f5f5f7" stroke-width="1.4"/>
+          <!-- 雙皮隔熱層 (50mm PUR foam hint) -->
+          <rect x="204" y="164" width="532" height="152" fill="none" stroke="#666" stroke-width="0.6" stroke-dasharray="2 3"/>
+          <!-- 段隔板 (filter / coil / fan 隔開) -->
+          <line x1="250" y1="164" x2="250" y2="316" stroke="#444" stroke-width="0.7" stroke-dasharray="3 3"/>
+          <line x1="365" y1="164" x2="365" y2="316" stroke="#444" stroke-width="0.7" stroke-dasharray="3 3"/>
+          <line x1="500" y1="164" x2="500" y2="316" stroke="#444" stroke-width="0.7" stroke-dasharray="3 3"/>
+          <!-- 底座基腳 -->
+          <rect x="200" y="320" width="540" height="8" fill="#1a1a1a" stroke="#f5f5f7" stroke-width="1.2"/>
+          <rect x="210" y="328" width="14" height="6" fill="#1a1a1a" stroke="#f5f5f7" stroke-width="0.8"/>
+          <rect x="716" y="328" width="14" height="6" fill="#1a1a1a" stroke="#f5f5f7" stroke-width="0.8"/>
+          <text x="732" y="315" text-anchor="end" class="pid-label" style="fill:#999;font-size:10px;letter-spacing:1px">AHU CASING</text>
+
+          <!-- 殼體內紫色 air flow（接續 OA → DM → Filter → Coil → Fan → SA） -->
+          <g stroke="var(--pipe-mau)" stroke-width="1.4" stroke-opacity="0.85" fill="none">
+            <path class="flow" d="M 200 240 L 220 240"/>
+            <path class="flow" d="M 248 240 L 296 240"/>
+            <path class="flow" d="M 363 240 L 418 240"/>
+          </g>
+
+          <!-- ============ OA 入口風管（百葉 + 防鳥網 + 保溫風管 + 法蘭）============ -->
+          <text x="30" y="218" class="pid-label" style="fill:var(--pipe-mau)">OA · 外氣</text>
+          <!-- 外牆百葉 (weather louver)：垂直邊框 + 6 片斜葉 -->
+          <g stroke="var(--pipe-mau)" stroke-width="1.4" fill="none">
+            <rect x="20" y="222" width="14" height="36" fill="#0a0a0a"/>
+            <line x1="22" y1="230" x2="32" y2="227" stroke-width="1.2"/>
+            <line x1="22" y1="236" x2="32" y2="233" stroke-width="1.2"/>
+            <line x1="22" y1="242" x2="32" y2="239" stroke-width="1.2"/>
+            <line x1="22" y1="248" x2="32" y2="245" stroke-width="1.2"/>
+            <line x1="22" y1="254" x2="32" y2="251" stroke-width="1.2"/>
+          </g>
+          <!-- 防鳥網 (bird screen)：細網格 -->
+          <g stroke="var(--pipe-mau)" stroke-width="0.4" opacity="0.55">
+            <line x1="36" y1="224" x2="36" y2="256"/>
+            <line x1="40" y1="224" x2="40" y2="256"/>
+            <line x1="36" y1="230" x2="40" y2="230"/>
+            <line x1="36" y1="236" x2="40" y2="236"/>
+            <line x1="36" y1="242" x2="40" y2="242"/>
+            <line x1="36" y1="248" x2="40" y2="248"/>
+            <line x1="36" y1="254" x2="40" y2="254"/>
+          </g>
+          <!-- 保溫風管段（雙層線：外保溫 + 內鈑金）-->
+          <rect x="42" y="222" width="86" height="36" fill="#0a0a0a" stroke="var(--pipe-mau)" stroke-width="1.4"/>
+          <rect x="44" y="226" width="82" height="28" fill="none" stroke="var(--pipe-mau)" stroke-width="0.6" opacity="0.5" stroke-dasharray="2 2"/>
+          <!-- 兩道法蘭 (joint flange) -->
+          <line x1="74" y1="220" x2="74" y2="260" stroke="var(--pipe-mau)" stroke-width="2"/>
+          <line x1="104" y1="220" x2="104" y2="260" stroke="var(--pipe-mau)" stroke-width="2"/>
+          <!-- 風流方向箭頭 -->
+          <path class="flow" stroke="var(--pipe-mau)" stroke-width="1.6" fill="none" d="M 42 240 L 128 240"/>
+
+          <g data-loop="airflow" data-editable="FS">
+            <!-- 變送器外殼（六角形 + 蓋）-->
+            <rect x="80" y="180" width="20" height="14" rx="1.5" fill="#0a0a0a" stroke="var(--sensor)" stroke-width="1.4"/>
+            <line x1="80" y1="184" x2="100" y2="184" stroke="var(--sensor)" stroke-width="0.7"/>
+            <text x="90" y="190" text-anchor="middle" class="pid-label" style="font-size:8px;fill:var(--sensor);font-weight:600">FS</text>
+            <!-- 探針 stem + 葉輪 head 進 OA 風管 -->
+            <line x1="90" y1="194" x2="90" y2="234" stroke="var(--sensor)" stroke-width="1.4"/>
+            <circle cx="90" cy="238" r="3.5" fill="none" stroke="var(--sensor)" stroke-width="1"/>
+            <line x1="86.5" y1="238" x2="93.5" y2="238" stroke="var(--sensor)" stroke-width="0.6"/>
+            <line x1="90" y1="234.5" x2="90" y2="241.5" stroke="var(--sensor)" stroke-width="0.6"/>
+            <!-- 訊號線繞到 BA -->
+            <path stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2" fill="none"
+                  clip-path="url(#hideUnderEq)"
+                  d="M 100 187 L 110 187 L 110 480 L 380 480"/>
+          </g>
+
+          <!-- ============ DM 外氣風門（多葉片 + 連桿 + actuator）============ -->
+          <g data-loop="co2" data-editable="DM">
+            <!-- 殼體外框 + 法蘭 -->
+            <rect x="130" y="220" width="40" height="40" fill="#0a0a0a" stroke="var(--actuator)" stroke-width="1.6"/>
+            <line x1="128" y1="218" x2="128" y2="262" stroke="var(--actuator)" stroke-width="2.2"/>
+            <line x1="172" y1="218" x2="172" y2="262" stroke="var(--actuator)" stroke-width="2.2"/>
+            <!-- 6 片平行葉片 (45° 開啟) + 軸點 -->
+            <g stroke="var(--actuator)" stroke-width="1.6" stroke-linecap="round">
+              <line x1="134" y1="232" x2="146" y2="222"/>
+              <line x1="134" y1="240" x2="146" y2="230"/>
+              <line x1="134" y1="248" x2="146" y2="238"/>
+              <line x1="154" y1="226" x2="166" y2="216"/>
+              <line x1="154" y1="234" x2="166" y2="224"/>
+              <line x1="154" y1="242" x2="166" y2="232"/>
+              <line x1="150" y1="252" x2="166" y2="240"/>
+              <line x1="150" y1="258" x2="166" y2="248"/>
+            </g>
+            <!-- 軸樞點 -->
+            <circle cx="140" cy="227" r="1.2" fill="var(--actuator)"/>
+            <circle cx="140" cy="243" r="1.2" fill="var(--actuator)"/>
+            <circle cx="140" cy="253" r="1.2" fill="var(--actuator)"/>
+            <circle cx="160" cy="221" r="1.2" fill="var(--actuator)"/>
+            <circle cx="160" cy="237" r="1.2" fill="var(--actuator)"/>
+            <circle cx="160" cy="245" r="1.2" fill="var(--actuator)"/>
+            <!-- 連桿 + stem 連到馬達 -->
+            <line x1="160" y1="221" x2="160" y2="206" stroke="var(--actuator)" stroke-width="1.4"/>
+            <!-- 馬達 actuator box（Belimo 風格）-->
+            <rect x="148" y="188" width="24" height="18" rx="1.5" fill="#0a0a0a" stroke="var(--actuator)" stroke-width="1.4"/>
+            <line x1="148" y1="194" x2="172" y2="194" stroke="var(--actuator)" stroke-width="0.7"/>
+            <text x="160" y="202" text-anchor="middle" style="font-size:9px;fill:var(--actuator);font-family:inherit;font-weight:600">M</text>
+            <text x="150" y="280" text-anchor="middle" class="pid-label" style="font-size:10px;fill:var(--actuator)">DM</text>
+          </g>
+          <!-- DM → 殼體入口（含法蘭 + 軟接） -->
+          <path class="flow" stroke="var(--pipe-mau)" stroke-width="1.4" fill="none" d="M 170 240 L 200 240"/>
+          <line x1="200" y1="226" x2="200" y2="254" stroke="var(--pipe-mau)" stroke-width="2.2" opacity="0.7"/>
+
+          <!-- ============ Filter + ΔP（pleated filter 摺疊濾芯）============ -->
+          <g data-loop="filter" data-editable="Filter+ΔP">
+            <!-- 過濾段外框 -->
+            <rect x="252" y="200" width="44" height="80" fill="#0a0a0a" stroke="#fff" stroke-width="1.3"/>
+            <!-- pleated 摺疊濾材 (zigzag) -->
+            <g stroke="#cfcfcf" stroke-width="0.7" fill="none">
+              <path d="M 258 206 L 264 218 L 258 230 L 264 242 L 258 254 L 264 266 L 258 278"/>
+              <path d="M 270 206 L 276 218 L 270 230 L 276 242 L 270 254 L 276 266 L 270 278"/>
+              <path d="M 282 206 L 288 218 L 282 230 L 288 242 L 282 254 L 288 266 L 282 278"/>
+            </g>
+            <!-- 濾芯 frame edges 上下 -->
+            <line x1="252" y1="206" x2="296" y2="206" stroke="#999" stroke-width="0.8"/>
+            <line x1="252" y1="278" x2="296" y2="278" stroke="#999" stroke-width="0.8"/>
+            <text x="274" y="298" text-anchor="middle" class="pid-label" style="font-size:9px">FILTER F7</text>
+
+            <!-- ΔP 變送器（殼體上方，工程外殼樣）-->
+            <rect x="220" y="93" width="20" height="14" rx="1.5" fill="#0a0a0a" stroke="var(--sensor)" stroke-width="1.4"/>
+            <line x1="220" y1="97" x2="240" y2="97" stroke="var(--sensor)" stroke-width="0.7"/>
+            <text x="230" y="103" text-anchor="middle" class="pid-label" style="font-size:8px;fill:var(--sensor);font-weight:600">ΔP</text>
+            <!-- 兩支 tap 引線到 filter 前/後 -->
+            <line x1="252" y1="200" x2="252" y2="120" stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="252" y1="120" x2="225" y2="120" stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="225" y1="120" x2="225" y2="107" stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="296" y1="200" x2="296" y2="125" stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="296" y1="125" x2="235" y2="125" stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="235" y1="125" x2="235" y2="107" stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2"/>
+            <!-- BA 訊號繞左下 -->
+            <path stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2" fill="none"
+                  clip-path="url(#hideUnderEq)"
+                  d="M 240 100 L 250 100 L 250 75 L 115 75 L 115 470 L 380 470"/>
+          </g>
+
+          <!-- ============ DCC Coil + CHW + MV（fin-and-tube 詳實畫法）============ -->
+          <g data-loop="temp" data-editable="Coil+CHW+MV">
+            <!-- Coil 外殼 -->
+            <rect x="307" y="200" width="58" height="80" fill="#0a0a0a" stroke="#fff" stroke-width="1.3"/>
+            <!-- 縱向 Fin Pack（密集 fin）-->
+            <g stroke="#aaa" stroke-width="0.45" opacity="0.7">
+              <line x1="312" y1="204" x2="312" y2="276"/>
+              <line x1="315" y1="204" x2="315" y2="276"/>
+              <line x1="318" y1="204" x2="318" y2="276"/>
+              <line x1="321" y1="204" x2="321" y2="276"/>
+              <line x1="324" y1="204" x2="324" y2="276"/>
+              <line x1="327" y1="204" x2="327" y2="276"/>
+              <line x1="330" y1="204" x2="330" y2="276"/>
+              <line x1="333" y1="204" x2="333" y2="276"/>
+              <line x1="336" y1="204" x2="336" y2="276"/>
+              <line x1="339" y1="204" x2="339" y2="276"/>
+              <line x1="342" y1="204" x2="342" y2="276"/>
+              <line x1="345" y1="204" x2="345" y2="276"/>
+              <line x1="348" y1="204" x2="348" y2="276"/>
+              <line x1="351" y1="204" x2="351" y2="276"/>
+              <line x1="354" y1="204" x2="354" y2="276"/>
+              <line x1="357" y1="204" x2="357" y2="276"/>
+              <line x1="360" y1="204" x2="360" y2="276"/>
+            </g>
+            <!-- U-bend serpentine tubes (4-pass) -->
+            <g stroke="var(--pipe-chws)" stroke-width="1.8" fill="none" stroke-linecap="round">
+              <path d="M 310 215 L 362 215 Q 370 222 362 229 L 310 229 Q 302 236 310 243 L 362 243 Q 370 250 362 257 L 310 257 Q 302 264 310 271 L 362 271"/>
+            </g>
+            <!-- Tube 端點圓盤 (header connection) + 上下 header manifold -->
+            <rect x="305" y="208" width="6" height="10" fill="#1a1a1a" stroke="var(--pipe-chws)" stroke-width="1.2"/>
+            <rect x="362" y="266" width="6" height="10" fill="#1a1a1a" stroke="var(--pipe-chwr)" stroke-width="1.2"/>
+            <!-- 凝水盤 condensate drain pan -->
+            <rect x="305" y="278" width="62" height="4" fill="#1a1a1a" stroke="#999" stroke-width="0.7"/>
+            <line x1="335" y1="282" x2="335" y2="294" stroke="#999" stroke-width="0.8"/>
+            <text x="335" y="305" text-anchor="middle" class="pid-label" style="font-size:9px">DCC COIL</text>
+
+            <!-- CHWS 進（從左下接入 upper header） -->
+            <path class="flow" stroke="var(--pipe-chws)" stroke-width="1.4" fill="none" d="M 220 410 L 308 410 L 308 218"/>
+            <!-- 法蘭 -->
+            <line x1="308" y1="215" x2="312" y2="215" stroke="var(--pipe-chws)" stroke-width="2.4"/>
+            <text x="216" y="414" text-anchor="end" class="pid-label" style="font-size:9px;fill:var(--pipe-chws)">CHWS 7°C</text>
+
+            <!-- CHWR 出（下 header 經 MV 出去） -->
+            <path class="flow" stroke="var(--pipe-chwr)" stroke-width="1.4" fill="none" d="M 365 272 L 365 425 L 280 425"/>
+            <text x="285" y="438" class="pid-label" style="font-size:9px;fill:var(--pipe-chwr)">CHWR 13°C</text>
+
+            <!-- MV 比例式電動 globe valve（球形閥體 + 法蘭 + actuator）-->
+            <g transform="translate(365 365)">
+              <!-- 法蘭上下 -->
+              <line x1="-12" y1="-12" x2="12" y2="-12" stroke="var(--actuator)" stroke-width="2.4"/>
+              <line x1="-12" y1="12"  x2="12" y2="12"  stroke="var(--actuator)" stroke-width="2.4"/>
+              <!-- Globe body（橢圓球形）-->
+              <ellipse cx="0" cy="0" rx="11" ry="9" fill="#0a0a0a" stroke="var(--actuator)" stroke-width="1.5"/>
+              <!-- 內部 seat disc -->
+              <line x1="-8" y1="0" x2="8" y2="0" stroke="var(--actuator)" stroke-width="1.2"/>
+              <line x1="-3" y1="-3" x2="3" y2="-3" stroke="var(--actuator)" stroke-width="1"/>
+              <!-- stem 向左到 actuator -->
+              <line x1="-11" y1="0" x2="-22" y2="0" stroke="var(--actuator)" stroke-width="1.4"/>
+              <!-- yoke / pillars -->
+              <line x1="-22" y1="-7" x2="-22" y2="7" stroke="var(--actuator)" stroke-width="1.2"/>
+              <!-- actuator box（馬達 + 顯示）-->
+              <rect x="-50" y="-12" width="28" height="24" rx="2" fill="#0a0a0a" stroke="var(--actuator)" stroke-width="1.5"/>
+              <line x1="-50" y1="-5" x2="-22" y2="-5" stroke="var(--actuator)" stroke-width="0.7"/>
+              <text x="-36" y="2" text-anchor="middle" style="font-size:10px;fill:var(--actuator);font-family:inherit;font-weight:600">M</text>
+              <!-- 標籤 -->
+              <text x="0" y="28" text-anchor="middle" class="pid-label" style="font-size:10px;fill:var(--actuator);font-weight:600">MV</text>
+            </g>
+          </g>
+
+          <!-- ============ Fan + VFD（離心鼓風機：蝸殼 + 後傾葉片 + 馬達聯軸器 + 減震基座）============ -->
+          <g data-loop="static" data-editable="Fan+VFD">
+            <g transform="translate(450 240)">
+              <!-- 蝸殼 volute（螺旋外形：上方圓進氣、右下方矩形出口）-->
+              <path d="M 0 -30 A 30 30 0 1 1 -28 18 L -28 32 L 30 32 L 30 -8 A 22 22 0 0 0 -8 -28 Z"
+                    fill="#1a1a1a" stroke="#f5f5f7" stroke-width="1.4"/>
+              <!-- 進氣口圓孔（中心 inlet ring）-->
+              <circle r="14" fill="#0a0a0a" stroke="#f5f5f7" stroke-width="1"/>
+              <circle r="10" fill="none" stroke="#888" stroke-width="0.6" stroke-dasharray="1.5 1.5"/>
+              <!-- 8 片後傾彎曲葉片 -->
+              <g stroke="#e5e5e5" stroke-width="0.95" fill="none" stroke-linecap="round">
+                <path d="M 0 -8 Q 5 -5 5 0"/>
+                <path d="M 5.7 -5.7 Q 6.5 -1 4 3"/>
+                <path d="M 8 0 Q 5 3 0 5"/>
+                <path d="M 5.7 5.7 Q 1 6 -3 4"/>
+                <path d="M 0 8 Q -5 5 -5 0"/>
+                <path d="M -5.7 5.7 Q -6 1 -3 -3"/>
+                <path d="M -8 0 Q -5 -3 0 -5"/>
+                <path d="M -5.7 -5.7 Q -1 -6 3 -4"/>
+              </g>
+              <!-- 中心 hub -->
+              <circle r="2.5" fill="#f5f5f7"/>
+              <!-- 後出風口法蘭（矩形）-->
+              <line x1="30" y1="-8" x2="30" y2="32" stroke="#f5f5f7" stroke-width="2.2"/>
+              <!-- 軸 + 聯軸器 → 馬達 (在 fan 右側) -->
+              <line x1="0" y1="0" x2="48" y2="-22" stroke="#888" stroke-width="0" opacity="0"/>
+              <!-- 馬達 (在蝸殼下方，水平 footprint) -->
+              <rect x="-12" y="40" width="40" height="20" rx="2" fill="#1a1a1a" stroke="#f5f5f7" stroke-width="1.2"/>
+              <circle cx="-6" cy="50" r="2.5" fill="none" stroke="#f5f5f7" stroke-width="0.7"/>
+              <circle cx="22" cy="50" r="2.5" fill="none" stroke="#f5f5f7" stroke-width="0.7"/>
+              <text x="8" y="54" text-anchor="middle" style="font-size:9px;fill:#f5f5f7;font-weight:600">M</text>
+              <!-- 皮帶傳動（馬達 → fan shaft，雙線示意）-->
+              <path d="M -3 40 Q -10 25 -3 12" stroke="#666" stroke-width="0.7" fill="none"/>
+              <path d="M 3 40 Q 10 25 3 12"  stroke="#666" stroke-width="0.7" fill="none"/>
+              <!-- 減震基座 spring isolators -->
+              <line x1="-15" y1="60" x2="-15" y2="68" stroke="#888" stroke-width="0.8"/>
+              <line x1="-5"  y1="60" x2="-5"  y2="68" stroke="#888" stroke-width="0.8"/>
+              <line x1="20"  y1="60" x2="20"  y2="68" stroke="#888" stroke-width="0.8"/>
+              <line x1="30"  y1="60" x2="30"  y2="68" stroke="#888" stroke-width="0.8"/>
+              <path d="M -17 68 q 4 -4 0 -8 q -4 -4 0 -8 M -7 68 q 4 -4 0 -8 q -4 -4 0 -8 M 18 68 q 4 -4 0 -8 q -4 -4 0 -8 M 28 68 q 4 -4 0 -8 q -4 -4 0 -8" stroke="#888" stroke-width="0.7" fill="none"/>
+              <!-- FAN 標籤 -->
+              <text x="8" y="-44" text-anchor="middle" class="pid-label" style="font-size:9px">FAN</text>
+            </g>
+            <!-- VFD 機櫃 (in 殼體下方右側)：機櫃外框 + 散熱片 + 顯示面板 + 接線孔 -->
+            <g transform="translate(420 380)">
+              <!-- 機櫃主體 -->
+              <rect x="0" y="0" width="60" height="35" rx="1.5" fill="#1a1a1a" stroke="var(--actuator)" stroke-width="1.4"/>
+              <!-- 散熱片條紋 (左側 vertical fins) -->
+              <g stroke="var(--actuator)" stroke-width="0.6">
+                <line x1="3"  y1="3" x2="3"  y2="22"/>
+                <line x1="6"  y1="3" x2="6"  y2="22"/>
+                <line x1="9"  y1="3" x2="9"  y2="22"/>
+                <line x1="12" y1="3" x2="12" y2="22"/>
+                <line x1="15" y1="3" x2="15" y2="22"/>
+              </g>
+              <!-- 顯示面板 LCD -->
+              <rect x="22" y="5" width="22" height="9" fill="#0a0a0a" stroke="var(--actuator)" stroke-width="0.8"/>
+              <text x="33" y="12" text-anchor="middle" style="font-size:6px;fill:var(--actuator);font-family:SF Mono,monospace">60.0Hz</text>
+              <!-- 按鍵 dot -->
+              <circle cx="26" cy="20" r="1.2" fill="none" stroke="var(--actuator)" stroke-width="0.6"/>
+              <circle cx="32" cy="20" r="1.2" fill="none" stroke="var(--actuator)" stroke-width="0.6"/>
+              <circle cx="38" cy="20" r="1.2" fill="none" stroke="var(--actuator)" stroke-width="0.6"/>
+              <circle cx="44" cy="20" r="1.2" fill="none" stroke="var(--actuator)" stroke-width="0.6"/>
+              <!-- 接線端子 (右側) -->
+              <rect x="48" y="3" width="9" height="29" fill="#0a0a0a" stroke="var(--actuator)" stroke-width="0.7"/>
+              <line x1="48" y1="9"  x2="57" y2="9"  stroke="var(--actuator)" stroke-width="0.5"/>
+              <line x1="48" y1="14" x2="57" y2="14" stroke="var(--actuator)" stroke-width="0.5"/>
+              <line x1="48" y1="19" x2="57" y2="19" stroke="var(--actuator)" stroke-width="0.5"/>
+              <line x1="48" y1="24" x2="57" y2="24" stroke="var(--actuator)" stroke-width="0.5"/>
+              <text x="30" y="44" text-anchor="middle" class="pid-label" style="font-size:9px;fill:var(--actuator);font-weight:600">VFD · 11 kW</text>
+            </g>
+            <!-- VFD → FAN 動力線（粗實線示意馬達電纜）-->
+            <path stroke="var(--actuator)" stroke-width="1.4" fill="none" d="M 450 380 L 450 305"/>
+            <!-- VFD → FAN 控制虛線 -->
+            <path stroke="var(--actuator)" stroke-width="1" stroke-dasharray="3 3" fill="none" d="M 470 380 L 470 280"/>
+          </g>
+
+          <!-- ============ Fan → SA 內部氣流（殼體內：只有空氣流動箭頭，無風管）============ -->
+          <path class="flow" stroke="var(--pipe-mau)" stroke-width="1.4" fill="none" d="M 482 240 L 738 240"/>
+
+          <!-- ============ AHU 殼體出風口法蘭（殼體右側邊界 x=740）============ -->
+          <!-- 殼體側法蘭 -->
+          <line x1="740" y1="222" x2="740" y2="258" stroke="var(--pipe-mau)" stroke-width="2.4"/>
+          <!-- 軟接（防震 flex connector，斜紋）-->
+          <g stroke="var(--pipe-mau)" stroke-width="0.7">
+            <line x1="740" y1="222" x2="744" y2="226"/>
+            <line x1="740" y1="228" x2="744" y2="232"/>
+            <line x1="740" y1="234" x2="744" y2="238"/>
+            <line x1="740" y1="240" x2="744" y2="244"/>
+            <line x1="740" y1="246" x2="744" y2="250"/>
+            <line x1="740" y1="252" x2="744" y2="256"/>
+          </g>
+          <line x1="744" y1="222" x2="744" y2="258" stroke="var(--pipe-mau)" stroke-width="2.4"/>
+
+          <!-- ============ SA 主送風管（殼外連續一段；無 VAV / 無分支）============ -->
+          <rect x="744" y="222" width="131" height="36" fill="#0a0a0a" stroke="var(--pipe-mau)" stroke-width="1.4"/>
+          <rect x="746" y="226" width="127" height="28" fill="none" stroke="var(--pipe-mau)" stroke-width="0.6" opacity="0.5" stroke-dasharray="2 2"/>
+          <!-- 法蘭接頭 ×3 -->
+          <line x1="780" y1="220" x2="780" y2="260" stroke="var(--pipe-mau)" stroke-width="2"/>
+          <line x1="820" y1="220" x2="820" y2="260" stroke="var(--pipe-mau)" stroke-width="2"/>
+          <line x1="855" y1="220" x2="855" y2="260" stroke="var(--pipe-mau)" stroke-width="2"/>
+          <!-- 吊桿 + 固定點 -->
+          <line x1="770" y1="222" x2="770" y2="195" stroke="#888" stroke-width="0.8"/>
+          <line x1="830" y1="222" x2="830" y2="195" stroke="#888" stroke-width="0.8"/>
+          <circle cx="770" cy="195" r="1.6" fill="#888"/>
+          <circle cx="830" cy="195" r="1.6" fill="#888"/>
+          <!-- 風管尺寸標 -->
+          <text x="810" y="218" text-anchor="middle" class="pid-label" style="font-size:7px;fill:#666">600×300 GI</text>
+
+          <!-- 殼外主管 風流 + 終端箭頭 -->
+          <path class="flow" stroke="var(--pipe-mau)" stroke-width="1.4" fill="none" d="M 744 240 L 875 240"/>
+          <polygon points="875,234 887,240 875,246" fill="var(--pipe-mau)"/>
+          <text x="810" y="278" text-anchor="middle" class="pid-label" style="font-size:9px;fill:var(--pipe-mau)">SA → VAV / 區域 →</text>
+
+          <!-- ============ Sensor 排（殼體上方探針型 transmitter，cx 540/600/660）============ -->
+          <!-- SD 風管偵煙器：圓殼 + 內部偵測網 + 探入殼體 -->
+          <g data-loop="fire" data-editable="SD">
+            <!-- 變送器頭（六角外殼）-->
+            <rect x="530" y="78" width="20" height="14" rx="1.5" fill="#0a0a0a" stroke="var(--sensor)" stroke-width="1.4"/>
+            <line x1="530" y1="82" x2="550" y2="82" stroke="var(--sensor)" stroke-width="0.7"/>
+            <text x="540" y="89" text-anchor="middle" class="pid-label" style="font-size:8px;fill:var(--sensor);font-weight:600">SD</text>
+            <!-- 探針進殼體 -->
+            <line x1="540" y1="92" x2="540" y2="158" stroke="var(--sensor)" stroke-width="1.4"/>
+            <!-- 偵煙頭（圓形 + 格網）-->
+            <circle cx="540" cy="162" r="4" fill="none" stroke="var(--sensor)" stroke-width="1"/>
+            <line x1="537" y1="160" x2="543" y2="160" stroke="var(--sensor)" stroke-width="0.6"/>
+            <line x1="537" y1="164" x2="543" y2="164" stroke="var(--sensor)" stroke-width="0.6"/>
+            <!-- 訊號線到 BA -->
+            <path stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2" fill="none" clip-path="url(#hideUnderEq)" d="M 550 85 L 720 85 L 720 445"/>
+          </g>
+          <!-- TT 溫度變送器 Pt100 浸入式 -->
+          <g data-loop="temp" data-editable="TT">
+            <rect x="590" y="78" width="20" height="14" rx="1.5" fill="#0a0a0a" stroke="var(--sensor)" stroke-width="1.4"/>
+            <line x1="590" y1="82" x2="610" y2="82" stroke="var(--sensor)" stroke-width="0.7"/>
+            <text x="600" y="89" text-anchor="middle" class="pid-label" style="font-size:8px;fill:var(--sensor);font-weight:600">TT</text>
+            <!-- 探針（含 thermowell 套管）-->
+            <line x1="600" y1="92" x2="600" y2="155" stroke="var(--sensor)" stroke-width="1.4"/>
+            <line x1="597" y1="155" x2="603" y2="155" stroke="var(--sensor)" stroke-width="1.2"/>
+            <rect x="598" y="155" width="4" height="14" fill="none" stroke="var(--sensor)" stroke-width="0.9"/>
+            <!-- 訊號繞到 BA -->
+            <path stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2" fill="none" clip-path="url(#hideUnderEq)" d="M 610 85 L 730 85 L 730 435 L 510 435 L 510 445"/>
+          </g>
+          <!-- PDT 壓差變送器：圓盤 transmitter + 兩支高/低壓導壓管 -->
+          <g data-loop="static" data-editable="PDT">
+            <rect x="650" y="76" width="22" height="16" rx="1.5" fill="#0a0a0a" stroke="var(--sensor)" stroke-width="1.4"/>
+            <line x1="650" y1="80" x2="672" y2="80" stroke="var(--sensor)" stroke-width="0.7"/>
+            <text x="661" y="89" text-anchor="middle" class="pid-label" style="font-size:8px;fill:var(--sensor);font-weight:600">PDT</text>
+            <!-- 導壓管 H/L pair（2 個 tap）-->
+            <line x1="655" y1="92" x2="655" y2="155" stroke="var(--sensor)" stroke-width="1.2"/>
+            <line x1="667" y1="92" x2="667" y2="155" stroke="var(--sensor)" stroke-width="1.2"/>
+            <rect x="654" y="155" width="14" height="4" fill="none" stroke="var(--sensor)" stroke-width="0.8"/>
+            <!-- 訊號繞到 BA -->
+            <path stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2" fill="none" clip-path="url(#hideUnderEq)" d="M 672 84 L 740 84 L 740 425 L 480 425 L 480 445"/>
+          </g>
+
+          <!-- ============ CO2 變送器（落地立式 + NDIR sensor head 探入殼體）============ -->
+          <g data-loop="co2" data-editable="CO2">
+            <rect x="690" y="362" width="20" height="14" rx="1.5" fill="#0a0a0a" stroke="var(--sensor)" stroke-width="1.4"/>
+            <line x1="690" y1="366" x2="710" y2="366" stroke="var(--sensor)" stroke-width="0.7"/>
+            <text x="700" y="373" text-anchor="middle" class="pid-label" style="font-size:8px;fill:var(--sensor);font-weight:600">CO2</text>
+            <!-- 探針進 SA 殼體（內 NDIR 感測管）-->
+            <line x1="700" y1="362" x2="700" y2="240" stroke="var(--sensor)" stroke-width="1.4"/>
+            <rect x="697" y="232" width="6" height="8" fill="none" stroke="var(--sensor)" stroke-width="0.9"/>
+            <!-- 訊號繞右進 BA right edge -->
+            <path stroke="var(--sensor)" stroke-width="1" stroke-dasharray="2 2" fill="none" clip-path="url(#hideUnderEq)" d="M 710 369 L 750 369 L 750 455 L 580 455"/>
+          </g>
+
+          <!-- ============ BA Controller（DDC 控制櫃：機櫃 + LCD 顯示 + 指示燈 + 接線端子）============ -->
+          <g data-editable="BA">
+            <!-- 控制櫃主體 -->
+            <rect x="380" y="445" width="200" height="40" rx="2" fill="#1a1a1a" stroke="#f5f5f7" stroke-width="1.4"/>
+            <!-- 上方標題條 -->
+            <rect x="380" y="445" width="200" height="11" fill="#0a0a0a" stroke="#f5f5f7" stroke-width="0.8"/>
+            <text x="480" y="453" text-anchor="middle" style="font-size:8px;fill:#f5f5f7;font-family:inherit;font-weight:600;letter-spacing:1.5px">BA · DDC PANEL</text>
+            <!-- LCD 顯示窗 -->
+            <rect x="388" y="461" width="46" height="18" fill="#0a0a0a" stroke="#f5f5f7" stroke-width="0.8"/>
+            <text x="411" y="473" text-anchor="middle" style="font-size:7px;fill:#A3E635;font-family:SF Mono,monospace">B-AHU 08F</text>
+            <!-- 指示燈 LED (3 顆) -->
+            <circle cx="446" cy="466" r="2"  fill="#A3E635"/>
+            <circle cx="446" cy="472" r="2"  fill="#F472B6" opacity="0.3"/>
+            <circle cx="446" cy="478" r="2"  fill="#FBBF24" opacity="0.5"/>
+            <!-- 中央銘版 -->
+            <text x="490" y="467" text-anchor="middle" class="pid-label" style="font-size:10px;font-weight:600">BA CONTROLLER</text>
+            <text x="490" y="478" text-anchor="middle" class="pid-label" style="font-size:8px;fill:#999">Honeywell Niagara 4</text>
+            <!-- 接線端子排（右側）-->
+            <rect x="542" y="461" width="32" height="18" fill="#0a0a0a" stroke="#f5f5f7" stroke-width="0.7"/>
+            <line x1="546" y1="465" x2="572" y2="465" stroke="#888" stroke-width="0.4"/>
+            <line x1="546" y1="469" x2="572" y2="469" stroke="#888" stroke-width="0.4"/>
+            <line x1="546" y1="473" x2="572" y2="473" stroke="#888" stroke-width="0.4"/>
+            <line x1="546" y1="477" x2="572" y2="477" stroke="#888" stroke-width="0.4"/>
+          </g>
+
+          <!-- ============ BA → Actuator 控制命令（橘虛線，clip 隱藏設備內段）============ -->
+          <g stroke="var(--actuator)" stroke-width="1" stroke-dasharray="2 3" fill="none" clip-path="url(#hideUnderEq)">
+            <!-- BA → DM（繞左上到外氣段 DM 馬達） -->
+            <path data-loop="co2"    d="M 400 445 L 400 300 L 150 300 L 150 192"/>
+            <!-- BA → MV（接到 motor box 右邊） -->
+            <path data-loop="temp"   d="M 430 445 L 430 360 L 398 360"/>
+            <!-- BA → VFD -->
+            <path data-loop="static" d="M 460 445 L 460 380"/>
+          </g>
+
+          <!-- ============ 火警 ALARM IN（右下）============ -->
+          <g data-loop="fire" data-editable="FIRE">
+            <rect x="780" y="448" width="80" height="35" fill="none" stroke="#F472B6" stroke-width="1.2" stroke-dasharray="3 2"/>
+            <text x="820" y="463" text-anchor="middle" class="pid-label" style="fill:#F472B6;font-size:10px">FIRE</text>
+            <text x="820" y="476" text-anchor="middle" class="pid-label" style="fill:#F472B6;font-size:8px">ALARM IN</text>
+            <path d="M 780 465 L 580 465" stroke="#F472B6" stroke-width="0.8" stroke-dasharray="3 2" fill="none" clip-path="url(#hideUnderEq)"/>
+          </g>
+
+          <!-- ============ Legend ============ -->
+          <g transform="translate(30 510)">
+            <line x1="0"   y1="0" x2="18"  y2="0" stroke="var(--pipe-mau)"  stroke-width="1.4"/>
+            <text x="24"  y="3" class="pid-label" style="font-size:9px;fill:var(--pipe-mau)">AIR</text>
+            <line x1="70"  y1="0" x2="88"  y2="0" stroke="var(--pipe-chws)" stroke-width="1.4"/>
+            <text x="94"  y="3" class="pid-label" style="font-size:9px;fill:var(--pipe-chws)">CHWS</text>
+            <line x1="145" y1="0" x2="163" y2="0" stroke="var(--pipe-chwr)" stroke-width="1.4"/>
+            <text x="169" y="3" class="pid-label" style="font-size:9px;fill:var(--pipe-chwr)">CHWR</text>
+            <line x1="225" y1="0" x2="243" y2="0" stroke="var(--sensor)"    stroke-dasharray="2 2" stroke-width="1"/>
+            <text x="249" y="3" class="pid-label" style="font-size:9px;fill:var(--sensor)">SENSOR&nbsp;→&nbsp;BA</text>
+            <line x1="335" y1="0" x2="353" y2="0" stroke="var(--actuator)"  stroke-dasharray="2 3" stroke-width="1"/>
+            <text x="359" y="3" class="pid-label" style="font-size:9px;fill:var(--actuator)">BA&nbsp;→&nbsp;ACTUATOR</text>
+            <line x1="465" y1="0" x2="483" y2="0" stroke="#F472B6"          stroke-dasharray="3 2" stroke-width="1"/>
+            <text x="489" y="3" class="pid-label" style="font-size:9px;fill:#F472B6">FIRE</text>
+          </g>
+        </svg>
+        </div>
+      </div>
+
+      <!-- ====== Detail Stage：點選左側功能卡時動態切換顯示對應說明 ====== -->
+      <div class="detail-stage border border-white/10 rounded-2xl bg-zinc-950 overflow-hidden">
+
+        <!-- DEFAULT — 系統概述 + 保護邏輯總表 -->
+        <div class="detail-panel is-active" data-panel="default">
+          <div class="px-6 md:px-10 py-4 border-b border-white/10 bg-black/40 flex items-center gap-3 flex-wrap">
+            <span class="inline-block w-1 h-4 bg-white/40"></span>
+            <p class="text-xs text-zinc-300 font-semibold tracking-[0.32em] uppercase">System Overview</p>
+            <span class="text-[10px] text-zinc-600 ml-1">← 點選左側功能卡查看細節</span>
+          </div>
+          <div class="p-6 md:p-10">
+            <p class="text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">B-AHU typical · 每層 1 台。風管靜壓、出風溫度、二氧化碳三軸獨立閉環控制；火警、外氣風量、濾網壓差三項安全與保養監測。所有警報、運轉時數、調適參數由中央 BA Controller 集中管理。</p>
+            <p class="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-4">自動偵錯 · 保護邏輯</p>
+            <div class="grid md:grid-cols-2 gap-2">
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-12">SD</span>
+                <div class="flex-1 text-xs">風管偵煙器動作</div>
+                <span class="text-[10px] text-zinc-400">AHU 停機</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-12">FIRE</span>
+                <div class="flex-1 text-xs">火警系統動作</div>
+                <span class="text-[10px] text-zinc-400">強制停機 (法規)</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-12">PDT</span>
+                <div class="flex-1 text-xs">靜壓低於設定 ≥ 1 min</div>
+                <span class="text-[10px] text-zinc-400">鎖定停機</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-12">ΔP</span>
+                <div class="flex-1 text-xs">濾網壓差超限</div>
+                <span class="text-[10px] text-zinc-400">保養警報</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-12">BELT</span>
+                <div class="flex-1 text-xs">皮帶失能（靜壓+濾網交叉判定）</div>
+                <span class="text-[10px] text-zinc-400">BA 警報</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-12">STOP</span>
+                <div class="flex-1 text-xs">停機復歸序列</div>
+                <span class="text-[10px] text-zinc-400">MV+DM 關 / VFD 停</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTRL · 01 SA 風管靜壓 -->
+        <div class="detail-panel" data-panel="static">
+          <div class="px-6 md:px-10 py-4 border-b border-white/10 bg-black/40 flex items-center gap-3">
+            <span class="inline-block w-1 h-4" style="background:#A3E635"></span>
+            <p class="text-xs text-zinc-300 font-semibold tracking-[0.32em] uppercase">CTRL · 01 — SA Static Pressure</p>
+          </div>
+          <div class="p-6 md:p-10">
+            <p class="text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">PDT 連續感測 SA 風管靜壓，BA 比較 setpoint 後輸出 0–10V 到 VFD 調節風機轉速，維持送風穩定不受 VAV 開閉影響。雙時段 setpoint 依時間程式自動切換。</p>
+            <div class="grid md:grid-cols-2 gap-2">
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-20">SP&nbsp;DAY</span>
+                <div class="flex-1 text-xs">上班時段靜壓設定值</div>
+                <span class="text-[10px] text-zinc-300 font-mono">250 Pa</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-20">SP&nbsp;NIGHT</span>
+                <div class="flex-1 text-xs">下班時段靜壓設定值</div>
+                <span class="text-[10px] text-zinc-300 font-mono">150 Pa</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-20">VFD&nbsp;Hz</span>
+                <div class="flex-1 text-xs">變頻運轉範圍</div>
+                <span class="text-[10px] text-zinc-300 font-mono">20 – 60 Hz</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-20">FAIL</span>
+                <div class="flex-1 text-xs">PDT 低於設定 ≥ 1 min</div>
+                <span class="text-[10px] text-zinc-400">停機鎖定</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTRL · 02 SA 出風溫度 -->
+        <div class="detail-panel" data-panel="temp">
+          <div class="px-6 md:px-10 py-4 border-b border-white/10 bg-black/40 flex items-center gap-3">
+            <span class="inline-block w-1 h-4" style="background:#A3E635"></span>
+            <p class="text-xs text-zinc-300 font-semibold tracking-[0.32em] uppercase">CTRL · 02 — SA Temperature</p>
+          </div>
+          <div class="p-6 md:p-10">
+            <p class="text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">TT 感測出風溫度，比例式電動二通閥 MV 調節 CHWR 流量。出風溫度四種控制模式可現場切換：</p>
+            <div class="grid md:grid-cols-2 gap-3">
+              <div class="border border-white/10 rounded-lg bg-black/40 p-4 relative">
+                <span class="absolute top-3 right-3 text-[10px] text-zinc-600 font-mono">M1</span>
+                <h4 class="font-semibold text-sm">尖離峰 · 出風溫度</h4>
+                <p class="text-zinc-400 text-xs mt-2 leading-relaxed">上/下班雙設定值，依時間程式自動切換出風溫度設定。</p>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 p-4 relative">
+                <span class="absolute top-3 right-3 text-[10px] text-zinc-600 font-mono">M2</span>
+                <h4 class="font-semibold text-sm">尖離峰 · 靜壓</h4>
+                <p class="text-zinc-400 text-xs mt-2 leading-relaxed">上/下班雙設定值，VFD 依靜壓 setpoint 自動降載省能。</p>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 p-4 relative">
+                <span class="absolute top-3 right-3 text-[10px] text-zinc-600 font-mono">M3</span>
+                <h4 class="font-semibold text-sm">VAV · 平均溫度</h4>
+                <p class="text-zinc-400 text-xs mt-2 leading-relaxed">取大辦公區所有 VAV 平均溫度回授，反推 AHU 出風溫度。</p>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 p-4 relative">
+                <span class="absolute top-3 right-3 text-[10px] text-zinc-600 font-mono">M4</span>
+                <h4 class="font-semibold text-sm">AI 控制 · 預留</h4>
+                <p class="text-zinc-400 text-xs mt-2 leading-relaxed">AHU 出風 + 現場 VAV/FCU 趨勢入庫，餵 AI 模型預測最佳供風條件。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CTRL · 03 SA CO2 -->
+        <div class="detail-panel" data-panel="co2">
+          <div class="px-6 md:px-10 py-4 border-b border-white/10 bg-black/40 flex items-center gap-3">
+            <span class="inline-block w-1 h-4" style="background:#A3E635"></span>
+            <p class="text-xs text-zinc-300 font-semibold tracking-[0.32em] uppercase">CTRL · 03 — SA CO₂ / DM Logic</p>
+          </div>
+          <div class="p-6 md:p-10">
+            <p class="text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">CO2 感測器持續監測 SA 風管二氧化碳濃度，依下列邏輯調整外氣風門 DM 開度，維持空氣品質。所有 setpoint 與開度均可現場調整。</p>
+            <div class="border border-white/10 rounded-lg bg-black/40 overflow-hidden max-w-xl">
+              <div class="grid grid-cols-12 text-[11px] text-zinc-500 px-5 py-3 border-b border-white/10">
+                <div class="col-span-7">條件</div>
+                <div class="col-span-3">DM 開度</div>
+                <div class="col-span-2 text-right">可調</div>
+              </div>
+              <div class="grid grid-cols-12 text-sm px-5 py-3 border-b border-white/5">
+                <div class="col-span-7">CO2 &gt; 900 ppm</div>
+                <div class="col-span-3 font-mono">75 %</div>
+                <div class="col-span-2 text-right text-zinc-500 text-xs">✓</div>
+              </div>
+              <div class="grid grid-cols-12 text-sm px-5 py-3 border-b border-white/5">
+                <div class="col-span-7">CO2 ≤ 900 ppm</div>
+                <div class="col-span-3 font-mono">50 %</div>
+                <div class="col-span-2 text-right text-zinc-500 text-xs">✓</div>
+              </div>
+              <div class="grid grid-cols-12 text-sm px-5 py-3 border-b border-white/5">
+                <div class="col-span-7">下班時間（夜吹掃）</div>
+                <div class="col-span-3 font-mono">100 %</div>
+                <div class="col-span-2 text-right text-zinc-500 text-xs">✓</div>
+              </div>
+              <div class="grid grid-cols-12 text-sm px-5 py-3">
+                <div class="col-span-7">MAU 停機</div>
+                <div class="col-span-3 font-mono">0 %</div>
+                <div class="col-span-2 text-right text-zinc-600 text-xs">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ALARM · 04 火警警報互鎖 -->
+        <div class="detail-panel" data-panel="fire">
+          <div class="px-6 md:px-10 py-4 border-b border-white/10 bg-black/40 flex items-center gap-3">
+            <span class="inline-block w-1 h-4" style="background:#F472B6"></span>
+            <p class="text-xs text-zinc-300 font-semibold tracking-[0.32em] uppercase">ALARM · 04 — Fire Interlock</p>
+          </div>
+          <div class="p-6 md:p-10">
+            <p class="text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">SD 風管偵煙器與大樓火警系統 (FIRE ALARM IN) 透過 dry contact 互鎖。任一動作即立刻停機，並鎖定直到故障排除及人員復歸。符合 NFPA 90A 與 ASHRAE 機械系統法規要求。</p>
+            <div class="space-y-2">
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] font-mono w-14" style="color:#F472B6">SD</span>
+                <div class="flex-1 text-xs">風管型偵煙器（連續取樣）</div>
+                <span class="text-[10px] text-zinc-400">→ AHU 停機 + BA 警報</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] font-mono w-14" style="color:#F472B6">FIRE&nbsp;IN</span>
+                <div class="flex-1 text-xs">大樓火警主機 dry contact 輸入</div>
+                <span class="text-[10px] text-zinc-400">→ AHU 強制停機</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-14">STOP</span>
+                <div class="flex-1 text-xs">停機動作序列</div>
+                <span class="text-[10px] text-zinc-400">MV 關 + DM 關 + VFD 停</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-14">RESET</span>
+                <div class="flex-1 text-xs">復歸條件</div>
+                <span class="text-[10px] text-zinc-400">故障排除後人員手動 reset</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- METER · 05 外氣風量換算 -->
+        <div class="detail-panel" data-panel="airflow">
+          <div class="px-6 md:px-10 py-4 border-b border-white/10 bg-black/40 flex items-center gap-3">
+            <span class="inline-block w-1 h-4" style="background:#A3E635"></span>
+            <p class="text-xs text-zinc-300 font-semibold tracking-[0.32em] uppercase">METER · 05 — OA Flow Calculation</p>
+          </div>
+          <div class="p-6 md:p-10">
+            <p class="text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">FS 熱式風速計量測外氣管內風速 v (m/s)；BA 依風管截面積 A (m²) 即時換算外氣風量 CMH，作為 IAQ 達成判斷與節能後計算的依據。</p>
+            <div class="border border-white/10 rounded-lg bg-black/40 p-6 max-w-xl">
+              <p class="text-[10px] text-zinc-500 tracking-widest uppercase mb-3">換算公式</p>
+              <p class="font-mono text-2xl text-zinc-100 tracking-tight">CMH&nbsp;=&nbsp;v&nbsp;×&nbsp;A&nbsp;×&nbsp;3600</p>
+              <div class="mt-5 space-y-2 text-xs text-zinc-400">
+                <div class="flex"><span class="font-mono w-20 text-zinc-500">v</span>FS 量測風速 (m/s)</div>
+                <div class="flex"><span class="font-mono w-20 text-zinc-500">A</span>外氣管截面積 (m²) — 出廠值</div>
+                <div class="flex"><span class="font-mono w-20 text-zinc-500">CMH</span>實際外氣風量 (m³/h)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MAINT · 06 濾網壓差保養 -->
+        <div class="detail-panel" data-panel="filter">
+          <div class="px-6 md:px-10 py-4 border-b border-white/10 bg-black/40 flex items-center gap-3">
+            <span class="inline-block w-1 h-4" style="background:#A3E635"></span>
+            <p class="text-xs text-zinc-300 font-semibold tracking-[0.32em] uppercase">MAINT · 06 — Filter ΔP</p>
+          </div>
+          <div class="p-6 md:p-10">
+            <p class="text-sm text-zinc-300 leading-relaxed max-w-2xl mb-6">ΔP 感測濾網前後壓差。隨濾網積塵壓差升高，超過設定值即觸發保養警報，提醒現場人員更換濾網。可分兩段提示：預警 + 強警。</p>
+            <div class="grid md:grid-cols-2 gap-2">
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-16">NEW</span>
+                <div class="flex-1 text-xs">新濾網基準壓差</div>
+                <span class="text-[10px] text-zinc-300 font-mono">50 Pa</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-16">WARN</span>
+                <div class="flex-1 text-xs">預警門檻（排程更換）</div>
+                <span class="text-[10px] text-zinc-300 font-mono">250 Pa</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-16">ALARM</span>
+                <div class="flex-1 text-xs">強警門檻（立即更換）</div>
+                <span class="text-[10px] text-zinc-300 font-mono">400 Pa</span>
+              </div>
+              <div class="border border-white/10 rounded-lg bg-black/40 px-4 py-3 flex items-center gap-3">
+                <span class="text-[10px] text-zinc-600 font-mono w-16">RUN-H</span>
+                <div class="flex-1 text-xs">累計運轉時數警報</div>
+                <span class="text-[10px] text-zinc-300 font-mono">3000 h</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /detail-stage -->
+
+        </main>
+      </div><!-- /grid main 2-col -->
+
+      <script>
+      // ─── 1. Hover/Lock 高亮互動 + Detail panel 切換 ───
+      (function(){
+        const root = document.querySelector('.ahu-control');
+        if (!root) return;
+        let locked = null;
+        const setFocus  = v => v ? root.setAttribute('data-focus', v)  : root.removeAttribute('data-focus');
+        const setLocked = v => v ? root.setAttribute('data-locked', v) : root.removeAttribute('data-locked');
+        const showDetail = name => {
+          root.querySelectorAll('.detail-panel').forEach(p => {
+            p.classList.toggle('is-active', p.getAttribute('data-panel') === (name || 'default'));
+          });
+        };
+        const onEnter  = loop => { if (!locked && !root.dataset.editing) setFocus(loop); };
+        const onLeave  = ()   => { if (!locked && !root.dataset.editing) setFocus(null); };
+        const onToggle = loop => {
+          if (root.dataset.editing) return;
+          if (locked === loop) {
+            locked = null; setLocked(null); setFocus(null); showDetail('default');
+          } else {
+            locked = loop; setLocked(loop); setFocus(loop); showDetail(loop);
+          }
+        };
+        root.querySelectorAll('[data-trigger]').forEach(el => {
+          const loop = el.dataset.trigger;
+          el.addEventListener('mouseenter', () => onEnter(loop));
+          el.addEventListener('mouseleave', onLeave);
+          el.addEventListener('click', e => { e.stopPropagation(); onToggle(loop); });
+        });
+        root.querySelectorAll('[data-loop]').forEach(el => {
+          const tokens = (el.getAttribute('data-loop') || '').split(/\s+/).filter(Boolean);
+          if (!tokens.length) return;
+          const primary = tokens[0];
+          el.addEventListener('mouseenter', () => onEnter(primary));
+          el.addEventListener('mouseleave', onLeave);
+          el.addEventListener('click', e => { e.stopPropagation(); onToggle(primary); });
+        });
+        root.addEventListener('click', () => {
+          if (locked && !root.dataset.editing) {
+            locked = null; setLocked(null); setFocus(null); showDetail('default');
+          }
+        });
+      })();
+
+      // ─── 1.6 動作流程演示：點「觀看動作流程」依序高亮元件 + 顯示 step 文字 ───
+      (function(){
+        const root = document.querySelector('.ahu-control');
+        if (!root) return;
+        const SEQUENCES = {
+          static: [
+            { highlight: ['PDT'],                          text: 'PDT 感測 SA 風管靜壓變化' },
+            { highlight: ['PDT', 'BA'],                    text: 'PDT → BA Controller 訊號（4-20 mA）' },
+            { highlight: ['BA'],                           text: 'BA 比對 setpoint，計算 PI 輸出' },
+            { highlight: ['BA', 'Fan+VFD'],                text: 'BA → VFD 控制命令（0-10 V）' },
+            { highlight: ['Fan+VFD'],                      text: 'VFD 調整輸出頻率（20-60 Hz）' },
+            { highlight: ['Fan+VFD'],                      text: '風機轉速變化，送風量調整' },
+            { highlight: ['PDT'],                          text: '靜壓回到 setpoint，迴路收斂' }
+          ],
+          temp: [
+            { highlight: ['TT'],                           text: 'TT 感測出風溫度偏離 setpoint' },
+            { highlight: ['TT', 'BA'],                     text: 'TT → BA 訊號（4-20 mA）' },
+            { highlight: ['BA'],                           text: 'BA 計算 PI 輸出，比例式控制' },
+            { highlight: ['BA', 'Coil+CHW+MV'],            text: 'BA → MV 比例式電動二通閥' },
+            { highlight: ['Coil+CHW+MV'],                  text: 'MV 調節 CHWR 流量（0-100%）' },
+            { highlight: ['Coil+CHW+MV'],                  text: '冷卻盤管熱交換，調節送風溫度' }
+          ],
+          co2: [
+            { highlight: ['CO2'],                          text: 'CO2 感測 SA 二氧化碳濃度' },
+            { highlight: ['CO2', 'BA'],                    text: 'CO2 → BA 訊號' },
+            { highlight: ['BA'],                           text: 'BA 判斷邏輯：>900 ppm? <900 ppm? 下班?' },
+            { highlight: ['BA', 'DM'],                     text: 'BA → DM 外氣風門開度命令' },
+            { highlight: ['DM'],                           text: 'DM 葉片角度調整（75% / 50% / 100% / 0%）' },
+            { highlight: ['CO2'],                          text: '外氣量改變，CO2 濃度回歸' }
+          ],
+          fire: [
+            { highlight: ['SD'],                           text: 'SD 風管偵煙器偵測煙霧' },
+            { highlight: ['FIRE'],                         text: '或：大樓火警主機 ALARM IN 觸發' },
+            { highlight: ['SD', 'FIRE', 'BA'],             text: '互鎖訊號傳至 BA' },
+            { highlight: ['BA'],                           text: 'BA 執行緊急停機程序' },
+            { highlight: ['Coil+CHW+MV', 'DM', 'Fan+VFD'], text: 'MV 關 + DM 關 + VFD 停' },
+            { highlight: ['BA'],                           text: '鎖定停機狀態，等待人員手動 reset' }
+          ],
+          airflow: [
+            { highlight: ['FS'],                           text: 'FS 量測外氣管內風速 v (m/s)' },
+            { highlight: ['FS', 'BA'],                     text: 'FS → BA 訊號' },
+            { highlight: ['BA'],                           text: 'BA 計算 CMH = v × A × 3600' },
+            { highlight: ['BA'],                           text: '寫入 trend log，作為 IAQ 與節能依據' }
+          ],
+          filter: [
+            { highlight: ['Filter+ΔP'],                    text: 'ΔP 量測濾網前後壓差' },
+            { highlight: ['Filter+ΔP', 'BA'],              text: 'ΔP → BA 訊號' },
+            { highlight: ['BA'],                           text: 'BA 比對門檻：<250 OK / 250-400 預警 / >400 強警' },
+            { highlight: ['BA'],                           text: '達門檻 → 發保養警報，提醒換濾網' }
+          ]
+        };
+
+        const stepMs = 1500;
+        function pulseElement(name) {
+          const el = root.querySelector('g[data-editable="' + name + '"]');
+          if (!el) return;
+          el.classList.add('sequence-pulse');
+          setTimeout(function() { el.classList.remove('sequence-pulse'); }, stepMs - 100);
+        }
+        function playSequence(loopName) {
+          const seq = SEQUENCES[loopName];
+          if (!seq) return;
+          const panel = root.querySelector('.detail-panel[data-panel="' + loopName + '"]');
+          if (!panel) return;
+          const stage = panel.querySelector('.seq-stage');
+          const playBtn = panel.querySelector('.seq-play');
+          if (!stage || !playBtn) return;
+          playBtn.disabled = true;
+          playBtn.textContent = '⏵ 播放中…';
+          while (stage.firstChild) stage.removeChild(stage.firstChild);
+          const stepDisplay = document.createElement('div'); stage.appendChild(stepDisplay);
+          const progress = document.createElement('div'); progress.className = 'seq-progress';
+          for (let i = 0; i < seq.length; i++) {
+            const d = document.createElement('div'); d.className = 'seq-dot'; progress.appendChild(d);
+          }
+          stage.appendChild(progress);
+          const dots = progress.querySelectorAll('.seq-dot');
+          seq.forEach(function(step, i) {
+            setTimeout(function() {
+              step.highlight.forEach(pulseElement);
+              for (let j = 0; j < dots.length; j++) {
+                dots[j].classList.remove('active');
+                if (j < i) dots[j].classList.add('done'); else dots[j].classList.remove('done');
+                if (j === i) dots[j].classList.add('active');
+              }
+              while (stepDisplay.firstChild) stepDisplay.removeChild(stepDisplay.firstChild);
+              const num = document.createElement('span'); num.className = 'seq-step-num'; num.textContent = String(i + 1);
+              const text = document.createElement('span'); text.className = 'seq-step-text'; text.textContent = step.text;
+              stepDisplay.appendChild(num); stepDisplay.appendChild(text);
+            }, i * stepMs);
+          });
+          setTimeout(function() {
+            playBtn.disabled = false;
+            playBtn.textContent = '▶ 重播動作流程';
+            dots.forEach(function(d) { d.classList.add('done'); d.classList.remove('active'); });
+          }, seq.length * stepMs + 200);
+        }
+
+        // 自動為每個 panel inject Play 按鈕 + stage 區
+        Object.keys(SEQUENCES).forEach(function(loopName) {
+          const panel = root.querySelector('.detail-panel[data-panel="' + loopName + '"]');
+          if (!panel) return;
+          const contentArea = panel.children[1]; // 第 2 個 child = inner content
+          if (!contentArea) return;
+          const btn = document.createElement('button');
+          btn.className = 'seq-play';
+          btn.textContent = '▶ 觀看動作流程';
+          btn.addEventListener('click', function(e) { e.stopPropagation(); playSequence(loopName); });
+          contentArea.insertBefore(btn, contentArea.firstChild);
+          const stage = document.createElement('div');
+          stage.className = 'seq-stage';
+          const hint = document.createElement('span');
+          hint.style.cssText = 'color:#888;font-size:12px';
+          hint.textContent = '↑ 點上方「▶ 觀看動作流程」看 step by step 動作演示';
+          stage.appendChild(hint);
+          contentArea.insertBefore(stage, btn.nextSibling);
+        });
+      })();
+
+      // ─── 1.5 Hover 元件 → 質感資訊卡（廠牌 / 新版型號 / Lucide SVG 剪影）───
+      (function(){
+        const root = document.querySelector('.ahu-control');
+        if (!root) return;
+        const svg = root.querySelector('svg');
+        const wrap = svg && svg.parentElement;
+        if (!wrap) return;
+        const NS = 'http://www.w3.org/2000/svg';
+
+        // Honeywell 新一代（2020+ 現役）控制系統選型
+        const INFO = {
+          'DM':         { brand: 'Honeywell',             model: 'N20010S2',              desc: 'Direct Coupled Actuator · 20 Nm · 0–10V 比例式新一代直驅式風門/閥馬達 · 取代 Modutrol IV' },
+          'Filter+ΔP':  { brand: 'Camfil · Honeywell',    model: 'Hi-Flo XLT7 · DPS400',  desc: 'F7 袋式濾網 + 新版差壓開關 0–500 Pa · NEMA 4X 防水' },
+          'Coil+CHW+MV':{ brand: 'AAF · Honeywell',       model: 'CW6R · V5851A PICV + N20010',     desc: '6-row chilled water coil + Pressure Independent Control Valve + 直驅 actuator · 流量控制免外加平衡閥' },
+          'Fan+VFD':    { brand: 'EBM-PAPST · Honeywell', model: 'K3G560 RadiPac · SmartVFD HVAC SVHX', desc: 'EC plug fan 後傾葉 + 新版 HVAC 變頻器 11 kW · BACnet/IP 整合' },
+          'SD':         { brand: 'Honeywell',             model: 'HF-30 SuperDuct',       desc: '新版風管型偵煙器 · 自我診斷 LED · 取樣管設計 · NFPA 90A 相容' },
+          'TT':         { brand: 'Honeywell',             model: 'T7415A2031',            desc: 'Pt1000 風管溫度感測器 · 4–20mA · ±0.3°C 高精度 · 不鏽鋼 probe' },
+          'PDT':        { brand: 'Honeywell',             model: 'DPTE5000-2N00',         desc: '新版差壓變送器 · 0–500 Pa · 0–10V · NEMA 4 IP65 · 自動歸零' },
+          'CO2':        { brand: 'Honeywell',             model: 'IAQPoint2 IAQXP100',    desc: 'IAQ Multi-Sensor · CO2 / T / RH NDIR · BACnet MS/TP · OLED 顯示' },
+          'FS':         { brand: 'Honeywell',             model: 'HAFSMT0050',            desc: 'MEMS 微橋式風速感測器 · 0–10 m/s · I²C 數位輸出 · ±2% 精度' },
+          'BA':         { brand: 'Honeywell',             model: 'ARENA NX (Niagara 4)',  desc: 'BACnet/IP supervisor · Niagara N4.13 · 250–1000 點 · 取代 CIPer 50' },
+          'FIRE':       { brand: 'Honeywell · Notifier',  model: 'ONYX NFW-50X',          desc: 'Networked Fire Alarm Control Panel · 50 point · BACnet gateway' }
+        };
+
+        // Lucide-style 24×24 剪影 (single path)
+        const ICONS = {
+          'DM':          'M5 11h14v8H5z M6 18l12-7 M11 11V6 M14 4h6v4h-6z',
+          'Filter+ΔP':   'M4 6h16 M4 12h16 M4 18h16 M8 6v12 M12 6v12 M16 6v12',
+          'Coil+CHW+MV': 'M3 5 Q21 5 21 9 Q3 9 3 13 Q21 13 21 17 Q3 17 3 21',
+          'Fan+VFD':     'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M12 12 L16 8 M12 12 L16 16 M12 12 L8 8 M12 12 L8 16',
+          'SD':          'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M12 8v4 M10 14h4',
+          'TT':          'M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z M10 9h4 M10 6h4',
+          'PDT':         'M4 12a8 8 0 1 1 16 0 M12 12 L16 8 M4 16h16v4H4z',
+          'CO2':         'M4 6h16v12H4z M7 10h10 M7 13h8 M14 16h3',
+          'FS':          'M5 4v16 M12 4v16 M19 4v16 M5 8h14 M5 16h14',
+          'BA':          'M4 5h16v14H4z M9 9h6v6H9z M9 2v3 M15 2v3 M9 19v3 M15 19v3 M2 9h3 M2 15h3 M19 9h3 M19 15h3',
+          'FIRE':        'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z'
+        };
+
+        wrap.style.position = wrap.style.position || 'relative';
+        const tip = document.createElement('div');
+        tip.style.cssText = 'position:absolute;top:48px;left:8px;display:none;align-items:flex-start;gap:14px;padding:14px 16px;background:linear-gradient(135deg,rgba(18,18,22,.98),rgba(10,12,16,.98));color:#f5f5f7;border:1px solid rgba(163,230,53,.35);border-radius:12px;max-width:380px;z-index:40;backdrop-filter:blur(12px) saturate(180%);pointer-events:none;line-height:1.5;font-family:-apple-system,"SF Pro Display","Noto Sans TC",sans-serif;box-shadow:0 20px 60px -10px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04) inset;';
+        wrap.appendChild(tip);
+
+        function mkRow(text, css){
+          const d = document.createElement('div');
+          d.style.cssText = css;
+          d.textContent = text;
+          return d;
+        }
+        function mkIcon(pathD){
+          const wrapDiv = document.createElement('div');
+          wrapDiv.style.cssText = 'flex-shrink:0;width:54px;height:54px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(163,230,53,.12),rgba(163,230,53,.02));border:1px solid rgba(163,230,53,.3);border-radius:10px;';
+          const s = document.createElementNS(NS, 'svg');
+          s.setAttribute('viewBox', '0 0 24 24');
+          s.setAttribute('width', '32');
+          s.setAttribute('height', '32');
+          const p = document.createElementNS(NS, 'path');
+          p.setAttribute('d', pathD);
+          p.setAttribute('stroke', '#A3E635');
+          p.setAttribute('stroke-width', '1.6');
+          p.setAttribute('stroke-linecap', 'round');
+          p.setAttribute('stroke-linejoin', 'round');
+          p.setAttribute('fill', 'none');
+          s.appendChild(p);
+          wrapDiv.appendChild(s);
+          return wrapDiv;
+        }
+        function mkBadge(){
+          const b = document.createElement('span');
+          b.style.cssText = 'display:inline-block;font-size:8px;font-weight:700;letter-spacing:.1em;color:#0a0a0a;background:#A3E635;padding:2px 6px;border-radius:3px;margin-left:6px;vertical-align:middle';
+          b.textContent = 'NEW';
+          return b;
+        }
+
+        root.querySelectorAll('[data-editable]').forEach(g => {
+          const name = g.getAttribute('data-editable');
+          const info = INFO[name];
+          if (!info) return;
+          g.addEventListener('mouseenter', () => {
+            if (root.dataset.editing) return;
+            while (tip.firstChild) tip.removeChild(tip.firstChild);
+            tip.appendChild(mkIcon(ICONS[name] || ''));
+            const txt = document.createElement('div');
+            txt.style.cssText = 'flex:1;min-width:0';
+            // brand row
+            const brandRow = document.createElement('div');
+            brandRow.style.cssText = 'font-weight:600;color:#A3E635;font-size:11px;letter-spacing:.12em;text-transform:uppercase';
+            brandRow.textContent = info.brand;
+            txt.appendChild(brandRow);
+            // model row with NEW badge
+            const modelRow = document.createElement('div');
+            modelRow.style.cssText = 'color:#f5f5f7;font-size:14px;font-weight:600;font-family:"SF Mono",ui-monospace,Menlo,monospace;margin-top:3px;letter-spacing:-.01em;line-height:1.3';
+            modelRow.textContent = info.model;
+            modelRow.appendChild(mkBadge());
+            txt.appendChild(modelRow);
+            // desc row
+            txt.appendChild(mkRow(info.desc, 'color:#a1a1aa;font-size:10.5px;margin-top:6px;line-height:1.55'));
+            tip.appendChild(txt);
+            tip.style.display = 'flex';
+          });
+          g.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+        });
+      })();
+
+      // ─── 2. 編輯器：拖元件 + 拖 path 端點（橘色小方塊）───
+      (function(){
+        const root = document.querySelector('.ahu-control');
+        if (!root) return;
+        const svg = root.querySelector('svg');
+        const wrap = svg.parentElement;
+        if (!svg || !wrap) return;
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+
+        // 自動標記可拖元件
+        const labelMap = {
+          'safety':'?', 'fire':'FIRE/SD', 'airflow':'FS', 'filter':'Filter+ΔP',
+          'co2':'CO2/DM', 'temp':'Temp', 'static':'Static'
+        };
+        root.querySelectorAll('g[data-loop]').forEach((g, i) => {
+          if (!g.hasAttribute('data-editable')) {
+            const text = g.querySelector('text');
+            let name = labelMap[g.getAttribute('data-loop')] || ('g'+i);
+            if (text) name = text.textContent.trim() || name;
+            g.setAttribute('data-editable', name);
+          }
+        });
+        const baRect = svg.querySelector('rect[width="200"][height="50"]');
+        if (baRect && baRect.parentElement && !baRect.parentElement.hasAttribute('data-editable')) {
+          baRect.parentElement.setAttribute('data-editable', 'BA');
+        }
+        let pid = 0;
+        svg.querySelectorAll('path').forEach(p => {
+          if (!p.id) p.id = '_p' + (++pid);
+          if (!p.hasAttribute('data-path-name')) {
+            const g = p.closest('g[data-editable]') || p.closest('g[data-loop]');
+            const base = g ? (g.getAttribute('data-editable') || g.getAttribute('data-loop')) : 'misc';
+            p.setAttribute('data-path-name', base + '#' + p.id);
+          }
+        });
+
+        // Toolbar
+        wrap.style.position = 'relative';
+        const css = 'position:absolute;top:8px;padding:5px 12px;background:rgba(20,20,22,.95);color:#f5f5f7;border:1px solid rgba(255,255,255,.3);border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;z-index:50;letter-spacing:.05em;';
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✎ Edit';
+        editBtn.style.cssText = css + 'right:110px;';
+        const exportBtn = document.createElement('button');
+        exportBtn.textContent = '⎘ Export';
+        exportBtn.style.cssText = css + 'right:8px;display:none;';
+        wrap.appendChild(editBtn);
+        wrap.appendChild(exportBtn);
+
+        const toast = document.createElement('pre');
+        toast.style.cssText = 'position:absolute;top:48px;right:8px;max-width:620px;max-height:420px;overflow:auto;background:rgba(10,10,12,.97);color:#A3E635;border:1px solid #A3E635;border-radius:6px;padding:10px 14px;font-size:11px;line-height:1.5;display:none;z-index:50;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;';
+        wrap.appendChild(toast);
+        toast.addEventListener('click', () => toast.style.display = 'none');
+
+        let editing = false;
+        let elDrag = null, elDragStart = null, elOrigOff = null;
+        let hdlDrag = null;
+        const origPathD = new Map();
+        const handlesByPath = new Map();
+
+        const svgPt = e => {
+          const p = svg.createSVGPoint();
+          p.x = e.clientX; p.y = e.clientY;
+          return p.matrixTransform(svg.getScreenCTM().inverse());
+        };
+        const getOff = g => {
+          const m = (g.getAttribute('transform')||'').match(/translate\(([-\d.\s,]+)\)/);
+          if (!m) return {x:0,y:0};
+          const [x,y] = m[1].split(/[\s,]+/).map(parseFloat);
+          return {x: x||0, y: y||0};
+        };
+        const setOff = (g, x, y) => {
+          const otherT = (g.getAttribute('transform')||'').replace(/translate\([^)]*\)\s*/, '');
+          const newT = `translate(${Math.round(x)} ${Math.round(y)}) ${otherT}`.trim();
+          g.setAttribute('transform', newT);
+        };
+
+        // path d 解析（只處理 M / L），用 matchAll 避免 stateful regex
+        function parsePath(d) {
+          const pts = [];
+          for (const m of d.matchAll(/([MLml])\s*((?:-?\d*\.?\d+[\s,]*)+)/g)) {
+            const cmd = m[1].toUpperCase();
+            const nums = m[2].trim().split(/[\s,]+/).filter(s=>s!=='').map(parseFloat);
+            for (let i = 0; i + 1 < nums.length; i += 2) {
+              pts.push({ cmd: i === 0 ? cmd : 'L', x: nums[i], y: nums[i+1] });
+            }
+          }
+          return pts;
+        }
+        function buildPath(pts) {
+          let d = '', last = null;
+          for (const p of pts) {
+            if (p.cmd !== last) d += (d ? ' ' : '') + p.cmd + ' ' + p.x + ' ' + p.y;
+            else                d += ' ' + p.x + ' ' + p.y;
+            last = p.cmd;
+          }
+          return d;
+        }
+
+        const startElDrag = e => {
+          if (!editing) return;
+          elDrag = e.currentTarget;
+          elDragStart = svgPt(e);
+          elOrigOff = getOff(elDrag);
+          elDrag.style.opacity = '0.65';
+          e.preventDefault(); e.stopPropagation();
+        };
+        const startHdlDrag = e => {
+          if (!editing) return;
+          hdlDrag = e.currentTarget;
+          e.preventDefault(); e.stopPropagation();
+        };
+
+        document.addEventListener('mousemove', e => {
+          if (elDrag) {
+            const p = svgPt(e);
+            setOff(elDrag, elOrigOff.x + p.x - elDragStart.x, elOrigOff.y + p.y - elDragStart.y);
+          }
+          if (hdlDrag) {
+            // 用 handle parent group 的 CTM 轉 local coord —— path d 是相對該 group 的座標
+            const parentG = hdlDrag.parentNode;
+            const ctm = parentG.getScreenCTM();
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX; pt.y = e.clientY;
+            const local = pt.matrixTransform(ctm.inverse());
+            const path = hdlDrag._path;
+            const idx  = hdlDrag._idx;
+            const pts = parsePath(path.getAttribute('d'));
+            pts[idx].x = Math.round(local.x);
+            pts[idx].y = Math.round(local.y);
+            path.setAttribute('d', buildPath(pts));
+            hdlDrag.setAttribute('x', pts[idx].x - 4);
+            hdlDrag.setAttribute('y', pts[idx].y - 4);
+          }
+        });
+        document.addEventListener('mouseup', () => {
+          if (elDrag) elDrag.style.opacity = '';
+          elDrag = null; hdlDrag = null;
+        });
+
+        function addHandles(path) {
+          const pts = parsePath(path.getAttribute('d'));
+          const hs = [];
+          const parent = path.parentNode; // ← 加到 path 同一 group 內，繼承 group transform
+          pts.forEach((pt, i) => {
+            const h = document.createElementNS(SVG_NS, 'rect');
+            h.setAttribute('x', pt.x - 4);
+            h.setAttribute('y', pt.y - 4);
+            h.setAttribute('width', 8);
+            h.setAttribute('height', 8);
+            h.setAttribute('fill', '#FB923C');
+            h.setAttribute('stroke', '#fff');
+            h.setAttribute('stroke-width', 1);
+            h.setAttribute('opacity', 0.9);
+            h.style.cursor = 'crosshair';
+            h._path = path;
+            h._idx = i;
+            h.addEventListener('mousedown', startHdlDrag);
+            parent.appendChild(h);
+            hs.push(h);
+          });
+          handlesByPath.set(path, hs);
+        }
+        function removeHandles() {
+          handlesByPath.forEach(hs => hs.forEach(h => h.remove()));
+          handlesByPath.clear();
+        }
+
+        editBtn.addEventListener('click', () => {
+          editing = !editing;
+          editBtn.textContent = editing ? '✓ Done' : '✎ Edit';
+          exportBtn.style.display = editing ? 'block' : 'none';
+          if (editing) root.dataset.editing = '1'; else delete root.dataset.editing;
+
+          if (editing) {
+            root.querySelectorAll('g[data-editable]').forEach(g => {
+              g.style.cursor = 'move';
+              g.style.outline = '1px dashed rgba(163,230,53,.5)';
+              g.addEventListener('mousedown', startElDrag);
+            });
+            origPathD.clear();
+            svg.querySelectorAll('path').forEach(p => {
+              origPathD.set(p, p.getAttribute('d'));
+              addHandles(p);
+            });
+          } else {
+            root.querySelectorAll('g[data-editable]').forEach(g => {
+              g.style.cursor = '';
+              g.style.outline = '';
+              g.removeEventListener('mousedown', startElDrag);
+            });
+            removeHandles();
+          }
+        });
+
+        exportBtn.addEventListener('click', () => {
+          const out = [];
+          const moved = [];
+          root.querySelectorAll('g[data-editable]').forEach(g => {
+            const off = getOff(g);
+            if (off.x === 0 && off.y === 0) return;
+            const name = g.getAttribute('data-editable');
+            const c = g.querySelector('circle'), r = g.querySelector('rect');
+            let detail = '';
+            if (c) {
+              const ox = +c.getAttribute('cx'), oy = +c.getAttribute('cy');
+              detail = ' (圓心 ' + ox + '→' + (ox+off.x) + ', ' + oy + '→' + (oy+off.y) + ')';
+            } else if (r) {
+              const ox = +r.getAttribute('x'), oy = +r.getAttribute('y');
+              detail = ' (矩形左上 ' + ox + '→' + (ox+off.x) + ', ' + oy + '→' + (oy+off.y) + ')';
+            }
+            moved.push('  ' + name + ': dx=' + off.x + ', dy=' + off.y + detail);
+          });
+          if (moved.length) out.push('# 元件移動 (translate offset)', ...moved);
+
+          const pathChanges = [];
+          svg.querySelectorAll('path').forEach(p => {
+            const cur = p.getAttribute('d');
+            const orig = origPathD.get(p);
+            if (orig && cur !== orig) {
+              const name = p.getAttribute('data-path-name') || p.id;
+              pathChanges.push('  ' + name + ':\n    舊: ' + orig + '\n    新: ' + cur);
+            }
+          });
+          if (pathChanges.length) out.push('', '# Path 變動', ...pathChanges);
+
+          if (out.length === 0) {
+            toast.textContent = '沒有改動';
+            toast.style.display = 'block';
+            setTimeout(()=> toast.style.display='none', 2000);
+            return;
+          }
+          const text = out.join('\n');
+          toast.textContent = text + '\n\n--- 已複製到剪貼簿，貼給 Claude ---';
+          toast.style.display = 'block';
+          if (navigator.clipboard) navigator.clipboard.writeText(text);
+        });
+      })();
+      </script>
+
+    </div>
+  </div>
+</section>
+
+<!-- C棟 WAREHOUSE -->
+<section id="c" class="snap-section min-h-screen px-6 md:px-16 py-24 border-t border-white/5">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex items-baseline gap-4 mb-2 reveal">
+      <span class="text-zinc-500 text-sm tracking-[0.3em]">BUILDING&nbsp;C</span>
+      <span class="chip">分區策略</span>
+    </div>
+    <h2 class="text-5xl md:text-7xl font-semibold tracking-tight reveal">物流倉儲</h2>
+    <p class="text-zinc-400 mt-4 max-w-2xl reveal">化學品倉恆溫恆濕、防爆型分離式。<br>一般倉走自然採光 + 屋頂排風扇置換通風，零冷氣。</p>
+
+    <div class="grid md:grid-cols-3 gap-10 mt-16 reveal">
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">外 觀</p>
+        <svg viewBox="0 0 240 200" class="w-full">
+          <path d="M 20 180 L 220 180 L 220 80 L 20 80 Z" class="pid-fill"/>
+          <!-- loading docks -->
+          <rect x="40" y="140" width="20" height="40" fill="#000" stroke="#f5f5f7" stroke-width="0.8"/>
+          <rect x="70" y="140" width="20" height="40" fill="#000" stroke="#f5f5f7" stroke-width="0.8"/>
+          <rect x="100" y="140" width="20" height="40" fill="#000" stroke="#f5f5f7" stroke-width="0.8"/>
+          <rect x="130" y="140" width="20" height="40" fill="#000" stroke="#f5f5f7" stroke-width="0.8"/>
+          <!-- roof exhaust fans -->
+          <circle cx="60" cy="80" r="8" class="pid-fill"/>
+          <circle cx="100" cy="80" r="8" class="pid-fill"/>
+          <circle cx="140" cy="80" r="8" class="pid-fill"/>
+          <circle cx="180" cy="80" r="8" class="pid-fill"/>
+          <text x="120" y="195" text-anchor="middle" class="pid-label">2F · 8,000 m²</text>
+        </svg>
+      </div>
+
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">設 備</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>防爆型分離式</span><span class="text-zinc-400">×6（化學倉）</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>屋頂軸流排風扇</span><span class="text-zinc-400">×8（一般倉）</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>側牆百葉</span><span class="text-zinc-400">12 組重力百葉</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>VOC 偵測器</span><span class="text-zinc-400">×12</span></li>
+          <li class="flex justify-between"><span>緊急排煙風機</span><span class="text-zinc-400">×2</span></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">數 據</p>
+        <div class="space-y-6">
+          <div><div class="hero-num text-5xl font-semibold">15 <span class="text-2xl text-zinc-500">ACH</span></div><div class="text-xs text-zinc-500 mt-1">化學倉換氣率</div></div>
+          <div><div class="hero-num text-5xl font-semibold">25 <span class="text-2xl text-zinc-500">±2°C</span></div><div class="text-xs text-zinc-500 mt-1">化學倉控溫</div></div>
+          <div><div class="hero-num text-5xl font-semibold">0 <span class="text-2xl text-zinc-500">RT</span></div><div class="text-xs text-zinc-500 mt-1">一般倉冷源</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-20 reveal">
+      <p class="text-xs text-zinc-500 mb-3">P & I D · 化學倉分區</p>
+      <div class="border border-white/10 rounded-2xl p-6 md:p-10 bg-zinc-950">
+        <svg viewBox="0 0 900 280" class="w-full">
+          <!-- chemical bay box -->
+          <rect x="60" y="60" width="380" height="160" fill="none" stroke="#444" stroke-dasharray="4 4"/>
+          <text x="70" y="78" class="pid-label" style="fill:#888">CHEMICAL BAY</text>
+          <!-- split AC indoor units -->
+          <g>
+            <rect x="100" y="100" width="60" height="20" class="pid-fill"/><text x="130" y="114" text-anchor="middle" class="pid-label" style="font-size:9px">SPLIT-EX</text>
+            <rect x="200" y="100" width="60" height="20" class="pid-fill"/><text x="230" y="114" text-anchor="middle" class="pid-label" style="font-size:9px">SPLIT-EX</text>
+            <rect x="300" y="100" width="60" height="20" class="pid-fill"/><text x="330" y="114" text-anchor="middle" class="pid-label" style="font-size:9px">SPLIT-EX</text>
+            <rect x="100" y="180" width="60" height="20" class="pid-fill"/><text x="130" y="194" text-anchor="middle" class="pid-label" style="font-size:9px">SPLIT-EX</text>
+            <rect x="200" y="180" width="60" height="20" class="pid-fill"/><text x="230" y="194" text-anchor="middle" class="pid-label" style="font-size:9px">SPLIT-EX</text>
+            <rect x="300" y="180" width="60" height="20" class="pid-fill"/><text x="330" y="194" text-anchor="middle" class="pid-label" style="font-size:9px">SPLIT-EX</text>
+          </g>
+          <!-- VOC sensor -->
+          <circle cx="380" cy="140" r="10" class="pid-tag"/><text x="380" y="143" text-anchor="middle" class="pid-label" style="font-size:9px">VOC</text>
+
+          <!-- general bay -->
+          <rect x="500" y="60" width="380" height="160" fill="none" stroke="#444" stroke-dasharray="4 4"/>
+          <text x="510" y="78" class="pid-label" style="fill:#888">GENERAL BAY</text>
+          <!-- roof fans -->
+          <g>
+            <circle cx="560" cy="60" r="12" class="pid-fill"/><text x="560" y="63" text-anchor="middle" class="pid-label" style="font-size:9px">EF</text>
+            <circle cx="640" cy="60" r="12" class="pid-fill"/><text x="640" y="63" text-anchor="middle" class="pid-label" style="font-size:9px">EF</text>
+            <circle cx="720" cy="60" r="12" class="pid-fill"/><text x="720" y="63" text-anchor="middle" class="pid-label" style="font-size:9px">EF</text>
+            <circle cx="800" cy="60" r="12" class="pid-fill"/><text x="800" y="63" text-anchor="middle" class="pid-label" style="font-size:9px">EF</text>
+          </g>
+          <!-- louvers -->
+          <g transform="translate(500 200)">
+            <path d="M 0 0 L 380 0" class="pid-stroke"/>
+            <path d="M 20 -8 L 30 0 M 50 -8 L 60 0 M 80 -8 L 90 0 M 110 -8 L 120 0 M 140 -8 L 150 0 M 170 -8 L 180 0 M 200 -8 L 210 0 M 230 -8 L 240 0 M 260 -8 L 270 0 M 290 -8 L 300 0 M 320 -8 L 330 0 M 350 -8 L 360 0" stroke="#f5f5f7" stroke-width="1"/>
+            <text x="190" y="20" text-anchor="middle" class="pid-label" style="font-size:9px">SIDE LOUVERS</text>
+          </g>
+          <!-- airflow arrows -->
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 690 195 L 690 80"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 760 195 L 760 80"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- D棟 UTILITY -->
+<section id="d" class="snap-section min-h-screen px-6 md:px-16 py-24 border-t border-white/5">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex items-baseline gap-4 mb-2 reveal">
+      <span class="text-zinc-500 text-sm tracking-[0.3em]">BUILDING&nbsp;D</span>
+      <span class="chip">公用設施</span>
+    </div>
+    <h2 class="text-5xl md:text-7xl font-semibold tracking-tight reveal">公用設施棟</h2>
+    <p class="text-zinc-400 mt-4 max-w-2xl reveal">全廠冰水與冷卻水的心臟。<br>機房高換氣率排熱、電氣室精密控溫、緊急排煙獨立迴路。</p>
+
+    <div class="grid md:grid-cols-3 gap-10 mt-16 reveal">
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">外 觀</p>
+        <svg viewBox="0 0 240 200" class="w-full">
+          <path d="M 30 180 L 210 180 L 210 90 L 30 90 Z" class="pid-fill"/>
+          <!-- vents -->
+          <g stroke="#3a3a44" stroke-width="0.8">
+            <path d="M 40 110 L 200 110"/><path d="M 40 130 L 200 130"/><path d="M 40 150 L 200 150"/>
+          </g>
+          <!-- cooling towers on roof -->
+          <ellipse cx="80" cy="90" rx="20" ry="6" class="pid-fill"/>
+          <rect x="60" y="60" width="40" height="30" class="pid-fill"/>
+          <ellipse cx="80" cy="60" rx="20" ry="6" class="pid-fill"/>
+          <ellipse cx="160" cy="90" rx="20" ry="6" class="pid-fill"/>
+          <rect x="140" y="60" width="40" height="30" class="pid-fill"/>
+          <ellipse cx="160" cy="60" rx="20" ry="6" class="pid-fill"/>
+          <text x="120" y="195" text-anchor="middle" class="pid-label">3F · 3,500 m²</text>
+        </svg>
+      </div>
+
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">設 備</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>離心式冰水主機</span><span class="text-zinc-400">600 RT ×3（含備援）</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>橫流式冷卻水塔</span><span class="text-zinc-400">800 RT ×3</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>冰水泵 / 冷卻水泵</span><span class="text-zinc-400">×6 / ×6（VFD）</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>機械通風扇</span><span class="text-zinc-400">×12（30 ACH）</span></li>
+          <li class="flex justify-between"><span>電氣室精密空調</span><span class="text-zinc-400">×4（24/7 N+1）</span></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">數 據</p>
+        <div class="space-y-6">
+          <div><div class="hero-num text-5xl font-semibold">1,800 <span class="text-2xl text-zinc-500">RT</span></div><div class="text-xs text-zinc-500 mt-1">中央冰水容量</div></div>
+          <div><div class="hero-num text-5xl font-semibold">N+1</div><div class="text-xs text-zinc-500 mt-1">主機備援</div></div>
+          <div><div class="hero-num text-5xl font-semibold">30 <span class="text-2xl text-zinc-500">ACH</span></div><div class="text-xs text-zinc-500 mt-1">機房換氣率</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-20 reveal">
+      <p class="text-xs text-zinc-500 mb-3">P & I D · 中央冰水迴路</p>
+      <div class="border border-white/10 rounded-2xl p-6 md:p-10 bg-zinc-950">
+        <svg viewBox="0 0 900 360" class="w-full">
+          <!-- 3 cooling towers -->
+          <g>
+            <rect x="40"  y="40" width="60" height="50" class="pid-fill"/><text x="70" y="70" text-anchor="middle" class="pid-label">CT-1</text>
+            <rect x="120" y="40" width="60" height="50" class="pid-fill"/><text x="150" y="70" text-anchor="middle" class="pid-label">CT-2</text>
+            <rect x="200" y="40" width="60" height="50" class="pid-fill"/><text x="230" y="70" text-anchor="middle" class="pid-label">CT-3</text>
+          </g>
+          <!-- common cooling water header -->
+          <path class="pid-stroke flow" stroke="var(--pipe-cws)" d="M 70 90 L 70 150 L 320 150"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-cws)" d="M 150 90 L 150 150"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-cws)" d="M 230 90 L 230 150"/>
+          <!-- 3 chillers -->
+          <g>
+            <rect x="320" y="130" width="100" height="50" class="pid-fill"/><text x="370" y="160" text-anchor="middle" class="pid-label">CH-1 600RT</text>
+            <rect x="320" y="200" width="100" height="50" class="pid-fill"/><text x="370" y="230" text-anchor="middle" class="pid-label">CH-2 600RT</text>
+            <rect x="320" y="270" width="100" height="50" class="pid-fill"/><text x="370" y="300" text-anchor="middle" class="pid-label">CH-3 600RT</text>
+          </g>
+          <!-- chilled water out -->
+          <path class="pid-stroke flow" stroke="var(--pipe-chws)" d="M 420 155 L 540 155 L 540 220"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-chws)" d="M 420 225 L 540 225"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-chws)" d="M 420 295 L 540 295 L 540 230"/>
+          <!-- pumps row -->
+          <g>
+            <circle cx="600" cy="220" r="14" class="pid-fill"/><path d="M 586 220 L 600 212 L 600 228 Z" fill="#f5f5f7"/>
+            <circle cx="640" cy="220" r="14" class="pid-fill"/><path d="M 626 220 L 640 212 L 640 228 Z" fill="#f5f5f7"/>
+            <circle cx="680" cy="220" r="14" class="pid-fill"/><path d="M 666 220 L 680 212 L 680 228 Z" fill="#f5f5f7"/>
+            <text x="640" y="252" text-anchor="middle" class="pid-label" style="font-size:9px">CHWP ×3 (VFD)</text>
+          </g>
+          <path class="pid-stroke flow" stroke="var(--pipe-chws)" d="M 540 220 L 586 220"/>
+          <!-- supply to plant -->
+          <path class="pid-stroke flow" stroke="var(--pipe-chws)" d="M 700 220 L 840 220"/>
+          <text x="848" y="216" class="pid-label">→ A 棟 / B 棟</text>
+          <!-- return -->
+          <path class="pid-stroke flow" stroke="var(--pipe-chwr)" d="M 840 260 L 480 260 L 480 320 L 320 320 L 320 305"/>
+          <text x="848" y="256" class="pid-label" style="font-size:9px">FROM PLANT ←</text>
+          <text x="848" y="270" class="pid-label" style="font-size:9px">CHWR 13°C</text>
+
+          <!-- legend -->
+          <g transform="translate(30 340)">
+            <line x1="0" y1="0" x2="20" y2="0" class="pid-stroke" stroke="var(--pipe-chws)"/>
+            <text x="26" y="3" class="pid-label">CHWS 7°C</text>
+            <line x1="120" y1="0" x2="140" y2="0" class="pid-stroke" stroke="var(--pipe-chwr)"/>
+            <text x="146" y="3" class="pid-label">CHWR 13°C</text>
+            <line x1="240" y1="0" x2="260" y2="0" class="pid-stroke" stroke="var(--pipe-cws)"/>
+            <text x="266" y="3" class="pid-label">COND WATER 32/37°C</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- E棟 WELFARE -->
+<section id="e" class="snap-section min-h-screen px-6 md:px-16 py-24 border-t border-white/5">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex items-baseline gap-4 mb-2 reveal">
+      <span class="text-zinc-500 text-sm tracking-[0.3em]">BUILDING&nbsp;E</span>
+      <span class="chip">員工生活</span>
+    </div>
+    <h2 class="text-5xl md:text-7xl font-semibold tracking-tight reveal">員工福利棟</h2>
+    <p class="text-zinc-400 mt-4 max-w-2xl reveal">餐廳、宿舍、健身房三合一。<br>大空間箱型機 + 宿舍分離式 + 廚房油煙罩三軌系統。</p>
+
+    <div class="grid md:grid-cols-3 gap-10 mt-16 reveal">
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">外 觀</p>
+        <svg viewBox="0 0 240 200" class="w-full">
+          <path d="M 30 180 L 210 180 L 210 60 L 30 60 Z" class="pid-fill"/>
+          <g stroke="#3a3a44" stroke-width="0.8">
+            <path d="M 30 90 L 210 90"/><path d="M 30 120 L 210 120"/><path d="M 30 150 L 210 150"/>
+            <path d="M 60 60 L 60 180"/><path d="M 100 60 L 100 180"/><path d="M 140 60 L 140 180"/><path d="M 180 60 L 180 180"/>
+          </g>
+          <!-- kitchen exhaust hood -->
+          <rect x="50" y="46" width="50" height="14" class="pid-fill"/>
+          <rect x="65" y="32" width="20" height="14" class="pid-fill"/>
+          <text x="120" y="195" text-anchor="middle" class="pid-label">4F · 4,200 m²</text>
+        </svg>
+      </div>
+
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">設 備</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>箱型空調機（餐廳）</span><span class="text-zinc-400">×4 / 25 RT each</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>分離式（宿舍）</span><span class="text-zinc-400">×30（一房一機）</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>VRV 多聯機（健身房）</span><span class="text-zinc-400">10 RT ×2</span></li>
+          <li class="flex justify-between border-b border-white/10 pb-2"><span>廚房油煙罩</span><span class="text-zinc-400">×2 / 靜電濾網</span></li>
+          <li class="flex justify-between"><span>排油煙風機</span><span class="text-zinc-400">×2 / 屋頂排放</span></li>
+        </ul>
+      </div>
+
+      <div>
+        <p class="text-xs text-zinc-500 mb-3">數 據</p>
+        <div class="space-y-6">
+          <div><div class="hero-num text-5xl font-semibold">120 <span class="text-2xl text-zinc-500">RT</span></div><div class="text-xs text-zinc-500 mt-1">總冷凍噸</div></div>
+          <div><div class="hero-num text-5xl font-semibold">42 <span class="text-2xl text-zinc-500">台</span></div><div class="text-xs text-zinc-500 mt-1">空調設備數</div></div>
+          <div><div class="hero-num text-5xl font-semibold">95 <span class="text-2xl text-zinc-500">%</span></div><div class="text-xs text-zinc-500 mt-1">油煙過濾效率</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-20 reveal">
+      <p class="text-xs text-zinc-500 mb-3">P & I D · 餐廳 + 廚房</p>
+      <div class="border border-white/10 rounded-2xl p-6 md:p-10 bg-zinc-950">
+        <svg viewBox="0 0 900 280" class="w-full">
+          <!-- restaurant zone -->
+          <rect x="60" y="60" width="380" height="160" fill="none" stroke="#444" stroke-dasharray="4 4"/>
+          <text x="70" y="78" class="pid-label" style="fill:#888">RESTAURANT</text>
+          <g>
+            <rect x="100" y="100" width="80" height="30" class="pid-fill"/><text x="140" y="120" text-anchor="middle" class="pid-label">PAC-1</text>
+            <rect x="200" y="100" width="80" height="30" class="pid-fill"/><text x="240" y="120" text-anchor="middle" class="pid-label">PAC-2</text>
+            <rect x="300" y="100" width="80" height="30" class="pid-fill"/><text x="340" y="120" text-anchor="middle" class="pid-label">PAC-3</text>
+          </g>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 140 130 L 140 180"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 240 130 L 240 180"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 340 130 L 340 180"/>
+
+          <!-- kitchen zone -->
+          <rect x="500" y="60" width="380" height="160" fill="none" stroke="#444" stroke-dasharray="4 4"/>
+          <text x="510" y="78" class="pid-label" style="fill:#888">KITCHEN</text>
+          <!-- hood -->
+          <rect x="560" y="120" width="180" height="20" class="pid-fill"/>
+          <text x="650" y="134" text-anchor="middle" class="pid-label">EXHAUST HOOD</text>
+          <!-- ESP filter -->
+          <rect x="600" y="80" width="100" height="30" class="pid-fill"/>
+          <text x="650" y="100" text-anchor="middle" class="pid-label" style="font-size:9px">ESP FILTER</text>
+          <!-- exhaust fan + stack -->
+          <circle cx="780" cy="95" r="15" class="pid-fill"/>
+          <text x="780" y="98" text-anchor="middle" class="pid-label" style="font-size:9px">EF</text>
+          <path class="pid-stroke flow" stroke="var(--pipe-exh)" d="M 650 120 L 650 110"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-exh)" d="M 700 95 L 765 95"/>
+          <path class="pid-stroke flow" stroke="var(--pipe-exh)" d="M 780 80 L 780 40"/>
+          <text x="788" y="40" class="pid-label" style="font-size:9px">→ STACK</text>
+
+          <!-- makeup air -->
+          <path class="pid-stroke flow" stroke="var(--pipe-mau)" d="M 540 200 L 580 200"/>
+          <text x="498" y="204" text-anchor="end" class="pid-label" style="font-size:9px">MAU</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────  Total Specs  ───────────────────────── -->
+<section id="specs" class="snap-section min-h-screen flex items-center justify-center px-6 py-24 border-t border-white/5">
+  <div class="max-w-6xl w-full">
+    <p class="text-xs tracking-[0.3em] text-zinc-500 mb-3 reveal text-center">全 廠 規 格</p>
+    <h2 class="text-5xl md:text-7xl font-semibold tracking-tight text-center reveal mb-20">數字會說話。</h2>
+
+    <div class="grid md:grid-cols-4 gap-12 reveal">
+      <div class="text-center">
+        <div class="hero-num text-6xl md:text-7xl font-semibold bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">3,720</div>
+        <div class="text-sm text-zinc-500 mt-2">總冷凍噸（RT）</div>
+      </div>
+      <div class="text-center">
+        <div class="hero-num text-6xl md:text-7xl font-semibold bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">368k</div>
+        <div class="text-sm text-zinc-500 mt-2">總外氣量（CMH）</div>
+      </div>
+      <div class="text-center">
+        <div class="hero-num text-6xl md:text-7xl font-semibold bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">2,496</div>
+        <div class="text-sm text-zinc-500 mt-2">空調設備總數</div>
+      </div>
+      <div class="text-center">
+        <div class="hero-num text-6xl md:text-7xl font-semibold bg-gradient-to-b from-white to-zinc-500 bg-clip-text text-transparent">278</div>
+        <div class="text-sm text-zinc-500 mt-2">EUI（kWh/m²·yr）</div>
+      </div>
+    </div>
+
+    <div class="mt-24 grid md:grid-cols-5 gap-6 reveal">
+      <div class="border border-white/10 rounded-2xl p-6">
+        <div class="text-xs text-zinc-500 mb-2">A · FAB</div>
+        <div class="text-3xl font-semibold">600 RT</div>
+        <div class="text-xs text-zinc-500 mt-2">cleanroom</div>
+      </div>
+      <div class="border border-white/10 rounded-2xl p-6">
+        <div class="text-xs text-zinc-500 mb-2">B · OFFICE</div>
+        <div class="text-3xl font-semibold">1,200 RT</div>
+        <div class="text-xs text-zinc-500 mt-2">central chiller</div>
+      </div>
+      <div class="border border-white/10 rounded-2xl p-6">
+        <div class="text-xs text-zinc-500 mb-2">C · WAREHOUSE</div>
+        <div class="text-3xl font-semibold">— RT</div>
+        <div class="text-xs text-zinc-500 mt-2">passive vent.</div>
+      </div>
+      <div class="border border-white/10 rounded-2xl p-6">
+        <div class="text-xs text-zinc-500 mb-2">D · UTILITY</div>
+        <div class="text-3xl font-semibold">1,800 RT</div>
+        <div class="text-xs text-zinc-500 mt-2">N+1 backup</div>
+      </div>
+      <div class="border border-white/10 rounded-2xl p-6">
+        <div class="text-xs text-zinc-500 mb-2">E · WELFARE</div>
+        <div class="text-3xl font-semibold">120 RT</div>
+        <div class="text-xs text-zinc-500 mt-2">PAC + split</div>
+      </div>
+    </div>
+
+    <p class="text-zinc-600 text-xs text-center mt-24 reveal">青禾半導體 路竹廠 · HVAC 系統規劃 · 虛擬案例</p>
+  </div>
+</section>
+
+<script>
+  // reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+
+</body>
+</html>
