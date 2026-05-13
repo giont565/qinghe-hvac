@@ -918,7 +918,143 @@ machGroup.add(brakeGroup);
 const brake = brakeGroup;
 machGroup.userData = { name:"Hoist Machine 牽引機", kind:"machine", desc:"永磁同步無齒輪曳引機（MRL）", specs:[["型式","PMSM Gearless"],["功率","8.5 kW"],["額定轉速","119 rpm"],["扭矩","580 Nm"],["效率","IE5"]] };
 machGroup.userData.basePos = machGroup.position.clone();
+
+// ===== 機座 Machine Bedplate（曳引機底座 + 4 個避震墊）=====
+const bedplate = new THREE.Mesh(new THREE.BoxGeometry(1.50, 0.10, 1.00),
+  new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.7, roughness: 0.5 }));
+bedplate.position.set(0, -0.45, 0);
+bedplate.userData = { name:"機座 Bedplate", kind:"machine",
+  desc:"曳引機底座 — 鋼板焊接 + 4 顆避震橡膠墊", specs:[["材質","Q235 鋼板"],["厚度","20 mm"],["螺栓","M20 化學錨栓"]] };
+machGroup.add(bedplate);
+// 避震橡膠墊（4 顆）
+[[+0.65, +0.40], [-0.65, +0.40], [+0.65, -0.40], [-0.65, -0.40]].forEach(([x, z]) => {
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.08, 16),
+    new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.85 }));
+  pad.position.set(x, -0.35, z);
+  machGroup.add(pad);
+});
+
+// ===== 馬達後散熱風扇 Cooling Fan =====
+const fanHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.10, 24),
+  new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.7, roughness: 0.4 }));
+fanHousing.rotation.z = Math.PI/2;
+fanHousing.position.set(-0.40, 0, 0);
+machGroup.add(fanHousing);
+// 風扇葉 (旋轉)
+const fanBlade = new THREE.Mesh(new THREE.CircleGeometry(0.22, 8),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.85, side: THREE.DoubleSide }));
+fanBlade.rotation.y = Math.PI/2;
+fanBlade.position.set(-0.41, 0, 0);
+fanBlade.userData = { name:"Motor Cooling Fan", kind:"machine", desc:"馬達散熱離心扇", specs:[["風量","450 m³/h"],["啟動","馬達 > 60°C"]] };
+machGroup.add(fanBlade);
+
+// ===== 吊裝樑 Hoist Beam（機房天花板下，給維修吊裝用）=====
+const hoistBeam = new THREE.Group();
+hoistBeam.position.set(0, 1.45, 0);  // 機房天花板下方
+const beamFlangeTop = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W - 0.1, 0.04, 0.20),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.4 }));
+beamFlangeTop.position.y = 0.10; hoistBeam.add(beamFlangeTop);
+const beamWeb = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W - 0.1, 0.18, 0.04),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.4 }));
+hoistBeam.add(beamWeb);
+const beamFlangeBot = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W - 0.1, 0.04, 0.20),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.4 }));
+beamFlangeBot.position.y = -0.10; hoistBeam.add(beamFlangeBot);
+// 吊鉤（中央）
+const hookEye = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 8, 16),
+  new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.95 }));
+hookEye.rotation.x = Math.PI/2;
+hookEye.position.set(0, -0.20, 0); hoistBeam.add(hookEye);
+const hookHook = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.013, 8, 16, Math.PI * 1.4),
+  new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.95 }));
+hookHook.rotation.x = Math.PI/2;
+hookHook.position.set(0, -0.30, 0); hoistBeam.add(hookHook);
+hoistBeam.userData = { name:"吊裝樑 Hoist Beam", kind:"machine",
+  desc:"H 型鋼 + 吊鉤 — 機房維修吊裝曳引機/sheave 用", specs:[["材質","H100×100 熱軋"],["承重","≥ 3 ton"],["位置","曳引機正上方"],["標準","CNS 11614"]] };
+machGroup.add(hoistBeam);
+
 ELEV.add(machGroup);
+
+// ===== 機房控制盤 Machine Room Controller（曳引機旁）=====
+const mrCtrl = new THREE.Group();
+mrCtrl.position.set(SHAFT_W/2 - 0.30, SHAFT_H - 2.3, -0.30);
+const mrBox = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.10, 0.30),
+  new THREE.MeshStandardMaterial({ color: 0xd0d3da, metalness: 0.7, roughness: 0.45 }));
+mrCtrl.add(mrBox);
+// 上方銘牌 (黑色面板)
+const mrPanel = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.30, 0.02),
+  new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85 }));
+mrPanel.position.set(0, 0.30, 0.16); mrCtrl.add(mrPanel);
+// 3 個指示燈 (power / run / fault)
+const mrLeds = [
+  { y: 0.38, color: 0xa3e635, label: 'PWR' },
+  { y: 0.30, color: 0xfb923c, label: 'RUN' },
+  { y: 0.22, color: 0xef4444, label: 'FAULT' },
+];
+mrLeds.forEach(l => {
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8),
+    new THREE.MeshStandardMaterial({ color: l.color, emissive: l.color, emissiveIntensity: 0.6 }));
+  led.position.set(-0.15, l.y, 0.175); mrCtrl.add(led);
+});
+// 緊急停止鈕（大紅蘑菇頭）
+const eStopBase = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.025, 16),
+  new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.5 }));
+eStopBase.rotation.x = Math.PI/2;
+eStopBase.position.set(0.10, 0.30, 0.16); mrCtrl.add(eStopBase);
+const eStopBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.035, 0.020, 24),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x4a0000, emissiveIntensity: 0.4 }));
+eStopBtn.rotation.x = Math.PI/2;
+eStopBtn.position.set(0.10, 0.30, 0.18); mrCtrl.add(eStopBtn);
+eStopBtn.userData = { name:"緊急停止 E-Stop", kind:"safety",
+  desc:"機房緊急停止鈕 — 按下立刻切斷主電源，曳引機失電 + 煞車自動夾緊",
+  specs:[["顏色","紅頭黃座 (IEC 60204-1)"],["接點","NC 強制斷開"],["復位","旋轉拉起"]] };
+mrCtrl.add(eStopBtn);
+// 把手（隔離開關 disconnect）
+const switchLever = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.10, 0.025),
+  new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.8 }));
+switchLever.position.set(-0.10, 0.04, 0.16); mrCtrl.add(switchLever);
+const switchTip = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 8),
+  new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+switchTip.position.set(-0.10, 0.09, 0.16); mrCtrl.add(switchTip);
+mrCtrl.userData = { name:"機房控制盤 MR Controller", kind:"controller",
+  desc:"曳引機就近控制盤 — 含 VFD、主接觸器、隔離開關、緊停",
+  specs:[["VFD","KEB F5 30 kW"],["主接觸器","Siemens 3RT2"],["隔離開關","ABB OT 100A"],["IP","IP54"],["標準","EN 81-1 §13"]] };
+ELEV.add(mrCtrl);
+
+// ===== 頂端極限開關 Top Limit Switch（cab 導軌頂端）=====
+const topLimitSwitch = new THREE.Group();
+topLimitSwitch.position.set(SHAFT_W/2 - 0.20, SHAFT_H - 2.6, CAB_Z + 0.30);
+const limitBody = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.06),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.7 }));
+topLimitSwitch.add(limitBody);
+const limitRoller = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.04, 12),
+  new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.9 }));
+limitRoller.rotation.x = Math.PI/2;
+limitRoller.position.set(0, 0.08, 0); topLimitSwitch.add(limitRoller);
+topLimitSwitch.userData = { name:"頂端極限開關 Top Limit Switch", kind:"safety",
+  desc:"cab 撞到觸發 → 強制斷主迴路 → 緊急煞車停車",
+  specs:[["位置","cab 行程上限 + 100 mm"],["接點","NC 強制斷開"],["復位","手動"],["標準","EN 81-20 §5.12.2.3"]] };
+ELEV.add(topLimitSwitch);
+
+// ===== 機房 LED 主照明 =====
+const mrLight = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.30),
+  new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xfff4d6, emissiveIntensity: 0.8 }));
+mrLight.position.set(0, SHAFT_H - 0.10, 0);
+mrLight.userData = { name:"機房照明 LED", kind:"light",
+  desc:"4,000K 主照明 + 緊急照明備援 30 分鐘", specs:[["照度","≥ 200 lx 在地板"],["備援","NiMH 電池 30 min"]] };
+ELEV.add(mrLight);
+
+// ===== 電纜架 Cable Tray（控制盤 → 曳引機/井道）=====
+const trayMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.5, roughness: 0.5 });
+const cableTray1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.80), trayMat);
+cableTray1.position.set(SHAFT_W/2 - 0.25, SHAFT_H - 1.70, 0.10);
+ELEV.add(cableTray1);
+const cableTray2 = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.04, 0.06), trayMat);
+cableTray2.position.set(SHAFT_W/2 - 0.50, SHAFT_H - 1.70, -0.25);
+cableTray2.userData = { name:"電纜架 Cable Tray", kind:"machine",
+  desc:"FRP 電纜架 — 控制盤至曳引機/井道主電源 + 訊號線分隔走線",
+  specs:[["材質","FRP 阻燃"],["寬度","100 mm"],["接地","Φ8 銅線連續"]] };
+ELEV.add(cableTray2);
 
 // ============ 7. Hoist Ropes 牽引繩 (8 條，分佈 sheave 8 個槽) ============
 const ropeMat = new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.4 });
@@ -1729,6 +1865,7 @@ function animate() {
     if (moving) {
       sheave.rotation.x += 0.12;
       motor.rotation.x += 0.12;
+      fanBlade.rotation.x += 0.35;  // 風扇高速旋轉
     }
 
     // === 門特寫步驟指示（依 doorPhase 顯示對應箭頭 + 文字）===
