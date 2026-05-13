@@ -689,57 +689,94 @@ function setExplode(on) {
 let shaftOn = true;
 function setShaftVis(on) { shaftOn = on; shaftBox.visible = on; shaftEdges.visible = on; }
 
-// ============ 門機構特寫模式：fly-to + 元件標籤 + 慢動作 ============
+// ============ 門機構特寫模式：fly-to + 3D 標籤 + 引線 + 慢動作 + 隱藏雜訊 ============
 let doorMode = false;
 let doorModeTargetCam = new THREE.Vector3();
 let doorModeTargetTar = new THREE.Vector3();
-// 標籤 sprites — 對應 7 個機構元件
-const labelSprites = [];
+
+// 製作 3D 標籤 (sprite)
 function makeLabel(text, color) {
-  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 56;
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 64;
   const cx = cv.getContext('2d');
-  cx.fillStyle = 'rgba(15,15,17,.95)';
-  cx.fillRect(0, 0, 256, 56);
-  cx.strokeStyle = color; cx.lineWidth = 2; cx.strokeRect(1, 1, 254, 54);
-  cx.fillStyle = color; cx.font = 'bold 22px sans-serif';
+  cx.fillStyle = 'rgba(15,15,17,.96)';
+  cx.fillRect(0, 0, 320, 64);
+  cx.strokeStyle = color; cx.lineWidth = 3; cx.strokeRect(1.5, 1.5, 317, 61);
+  cx.fillStyle = color; cx.font = 'bold 26px sans-serif';
   cx.textAlign = 'center'; cx.textBaseline = 'middle';
-  cx.fillText(text, 128, 28);
+  cx.fillText(text, 160, 32);
   const tex = new THREE.CanvasTexture(cv);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
-  sprite.scale.set(0.7, 0.16, 1);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+  sprite.scale.set(0.85, 0.17, 1);
   sprite.visible = false;
+  sprite.renderOrder = 999;
   return sprite;
 }
-// 7 個標籤：以 cab 局部座標放置（會跟著 cab 移動）
-const labels = [
-  { text: '① 馬達 Motor',     color: '#fb923c', lpos: new THREE.Vector3(-0.35, doorBaseY + doorPanelH/2 + 0.35, CAB_D/2 - 0.05) },
-  { text: '② 皮帶 Belt',      color: '#fb923c', lpos: new THREE.Vector3(0.05,  doorBaseY + doorPanelH/2 + 0.30, CAB_D/2 + 0.10) },
-  { text: '③ Crank Arm',     color: '#fb923c', lpos: new THREE.Vector3(-0.55, doorBaseY + doorPanelH/2 + 0.05, CAB_D/2 + 0.18) },
-  { text: '④ 門吊架 Hanger',  color: '#9aa0a8', lpos: new THREE.Vector3(0.55, doorBaseY + doorPanelH/2 + 0.13, CAB_D/2 + 0.20) },
-  { text: '⑤ Vane 離合葉',    color: '#a3e635', lpos: new THREE.Vector3(0.78,  doorBaseY + 0.4, CAB_D/2 + 0.25) },
-  { text: '⑥ Clutch 夾鉤',    color: '#fb923c', lpos: new THREE.Vector3(0,    doorBaseY + 0.4, CAB_D/2 + 0.50) },  // 樓層門位置
-  { text: '⑦ Photocell',     color: '#f472b6', lpos: new THREE.Vector3(-0.55, doorBaseY - 0.5, CAB_D/2 + 0.30) },
+
+// 標籤 + 引線（leader line）配對。
+// part = 元件在 cab 本地的「指向點」；label = 標籤位置
+const labelDefs = [
+  { text:'① 馬達 Motor',    color:'#fb923c', part:new THREE.Vector3(-0.25, doorBaseY + doorPanelH/2 + 0.18, CAB_D/2 - 0.05), label:new THREE.Vector3(-1.4, doorBaseY + doorPanelH/2 + 0.6, CAB_D/2 + 0.1) },
+  { text:'② 皮帶 Belt',     color:'#fb923c', part:new THREE.Vector3(0.07, doorBaseY + doorPanelH/2 + 0.18, CAB_D/2 + 0.0), label:new THREE.Vector3(0.6, doorBaseY + doorPanelH/2 + 0.7, CAB_D/2 + 0.15) },
+  { text:'③ Crank Arm',     color:'#fb923c', part:new THREE.Vector3(cabDoorL_close, doorBaseY + doorPanelH/2 + 0.10, CAB_D/2 - 0.02), label:new THREE.Vector3(-1.4, doorBaseY + 0.15, CAB_D/2 + 0.15) },
+  { text:'④ 門吊架 Hanger', color:'#9aa0a8', part:new THREE.Vector3(cabDoorR_close, doorBaseY + doorPanelH/2 + 0.05, CAB_D/2 + 0.04), label:new THREE.Vector3(1.4, doorBaseY + doorPanelH/2 + 0.2, CAB_D/2 + 0.1) },
+  { text:'⑤ Vane 離合葉',   color:'#a3e635', part:new THREE.Vector3(cabDoorR_close - doorPanelW/2, doorBaseY + 0.2, CAB_D/2 + 0.06), label:new THREE.Vector3(1.4, doorBaseY - 0.0, CAB_D/2 + 0.2) },
+  { text:'⑥ Clutch 夾鉤',   color:'#fb923c', part:new THREE.Vector3(0, doorBaseY - 0.0, CAB_D/2 + 0.40), label:new THREE.Vector3(0, doorBaseY - 0.5, CAB_D/2 + 0.7) },
+  { text:'⑦ Photocell',    color:'#f472b6', part:new THREE.Vector3(cabDoorL_close + doorPanelW/2 - 0.04, doorBaseY - 0.15, CAB_D/2 + 0.07), label:new THREE.Vector3(-1.4, doorBaseY - 0.5, CAB_D/2 + 0.2) },
 ];
-labels.forEach(lb => {
-  const s = makeLabel(lb.text, lb.color);
-  s.position.copy(lb.lpos);
-  cabGroup.add(s);   // 跟著 cab 一起動
-  labelSprites.push(s);
+
+// 為每個 label 建：sprite + 引線（Line from part to label）
+const labelGroups = [];
+labelDefs.forEach(d => {
+  const sprite = makeLabel(d.text, d.color);
+  sprite.position.copy(d.label);
+  cabGroup.add(sprite);
+  // 引線
+  const lineMat = new THREE.LineBasicMaterial({ color: d.color, transparent: true, depthTest: false, depthWrite: false });
+  const lineGeo = new THREE.BufferGeometry().setFromPoints([d.part, d.label]);
+  const line = new THREE.Line(lineGeo, lineMat);
+  line.visible = false;
+  line.renderOrder = 998;
+  cabGroup.add(line);
+  // 端點圓點（指到元件）
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 8),
+    new THREE.MeshBasicMaterial({ color: d.color, transparent: true, depthTest: false }));
+  dot.position.copy(d.part);
+  dot.visible = false;
+  dot.renderOrder = 998;
+  cabGroup.add(dot);
+  labelGroups.push({ sprite, line, dot });
 });
+
+// 切到門特寫模式時要隱藏的東西
+const hideInDoorMode = [];
+function setupHideList() {
+  hideInDoorMode.length = 0;
+  // 配重 + cw 導軌 + 牽引繩 + 機房 + governor
+  hideInDoorMode.push(cwGroup);
+  hideInDoorMode.push(machGroup);
+  if (typeof govGroup !== 'undefined') hideInDoorMode.push(govGroup);
+}
+setupHideList();
 
 const doorPanel = document.getElementById('doorPanel');
 function setDoorMode(on) {
   doorMode = on;
   document.querySelector('[data-action="door"]').classList.toggle('active', on);
   doorPanel.style.display = on ? 'block' : 'none';
-  labelSprites.forEach(s => s.visible = on);
+  // 顯示/隱藏所有標籤 + 引線 + 端點
+  labelGroups.forEach(g => {
+    g.sprite.visible = on;
+    g.line.visible = on;
+    g.dot.visible = on;
+  });
+  // 隱藏雜訊
+  hideInDoorMode.forEach(o => o.visible = !on);
   if (on) {
-    // 鏡頭飛到 cab 前方近距離看門
+    // 鏡頭飛到 cab 門前
     const cabPos = cabGroup.position;
-    doorModeTargetCam.set(cabPos.x + 0.3, cabPos.y + 0.3, cabPos.z + 3.2);
-    doorModeTargetTar.set(cabPos.x, cabPos.y, cabPos.z + 1.0);
+    doorModeTargetCam.set(cabPos.x + 0.4, cabPos.y + 0.3, cabPos.z + 3.4);
+    doorModeTargetTar.set(cabPos.x, cabPos.y + 0.1, cabPos.z + 1.0);
   } else {
-    // 還原
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
   }
