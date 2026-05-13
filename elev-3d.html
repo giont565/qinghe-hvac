@@ -766,11 +766,54 @@ const sheave = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.12, 32),
 sheave.rotation.z = Math.PI/2;
 sheave.position.x = 0.35;
 machGroup.add(sheave);
-// 制動器 (brake)
-const brake = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.25),
-  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.6, roughness: 0.4 }));
-brake.position.x = -0.4;
-machGroup.add(brake);
+// ===== 制動器 Brake（電磁失電制動 — 雙鉗夾煞車碟）=====
+const brakeGroup = new THREE.Group();
+brakeGroup.position.set(-0.18, 0, 0);  // 馬達與 sheave 之間
+// 煞車碟（銀色金屬碟，比 sheave 小一點）
+const brakeDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.025, 32),
+  new THREE.MeshStandardMaterial({ color: 0xb8bdc6, metalness: 0.95, roughness: 0.15 }));
+brakeDisc.rotation.z = Math.PI/2;
+brakeGroup.add(brakeDisc);
+// 碟面通風孔（8 個）
+for (let i = 0; i < 8; i++) {
+  const ang = i * Math.PI / 4;
+  const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.027, 12),
+    new THREE.MeshBasicMaterial({ color: 0x222 }));
+  hole.rotation.z = Math.PI/2;
+  hole.position.set(0, 0.13 * Math.sin(ang), 0.13 * Math.cos(ang));
+  brakeGroup.add(hole);
+}
+// 雙鉗（caliper）— 上下夾住碟
+const caliperMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.7, roughness: 0.35 });
+[+1, -1].forEach(side => {
+  const cal = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.16), caliperMat);
+  cal.position.set(0, side * 0.165, 0);
+  brakeGroup.add(cal);
+  // 鉗内的剎車片（黑色）
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.12),
+    new THREE.MeshStandardMaterial({ color: 0x222 }));
+  pad.position.set(0, side * 0.125, 0);
+  brakeGroup.add(pad);
+});
+// 電磁線圈（兩邊推鉗用的螺管 — 通電釋放、斷電夾緊）
+[+1, -1].forEach(side => {
+  const coil = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.07, 16),
+    new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.4,
+      emissive: 0x331400, emissiveIntensity: 0.4 }));
+  coil.position.set(0, side * 0.27, 0);
+  brakeGroup.add(coil);
+});
+// 軸（穿過碟到 sheave）
+const brakeShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.20, 16),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9 }));
+brakeShaft.rotation.z = Math.PI/2;
+brakeGroup.add(brakeShaft);
+brakeGroup.userData = { name:"Brake 制動器（電磁失電型）", kind:"safety",
+  desc:"雙鉗式煞車碟 — 斷電/緊急時彈簧推進剎車片夾緊碟、阻止 sheave 轉動",
+  specs:[["型式","Disc brake, fail-safe"],["釋放方式","電磁通電打開鉗"],["靜止扭矩","≥ 2× 額定載重"],["雙迴路","主+備兩組獨立鉗"],["檢測","caliper position sensor 反饋"]] };
+machGroup.add(brakeGroup);
+// 別名讓舊程式碼還能引用
+const brake = brakeGroup;
 machGroup.userData = { name:"Hoist Machine 牽引機", kind:"machine", desc:"永磁同步無齒輪曳引機（MRL）", specs:[["型式","PMSM Gearless"],["功率","8.5 kW"],["額定轉速","119 rpm"],["扭矩","580 Nm"],["效率","IE5"]] };
 machGroup.userData.basePos = machGroup.position.clone();
 ELEV.add(machGroup);
@@ -839,13 +882,43 @@ const guideShoeMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness
   cwGroup.add(shoe);
 });
 
-// ============ 8. Buffers 緩衝器 (pit 2 個) ============
-[[0, -SHAFT_D/2 + 0.3], [0, 0]].forEach(([x, z], i) => {
-  const buf = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.5, 16),
-    new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.5, roughness: 0.4 }));
-  buf.position.set(x, -1.0, z);
-  buf.userData = { name: i===0 ? "CW Buffer 配重緩衝器" : "Cab Buffer 轎廂緩衝器", kind:"safety", desc:"油壓式緩衝器（速度 ≥ 1.0m/s 需用）", specs:[["型式","油壓緩衝 oil buffer"],["容量","符合 EN 81-20"],["位置","pit 底部"]] };
-  ELEV.add(buf);
+// ============ 8. Buffers 緩衝器 (pit 底部 — 2 個，對齊 cab/CW) ============
+// 油壓式 oil buffer：基座 + 缸筒 + 活塞 + 頂部撞擊盤 + 黃黑警示帶
+[
+  { name:"Cab Buffer 轎廂緩衝器", z: CAB_Z, color: 0xf472b6 },
+  { name:"CW Buffer 配重緩衝器",  z: CW_Z,  color: 0xfb923c },
+].forEach(b => {
+  const bufGroup = new THREE.Group();
+  bufGroup.position.set(0, -1.25, b.z);
+  // 混凝土基座
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.10, 0.55),
+    new THREE.MeshStandardMaterial({ color: 0x8e9098, roughness: 0.95 }));
+  base.position.y = 0.05; bufGroup.add(base);
+  // 缸筒下半 (主體 — 油壓缸)
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.16, 0.55, 24),
+    new THREE.MeshStandardMaterial({ color: b.color, metalness: 0.55, roughness: 0.4 }));
+  cyl.position.y = 0.38; bufGroup.add(cyl);
+  // 黃黑警示帶（撞擊高度標示）
+  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.135, 0.06, 24),
+    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0x664400, emissiveIntensity: 0.3 }));
+  stripe.position.y = 0.62; bufGroup.add(stripe);
+  // 活塞桿（從缸筒頂伸出 — 受壓會壓回去）
+  const piston = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.40, 16),
+    new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.95, roughness: 0.15 }));
+  piston.position.y = 0.85; bufGroup.add(piston);
+  // 頂部撞擊盤（cab/CW 撞下來會接觸這裡）
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 24),
+    new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.8, roughness: 0.35 }));
+  head.position.y = 1.07; bufGroup.add(head);
+  // 排油螺塞（小六角凸點，缸筒側面）
+  const drainPlug = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.03, 6),
+    new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.9 }));
+  drainPlug.rotation.x = Math.PI/2;
+  drainPlug.position.set(0.14, 0.20, 0); bufGroup.add(drainPlug);
+  bufGroup.userData = { name: b.name, kind:"safety",
+    desc:"油壓式緩衝器 — 高速電梯墜落最後防線，活塞下壓油液吸收動能",
+    specs:[["型式","Oil-hydraulic buffer"],["行程","≥ 65 mm/s × 0.135 m"],["標準","EN 81-20 §5.8.2"],["啟動","cab/CW 撞擊撞擊盤"],["復位","彈簧 + 油壓自動回升"]] };
+  ELEV.add(bufGroup);
 });
 
 // ============ 9. Governor 限速器 + 安全鉗 ============
