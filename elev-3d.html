@@ -70,6 +70,12 @@
   .sce-btn .ico { font-size:14px; flex-shrink:0; }
   .sce-btn[data-sce="osg"]:hover { background:rgba(244,114,182,.18); border-color:rgba(244,114,182,.6); }
   .sce-btn.reset-btn { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.12); margin-top:4px; }
+  /* 速度控制 row */
+  .speed-row { display:flex; gap:4px; align-items:center; margin-top:10px; padding-top:10px; border-top:1px dashed rgba(255,255,255,.10); }
+  .speed-label { font-size:10px; color:var(--sub); letter-spacing:.18em; text-transform:uppercase; margin-right:4px; flex-shrink:0; }
+  .speed-btn { flex:1; padding:5px 0; font-size:11px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:5px; color:var(--ink); cursor:pointer; font-family:inherit; transition:background .15s, border-color .15s; }
+  .speed-btn:hover { background:rgba(255,255,255,.09); }
+  .speed-btn.active { background:rgba(0,212,255,.18); border-color:rgba(0,212,255,.5); color:#00d4ff; }
 
   /* 底部 status bar — 不衝突現有 #doorStepBar (bottom:160px)；本 bar 在 bottom:80px */
   .scen-status { position:fixed; left:50%; bottom:80px; transform:translateX(-50%); z-index:11; min-width:380px; max-width:560px; background:rgba(15,15,17,.92); backdrop-filter:blur(20px); border:1px solid rgba(251,146,60,.45); border-radius:14px; padding:12px 18px; opacity:0; transition:opacity .3s; pointer-events:none; }
@@ -162,6 +168,13 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="sce-btn" data-sce="overload"><span class="ico">🛑</span><span>超載 110% Overload</span></button>
     <button class="sce-btn" data-sce="osg"><span class="ico">🚨</span><span>限速器超速 OSG + Safety</span></button>
     <button class="sce-btn reset-btn" data-sce="reset"><span class="ico">↺</span><span>Reset 回到 normal loop</span></button>
+    <div class="speed-row">
+      <span class="speed-label">⚡ 速度</span>
+      <button class="speed-btn" data-speed="0.5">0.5×</button>
+      <button class="speed-btn active" data-speed="1">1×</button>
+      <button class="speed-btn" data-speed="2">2×</button>
+      <button class="speed-btn" data-speed="4">4×</button>
+    </div>
   </div>
 </div>
 
@@ -2484,6 +2497,7 @@ window.addEventListener('keydown', e => {
 const elevSim = {
   active: null,          // 劇本名稱 / null
   steps: [], stepIdx: 0, scenarioElapsed: 0, lastTickMs: performance.now(),
+  speed: 1.0,           // 0.5×/1×/2×/4× — 影響 step elapsed + cab/door lerp 收斂速率
   // takeOver 旗標 + 接管值（cab/door 平滑 lerp 由 animate 負責）
   takeOver: false,
   targetFloorTarget: 0,   // 0=1F, 1=2F, 2=3F, 3=RF
@@ -2562,7 +2576,7 @@ const elevSim = {
   // tick — 每幀呼叫，推進步驟 + lerp targetFloor / doorPhase
   tick() {
     const now = performance.now();
-    const dt = Math.min(64, now - this.lastTickMs);
+    const dt = Math.min(64, now - this.lastTickMs) * this.speed;   // dt 含 speed 倍率
     this.lastTickMs = now;
     if (this.active) {
       this.scenarioElapsed += dt;
@@ -2575,8 +2589,9 @@ const elevSim = {
         if (s.end) { this.end(); break; }
       }
     }
-    // lerp 接管值（即使 active=null 也讓 doorPhaseCur 漸進回 0 避免跳躍）
-    const lerp = (cur, tgt, k) => cur + (tgt - cur) * k;
+    // lerp 接管值（速率乘 speed、clamp 防 overshoot）
+    const sp = this.speed;
+    const lerp = (cur, tgt, k) => cur + (tgt - cur) * Math.min(0.5, k * sp);
     this.targetFloorCur = lerp(this.targetFloorCur, this.targetFloorTarget, 0.018);  // cab 移動慢一點（電梯感）
     this.doorPhaseCur   = lerp(this.doorPhaseCur,   this.doorPhaseTarget,   0.06);
 
@@ -2672,6 +2687,14 @@ document.querySelectorAll('.sce-btn').forEach(btn => {
     const sce = btn.dataset.sce;
     if (sce === 'reset') elevSim.resetAll();
     else elevSim.start(sce);
+  });
+});
+
+// 速度倍率按鈕
+document.querySelectorAll('.speed-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    elevSim.speed = parseFloat(b.dataset.speed);
+    document.querySelectorAll('.speed-btn').forEach(x => x.classList.toggle('active', x === b));
   });
 });
 
