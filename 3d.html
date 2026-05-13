@@ -1811,22 +1811,140 @@ const matServiceEdge = new THREE.LineBasicMaterial({ color: 0xa3e635, transparen
 });
 
 // Sensors
-function addSensor(name, x, desc, specs) {
-  const g = new THREE.Group(); g.position.set(x, AHU_H + 0.15, 0);
-  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.18), matSensor));
-  const probe = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.4), matSensor);
-  probe.position.y = -0.26; g.add(probe);
+// 升級版：含 IP65 圓筒接線盒 + cable gland + 上引 conduit + LED 狀態燈 + 銘版 + Pt100 sheath end cap
+function addSensor(name, x, desc, specs, opts) {
+  opts = opts || {};
+  const ledColor = opts.ledColor || 0xa3e635;
+  const probeColor = opts.probeColor || 0xc0c4cc;  // 不鏽鋼色
+  const matBody = new THREE.MeshStandardMaterial({ color: 0xd4d8e0, roughness: 0.5, metalness: 0.65 });
+  const matCap = new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.55, metalness: 0.7 });
+  const matSheath = new THREE.MeshStandardMaterial({ color: probeColor, roughness: 0.35, metalness: 0.85 });
+  const matLED = new THREE.MeshStandardMaterial({ color: ledColor, emissive: ledColor, emissiveIntensity: 0.95, roughness: 0.3 });
+  const g = new THREE.Group();
+  g.position.set(x, AHU_H + 0.15, 0);
+  // 1. IP65 圓筒接線盒（die-cast aluminum housing）
+  const enclosure = new THREE.Mesh(new THREE.CylinderGeometry(0.078, 0.078, 0.16, 16), matBody);
+  enclosure.rotation.x = Math.PI/2;
+  g.add(enclosure);
+  // 2. 接線盒背蓋
+  const back = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.082, 0.012, 16), matCap);
+  back.rotation.x = Math.PI/2;
+  back.position.z = -0.085;
+  g.add(back);
+  // 3. 接線盒前蓋（含觀察窗）
+  const front = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.072, 0.005, 16), new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 0.2, metalness: 0.5, transparent: true, opacity: 0.85 }));
+  front.rotation.x = Math.PI/2;
+  front.position.z = 0.082;
+  g.add(front);
+  // 4. PG 防水 cable gland（頂部出線）
+  const gland = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.024, 0.045, 8), matCap);
+  gland.position.set(0, 0.10, 0);
+  g.add(gland);
+  // 5. 上引 conduit（短管，往 cable tray 方向）
+  const conduit = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 8), new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.6, metalness: 0.55 }));
+  conduit.position.set(0, 0.34, 0);
+  g.add(conduit);
+  // 6. LED 狀態燈（觀察窗內）
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.013, 12, 8), matLED);
+  led.position.set(0.038, 0, 0.084);
+  g.add(led);
+  // 7. 銘版（橫向、含名稱前綴 e.g. "TT-105"）
+  const cv = document.createElement('canvas'); cv.width=192; cv.height=48;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(20,22,26,1)'; cx.fillRect(0,0,192,48);
+  cx.strokeStyle = '#a3e635'; cx.lineWidth = 2; cx.strokeRect(2,2,188,44);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 22px -apple-system, sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(name.split(' ')[0], 96, 24);
+  const tex = new THREE.CanvasTexture(cv);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.04), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  tag.position.set(-0.04, 0, 0.084);
+  g.add(tag);
+  // 8. 探頭 stem（穿入風管）
+  const probe = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.4, 12), matSheath);
+  probe.position.y = -0.26;
+  g.add(probe);
+  // 9. 探頭末端 sheath cap（不鏽鋼圓帽）
+  const sheath = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), matSheath);
+  sheath.position.y = -0.46;
+  g.add(sheath);
+  // 10. process connection（穿管至風管的螺紋接頭）
+  const fitting = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.025, 8), matCap);
+  fitting.position.y = -0.085;
+  g.add(fitting);
+
   g.userData = { name, kind:"sensor", desc, specs };
+  g.userData.led = led;        // 給後續劇本變色用
   ahuGroup.add(g);
+  return g;
 }
-// FS 外氣風速計（在 OA 風管內，殼體外左方）
+// FS-100 外氣風速計（在 OA 風管內，殼體外左方）— 升級：cross 4 點 thermal probe array + IP65 enclosure + 4 LED
 const fsGroup = new THREE.Group(); fsGroup.position.set(-3.2, AHU_H*0.5, 0);
-fsGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.18), matSensor));
-const fsProbe1 = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5), matSensor);
-fsProbe1.position.set(0, -0.34, 0); fsGroup.add(fsProbe1);
-const fsProbe2 = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.5), matSensor);
-fsProbe2.position.set(0, -0.34, 0.15); fsGroup.add(fsProbe2);
-fsGroup.userData = { name:"FS-100 OA Airflow Station", kind:"sensor", desc:"熱式多點風速陣列（外氣風量換算）", specs:[["元件","Honeywell HAFSMT0050"],["範圍","0-10 m/s"],["精度","±2%"],["輸出","I²C / 0-10V"]] };
+{
+  const matBody = new THREE.MeshStandardMaterial({ color: 0xd4d8e0, roughness: 0.5, metalness: 0.65 });
+  const matCap = new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.55, metalness: 0.7 });
+  const matProbe = new THREE.MeshStandardMaterial({ color: 0xc0c4cc, roughness: 0.35, metalness: 0.85 });
+  // 1. 上方接線箱（含 mounting flange）
+  const fsBox = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.18), matBody);
+  fsGroup.add(fsBox);
+  const fsFlange = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.012, 0.22), matCap);
+  fsFlange.position.set(0, -0.10, 0); fsGroup.add(fsFlange);
+  // 2. 觀察窗（前蓋透明面板）
+  const fsWindow = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.005), new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 0.2, metalness: 0.5, transparent: true, opacity: 0.85 }));
+  fsWindow.position.set(0, 0, 0.092); fsGroup.add(fsWindow);
+  // 3. 4 顆 LED 狀態列（PWR/RUN/COMM/FAULT）
+  [0xa3e635, 0xa3e635, 0x00d4ff, 0xfb923c].forEach((c, i) => {
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.011, 10, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.95 }));
+    led.position.set(0.075, 0.05 - i*0.030, 0.094);
+    fsGroup.add(led);
+  });
+  // 4. 銘版「FS-100」
+  const cv = document.createElement('canvas'); cv.width=192; cv.height=48;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(20,22,26,1)'; cx.fillRect(0,0,192,48);
+  cx.strokeStyle = '#a3e635'; cx.lineWidth = 2; cx.strokeRect(2,2,188,44);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 18px -apple-system, sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText('FS-100', 70, 24);
+  cx.font = '12px monospace'; cx.fillStyle = '#86c5a0';
+  cx.fillText('OA AIRFLOW', 130, 24);
+  const tex = new THREE.CanvasTexture(cv);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.043), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  tag.position.set(-0.02, -0.06, 0.094); fsGroup.add(tag);
+  // 5. PG cable gland 上方
+  const fsGland = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.024, 0.045, 8), matCap);
+  fsGland.position.set(0, 0.115, 0); fsGroup.add(fsGland);
+  // 6. 上引 conduit
+  const fsConduit = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.42, 8), matCap);
+  fsConduit.position.set(0, 0.34, 0); fsGroup.add(fsConduit);
+  // 7. 主連接 stem（從接線箱往下進入 OA duct）
+  const fsStem = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.20, 12), matProbe);
+  fsStem.position.set(0, -0.20, 0); fsGroup.add(fsStem);
+  // 8. Cross 4 點 thermal probe array（X 軸主梁 + 4 個 sense head）
+  const crossY = -0.40;
+  // 主橫梁（沿 X 軸）
+  const fsMain = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.50, 8), matProbe);
+  fsMain.rotation.z = Math.PI/2;
+  fsMain.position.set(0, crossY, 0); fsGroup.add(fsMain);
+  // 4 個 thermal sense head（對稱分佈）
+  [-0.20, -0.07, 0.07, 0.20].forEach(dx => {
+    // probe stub
+    const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.10, 8), matProbe);
+    stub.position.set(dx, crossY - 0.05, 0); fsGroup.add(stub);
+    // thermal sense ball（綠色發光：感測元件）
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.6, roughness: 0.4, metalness: 0.4 }));
+    head.position.set(dx, crossY - 0.10, 0); fsGroup.add(head);
+    // 末端 sheath cap
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.012, 8), matProbe);
+    cap.position.set(dx, crossY - 0.115, 0); fsGroup.add(cap);
+  });
+  // 9. 標尺（cross 主梁兩端 mounting clip）
+  [-0.25, 0.25].forEach(dx => {
+    const clip = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.025, 0.020), matCap);
+    clip.position.set(dx, crossY, 0); fsGroup.add(clip);
+  });
+}
+fsGroup.userData = { name:"FS-100 OA Airflow Station", kind:"sensor", desc:"熱式多點風速陣列（外氣風量換算）— Cross 主梁 + 4 thermal sense heads", specs:[["元件","Honeywell HAFSMT0050"],["範圍","0-10 m/s"],["精度","±2%"],["輸出","I²C / 0-10V"],["探頭","4 點 cross-array"],["材質","SUS304 stem"]] };
 ahuGroup.add(fsGroup);
 
 addSensor("ΔP-101 Filter dP",  -1.85, "前過濾段壓差變送器", [["範圍","0-500 Pa"],["輸出","4-20 mA"]]);
@@ -1834,36 +1952,172 @@ addSensor("TT-105 Supply Air",  0.7, "SA 送風溫度 Pt100", [["元件","Pt100 
 addSensor("PDT-107 Static Pr.", 1.4, "風管靜壓變送器", [["範圍","0-500 Pa"],["輸出","4-20 mA"]]);
 addSensor("SD-201 Smoke Det.",  2.0, "風管偵煙器（NFPA 90A）", [["型式","光電 + 離子化"],["連動","FIRE → AHU stop"]]);
 
+// CO2-103 室內 IAQ 感測器（NDIR）— 升級：壁掛殼 + 5 條 louver 採樣口 + LED + 銘版 + mounting plate
 const co2Group = new THREE.Group(); co2Group.position.set(1.8, -0.05, -1.4);
-co2Group.add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), matSensor));
-co2Group.userData = { name:"CO2-103 IAQ", kind:"sensor", desc:"NDIR 二氧化碳", specs:[["範圍","0-2000 ppm"],["輸出","4-20 mA"]] };
+{
+  const matBody = new THREE.MeshStandardMaterial({ color: 0xeae8e2, roughness: 0.65, metalness: 0.15 });
+  const matLouver = new THREE.MeshStandardMaterial({ color: 0x4a5160, roughness: 0.8 });
+  const matMount = new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.6, metalness: 0.55 });
+  // 1. 主殼（壁掛 ABS plastic）
+  const co2Body = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.06), matBody);
+  co2Group.add(co2Body);
+  // 2. NDIR 採樣格柵（5 條橫向 louver、空氣流通）
+  for (let i = 0; i < 5; i++) {
+    const louver = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.012, 0.008), matLouver);
+    louver.position.set(0, 0.05 - i*0.025, 0.034);
+    co2Group.add(louver);
+  }
+  // 3. LED 綠（NDIR working indicator）
+  const co2Led = new THREE.Mesh(new THREE.SphereGeometry(0.011, 12, 8), new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.95 }));
+  co2Led.position.set(0.062, -0.08, 0.034);
+  co2Group.add(co2Led);
+  // 4. 銘版「CO₂-103 IAQ」
+  const cv = document.createElement('canvas'); cv.width=192; cv.height=48;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(20,22,26,1)'; cx.fillRect(0,0,192,48);
+  cx.strokeStyle = '#a3e635'; cx.lineWidth = 2; cx.strokeRect(2,2,188,44);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 18px -apple-system, sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText('CO₂-103', 70, 24);
+  cx.font = '12px monospace'; cx.fillStyle = '#86c5a0';
+  cx.fillText('NDIR · IAQ', 130, 24);
+  const tex = new THREE.CanvasTexture(cv);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.038), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  tag.position.set(0, -0.085, 0.034);
+  co2Group.add(tag);
+  // 5. 背面 mounting plate（含 4 個固定孔）
+  const co2Mount = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.20, 0.005), matMount);
+  co2Mount.position.set(0, 0, -0.034);
+  co2Group.add(co2Mount);
+  // 4 個固定孔螺絲
+  [[-0.06, 0.08], [0.06, 0.08], [-0.06, -0.08], [0.06, -0.08]].forEach(([dx, dy]) => {
+    const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.008, 6), new THREE.MeshStandardMaterial({ color: 0xc0a050, metalness: 0.9 }));
+    screw.rotation.x = Math.PI/2;
+    screw.position.set(dx, dy, -0.038);
+    co2Group.add(screw);
+  });
+  // 6. 出線（背面 conduit 短管，往牆內）
+  const co2Conduit = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.05, 8), matMount);
+  co2Conduit.position.set(0, 0, -0.063);
+  co2Group.add(co2Conduit);
+  co2Group.userData = { led: co2Led };
+}
+co2Group.userData.name = "CO2-103 IAQ";
+co2Group.userData.kind = "sensor";
+co2Group.userData.desc = "室內 NDIR 二氧化碳（壁掛、5 條 louver 採樣口）";
+co2Group.userData.specs = [["範圍","0-2000 ppm"],["輸出","4-20 mA"],["元件","NDIR Single-Beam"],["精度","±50 ppm + 3% reading"],["安裝","壁掛 + 4 螺絲固定"]];
 ahuGroup.add(co2Group);
 
-// BA Controller — 內裝部分（後面放進 CTRL PANEL 控制盤櫃）
+// BA Controller — 升級版：DDC 主機 + LCD 模擬畫面 + keypad + 5 LED 含 label + I/O 子模組 + 端子排 + wire ferrule
 const baGroup = new THREE.Group();
 {
-  // DDC 控制器主體
-  baGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.14), new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.4, metalness: 0.7 })));
-  // LCD 顯示螢幕
-  const baScreen = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.005), new THREE.MeshBasicMaterial({ color: 0x0a3030 }));
-  baScreen.position.set(-0.04, 0.05, 0.075); baGroup.add(baScreen);
-  // 3 LED 指示燈
-  for (let i = 0; i < 3; i++) {
-    const c = i===0?0xa3e635:i===1?0xfb923c:0xf472b6;
-    const led = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.8 }));
-    led.position.set(0.18, 0.08 - i*0.05, 0.075); baGroup.add(led);
-  }
-  // Terminal blocks（端子排，控制器下方）
+  const matCase = new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.4, metalness: 0.7 });
+  const matFront = new THREE.MeshStandardMaterial({ color: 0x2a2e36, roughness: 0.5 });
+  const matBtn = new THREE.MeshStandardMaterial({ color: 0x4a5160, roughness: 0.45, metalness: 0.55 });
+  const matIOM = new THREE.MeshStandardMaterial({ color: 0xb4b8c0, roughness: 0.5, metalness: 0.65 });
+  // 1. DDC 主控制器 case
+  baGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.14), matCase));
+  // 2. LCD 螢幕（含模擬畫面：AHU 即時數據）
+  const cv = document.createElement('canvas'); cv.width=288; cv.height=144;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#0a3030'; cx.fillRect(0,0,288,144);
+  cx.strokeStyle = '#1a4a4a'; cx.lineWidth = 1;
+  for (let y = 0; y < 144; y += 8) { cx.beginPath(); cx.moveTo(0,y); cx.lineTo(288,y); cx.stroke(); }   // CRT 掃線
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 16px monospace';
+  cx.fillText('AHU-B-08 STATUS', 10, 20);
+  cx.fillStyle = '#86c5a0'; cx.font = '13px monospace';
+  cx.fillText('SA TEMP : 18.0 C', 10, 44);
+  cx.fillText('VFD Hz  : 60.0', 10, 62);
+  cx.fillText('STATIC  : 650 Pa', 10, 80);
+  cx.fillText('DAMPER  : 100%', 10, 98);
+  cx.fillText('CO2     : 800 ppm', 10, 116);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 13px monospace';
+  cx.fillText('* RUN OK *', 180, 134);
+  const lcdTex = new THREE.CanvasTexture(cv);
+  const baScreen = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.005), new THREE.MeshBasicMaterial({ map: lcdTex }));
+  baScreen.position.set(-0.05, 0.06, 0.075); baGroup.add(baScreen);
+  // LCD 邊框
+  const baScreenFrame = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.20, 0.004), matFront);
+  baScreenFrame.position.set(-0.05, 0.06, 0.073); baGroup.add(baScreenFrame);
+  // 3. Keypad（4 按鈕：UP / DOWN / OK / ESC）— LCD 下方
+  [['↑',-0.13],['↓',-0.07],['OK',-0.01],['ESC',0.06]].forEach(([_, dx]) => {
+    const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.012, 14), matBtn);
+    btn.rotation.x = Math.PI/2;
+    btn.position.set(dx, -0.075, 0.078); baGroup.add(btn);
+  });
+  // 4. 5 LED 狀態列（PWR / RUN / COMM / ALM / FLT）右側
+  const ledColors = [0xa3e635, 0xa3e635, 0x00d4ff, 0xfb923c, 0xf472b6];
+  ledColors.forEach((c, i) => {
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.011, 12, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.95 }));
+    led.position.set(0.185, 0.13 - i*0.030, 0.078); baGroup.add(led);
+  });
+  // LED labels canvas
+  const ledCv = document.createElement('canvas'); ledCv.width=56; ledCv.height=192;
+  const lcx = ledCv.getContext('2d');
+  lcx.fillStyle = '#1a1d24'; lcx.fillRect(0,0,56,192);
+  lcx.fillStyle = '#a3e635'; lcx.font = 'bold 16px monospace';
+  lcx.textAlign = 'left'; lcx.textBaseline = 'middle';
+  ['PWR','RUN','COMM','ALM','FLT'].forEach((t, i) => { lcx.fillText(t, 6, 24 + i*36); });
+  const ledTex = new THREE.CanvasTexture(ledCv);
+  const ledLabel = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.17), new THREE.MeshBasicMaterial({ map: ledTex }));
+  ledLabel.position.set(0.215, 0.06, 0.076); baGroup.add(ledLabel);
+  // 5. 銘版（型號 + BACnet/IP）case 下方
+  const tagCv = document.createElement('canvas'); tagCv.width=288; tagCv.height=64;
+  const tagCx = tagCv.getContext('2d');
+  tagCx.fillStyle = '#1a1d24'; tagCx.fillRect(0,0,288,64);
+  tagCx.strokeStyle = '#a3e635'; tagCx.lineWidth = 2; tagCx.strokeRect(2,2,284,60);
+  tagCx.fillStyle = '#a3e635'; tagCx.font = 'bold 16px -apple-system, sans-serif';
+  tagCx.textAlign = 'center'; tagCx.textBaseline = 'middle';
+  tagCx.fillText('Honeywell Niagara 4', 144, 22);
+  tagCx.fillStyle = '#86c5a0'; tagCx.font = '12px monospace';
+  tagCx.fillText('BACnet/IP · 11 IN / 6 OUT', 144, 44);
+  const tagTex = new THREE.CanvasTexture(tagCv);
+  const tagPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.078), new THREE.MeshBasicMaterial({ map: tagTex }));
+  tagPlate.position.set(-0.05, -0.155, 0.073); baGroup.add(tagPlate);
+  // 6. Terminal blocks（端子排）+ wire ferrule（彩色線材）
   const tb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.1), new THREE.MeshStandardMaterial({ color: 0x4a5160, roughness: 0.8 }));
   tb.position.set(0, -0.32, 0); baGroup.add(tb);
+  // 端子背板（較深色）
+  const tbBack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.005), new THREE.MeshStandardMaterial({ color: 0x2a2e36 }));
+  tbBack.position.set(0, -0.32, -0.05); baGroup.add(tbBack);
+  // 16 顆端子（升級雙排）
   for (let i = 0; i < 8; i++) {
-    const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.02, 6), new THREE.MeshStandardMaterial({ color: 0xc0a050, metalness: 0.9 }));
-    screw.rotation.x = Math.PI/2;
-    screw.position.set(-0.21 + i*0.06, -0.32, 0.055);
-    baGroup.add(screw);
+    [-0.04, -0.02].forEach(dy => {
+      const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.010, 0.018, 6), new THREE.MeshStandardMaterial({ color: 0xc0a050, metalness: 0.9 }));
+      screw.rotation.x = Math.PI/2;
+      screw.position.set(-0.21 + i*0.06, -0.30 + dy, 0.055);
+      baGroup.add(screw);
+    });
+    // wire ferrule（彩色 — 紅/藍/黃/綠 循環表示 IO 線色）
+    const wireColors = [0xfb923c, 0x00d4ff, 0xfbbf24, 0xa3e635];
+    const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.13, 6), new THREE.MeshStandardMaterial({ color: wireColors[i % 4] }));
+    wire.position.set(-0.21 + i*0.06, -0.46, 0.055);
+    baGroup.add(wire);
   }
+  // 7. I/O 子模組（端子排下方一排 3 個：DI/AI/AO）
+  const iomTypes = [['DI','8 ch',0xa3e635], ['AI','6 ch',0x00d4ff], ['AO','4 ch',0xfb923c]];
+  iomTypes.forEach(([type, ch, color], i) => {
+    const iom = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 0.10), matIOM);
+    iom.position.set(-0.16 + i*0.15, -0.59, 0); baGroup.add(iom);
+    // 模組正面 label
+    const iomCv = document.createElement('canvas'); iomCv.width=128; iomCv.height=64;
+    const iomCx = iomCv.getContext('2d');
+    iomCx.fillStyle = '#1a1d24'; iomCx.fillRect(0,0,128,64);
+    iomCx.fillStyle = '#86868b'; iomCx.font = 'bold 11px monospace';
+    iomCx.textAlign = 'center'; iomCx.fillText('I/O MOD', 64, 12);
+    iomCx.fillStyle = '#' + color.toString(16).padStart(6,'0'); iomCx.font = 'bold 22px monospace';
+    iomCx.fillText(type, 64, 36);
+    iomCx.fillStyle = '#86868b'; iomCx.font = '10px monospace';
+    iomCx.fillText(ch, 64, 56);
+    const iomTex = new THREE.CanvasTexture(iomCv);
+    const iomTag = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.062), new THREE.MeshBasicMaterial({ map: iomTex }));
+    iomTag.position.set(-0.16 + i*0.15, -0.59, 0.051); baGroup.add(iomTag);
+    // 模組指示燈
+    const iomLed = new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 6), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.95 }));
+    iomLed.position.set(-0.16 + i*0.15 + 0.05, -0.61, 0.051); baGroup.add(iomLed);
+  });
 }
-baGroup.userData = { name:"BA Controller", kind:"controller", desc:"中央 DDC 控制器 (位於控制盤櫃內)", specs:[["型號","Honeywell Niagara 4"],["通訊","BACnet/IP"],["輸入點","11"],["輸出點","6"]] };
+baGroup.userData = { name:"BA Controller", kind:"controller", desc:"中央 DDC 控制器（含 LCD 模擬畫面 + 4 鍵 keypad + 5 LED 狀態列 + 3 I/O 子模組 DI/AI/AO，位於控制盤櫃內）", specs:[["型號","Honeywell Niagara 4"],["通訊","BACnet/IP"],["輸入點","11 (DI 8 + AI 3)"],["輸出點","6 (AO 4 + DO 2)"],["I/O 模組","DI/AI/AO 3 子模組"],["備援","UPS 30 min"]] };
 
 // ============== 旁置電盤 (ELEC PANEL) + 控制盤 (CTRL PANEL) 兩個獨立櫃 ==============
 const panelsGroup = new THREE.Group(); ahuGroup.add(panelsGroup);
@@ -1958,7 +2212,7 @@ const ctrlPanel = makeCabinet(
   baGroup
 );
 ctrlPanel.rotation.y = Math.PI/2;
-ctrlPanel.position.set(-3.0, 0.95, -1.85);  // 第二櫃並排在 ELEC 右側、同樣偏離 OA
+ctrlPanel.position.set(-3.4, 0.95, -1.85);  // 第二櫃並排在 ELEC 右側（緊鄰 ELEC、留 10cm gap）
 panelsGroup.add(ctrlPanel);
 
 // ====== 上進線：天花板 cable tray + 兩櫃頂進線 ======
@@ -1987,16 +2241,34 @@ panelsGroup.add(glandElec);
 
 // CTRL 上進線（細綠、控制訊號）：tray 往下進入 CTRL 櫃頂
 const downCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.85, 8), matCtrlCable);
-downCtrl.position.set(-3.0, 2.25, -1.85);
+downCtrl.position.set(-3.4, 2.25, -1.85);
 panelsGroup.add(downCtrl);
 const glandCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.04, 12), matConduit);
-glandCtrl.position.set(-3.0, 1.86, -1.85);
+glandCtrl.position.set(-3.4, 1.86, -1.85);
 panelsGroup.add(glandCtrl);
 
-// tray 往 AHU 端的 trunk + 下行進 AHU 殼頂（控制 + 動力總線）
-const trunkDown = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.65, 8), matConduit);
+// tray 往 AHU 端的 trunk + 下行 + 90° 彎頭 + 水平接到 AHU 殼頂（控制 + 動力總線）
+// === 1. 下行段：從 cable tray (Y=2.7) 下到殼頂高度 (Y=2.0) ===
+const trunkDown = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.7, 8), matConduit);
 trunkDown.position.set(-1.0, 2.35, -1.85);
 panelsGroup.add(trunkDown);
+// === 2. 90° 彎頭（球體 elbow） ===
+const trunkElbow = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), matConduit);
+trunkElbow.position.set(-1.0, 2.0, -1.85);
+panelsGroup.add(trunkElbow);
+// === 3. 水平段：從 elbow 沿 +Z 軸接到 AHU 後緣殼頂 (Z=-1.0) ===
+const trunkHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.85, 8), matConduit);
+trunkHoriz.rotation.x = Math.PI/2;       // 圓柱長軸繞 X 軸 90°，沿 Z 方向延伸
+trunkHoriz.position.set(-1.0, 2.0, -1.425);  // 中點 Z = (-1.85 + -1.0)/2 = -1.425
+panelsGroup.add(trunkHoriz);
+// === 4. AHU 殼頂入線 cable gland（密封防水接頭） ===
+const trunkGland = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.045, 12), matConduit);
+trunkGland.position.set(-1.0, 1.985, -1.0);  // 卡在 AHU 殼頂表面
+panelsGroup.add(trunkGland);
+// === 5. 入線後 short stub（穿入 AHU 殼內）===
+const trunkStub = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8), matConduit);
+trunkStub.position.set(-1.0, 1.92, -1.0);
+panelsGroup.add(trunkStub);
 
 // ============== Click-to-Select ==============
 const raycaster = new THREE.Raycaster();
