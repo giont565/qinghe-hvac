@@ -151,10 +151,16 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
   <!-- 教學內容 -->
   <div class="door-tab-content" data-content="teach" style="color:#c9ccd1;font-size:11.5px">
-    <p style="color:#a3e635;font-weight:600;margin-bottom:6px">📍 看 cab 跟著動：每個步驟只亮一個元件</p>
-    <p><b style="color:#fb923c">① 馬達</b> 啟動 → <b style="color:#fb923c">② 皮帶</b> 拉動 → <b style="color:#fb923c">③ Crank Arm</b> 推 → <b style="color:#9aa0a8">④ 門吊架</b> 滑 → <b style="color:#a3e635">⑤ Vane</b> 夾 <b style="color:#fb923c">⑥ Clutch</b> → 內外門同時開</p>
+    <p style="color:#a3e635;font-weight:600;margin-bottom:6px">🎯 完整動作流程（cab 不透明，門機構清楚浮出）</p>
+    <p><b style="color:#fbbf24">1. 平層判定</b> — cab 到達 ±50mm → door zone sensor 觸發</p>
+    <p><b style="color:#fbbf24">2. vane 對位</b> — 轎門 vane（橘色片）進入 landing clutch（U 鉤）範圍</p>
+    <p><b style="color:#fb923c">3. 馬達啟動</b> → <b style="color:#fb923c">皮帶</b> → <b style="color:#fb923c">Crank Arm</b> 推門吊架</p>
+    <p><b style="color:#a3e635">4. 內門滑開</b> — vane 同步水平移動</p>
+    <p><b style="color:#fb923c">5. 機械接合</b> — vane 物理夾入 clutch（U 鉤被夾住）</p>
+    <p><b style="color:#a3e635">6. 內帶外開</b> — 內門繼續推 → vane 拉著 clutch → landing door 跟著滑</p>
     <p style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.1);color:#86868b">
-      <b style="color:#a3e635">關鍵原理</b>：landing door 沒馬達。轎門開時 vane 機械夾住 landing clutch，把兩層門當一體拉。其他樓層 vane 不在 → 自動鎖死。
+      <b style="color:#a3e635">為什麼 landing door 沒馬達也能開？</b><br>
+      機械「離合」設計：cab 平層時 vane 進入 clutch 才接合，cab 不在的樓層 vane 不在 → clutch 鎖住 → landing door 無法被拉。<b style="color:#ef4444">這就是電梯井道防墜落的關鍵！</b>
     </p>
   </div>
   <!-- 流程圖內容 -->
@@ -1407,6 +1413,7 @@ for (let i = 0; i < 5; i++) {
 
 // ============ 7c. Guide Shoes 引導鞋 (轎廂 4 個 + 配重 2 個) ============
 const guideShoeMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.35 });
+const cabGuideShoes = [];
 [
   [-CAB_W/2-0.05,  CAB_H/2-0.2, -0.25],
   [ CAB_W/2+0.05,  CAB_H/2-0.2, -0.25],
@@ -1417,6 +1424,7 @@ const guideShoeMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness
   shoe.position.set(p[0], p[1], p[2]);
   shoe.userData = { name:"Guide Shoe 引導鞋", kind:"safety", desc:"轎廂沿導軌定位（roller / sliding shoe）", specs:[["型式","Roller Guide"],["數量","4 / cab"]] };
   cabGroup.add(shoe);
+  cabGuideShoes.push(shoe);
 });
 // 配重引導鞋
 [-0.30, 0.30].forEach(x => {
@@ -1517,19 +1525,23 @@ ldFloors.forEach(f => {
   const header = new THREE.Mesh(new THREE.BoxGeometry(frameOuterW, headerH, 0.05), frameMat);
   header.position.set(0, doorCenterY + openH/2 + headerH/2, frameZ);
   landingFloorGroup.add(header);
+  header.userData.fadeInDoor = true;
   // 左門柱
   const jambL = new THREE.Mesh(new THREE.BoxGeometry(jambW, openH, 0.05), frameMat);
   jambL.position.set(-(openW/2 + jambW/2), doorCenterY, frameZ);
   landingFloorGroup.add(jambL);
+  jambL.userData.fadeInDoor = true;
   // 右門柱
   const jambR = new THREE.Mesh(new THREE.BoxGeometry(jambW, openH, 0.05), frameMat);
   jambR.position.set(openW/2 + jambW/2, doorCenterY, frameZ);
   landingFloorGroup.add(jambR);
+  jambR.userData.fadeInDoor = true;
   // 地檻 sill（薄條，貼地面）
   const sill = new THREE.Mesh(new THREE.BoxGeometry(frameOuterW, 0.04, 0.10),
     new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.3 }));
   sill.position.set(0, y + 0.02, frameZ);
   landingFloorGroup.add(sill);
+  sill.userData.fadeInDoor = true;
 
   // 門上方水平軌道 (鋼軌)
   const ldTrack = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.15, 0.04, 0.04),
@@ -1601,6 +1613,7 @@ ldFloors.forEach(f => {
   }
   hallStation.userData = { name:`Hall Call ${f}F`, kind:"hall", desc:`${f} 樓外叫面板（廳堂呼梯）`, specs:[["按鈕","Φ50 mm 不鏽鋼"],["凸字","三角符號 + 點字"],["燈","呼叫亮、到達熄"]] };
   landingFloorGroup.add(hallStation);
+  hallStation.userData.fadeInDoor = true;
 
   // ===== 到樓顯示器 Hall Position Indicator（門框上方，全廳堂可見）=====
   const hallDispCv = document.createElement('canvas'); hallDispCv.width = 320; hallDispCv.height = 96;
@@ -1611,6 +1624,7 @@ ldFloors.forEach(f => {
     new THREE.MeshStandardMaterial({ color: 0x111, metalness: 0.6, roughness: 0.5 }));
   hallDispBg.position.set(0, y + 2.40, SHAFT_D/2 + 0.04);
   landingFloorGroup.add(hallDispBg);
+  hallDispBg.userData.fadeInDoor = true;
   // LED 字幕（畫在面板上）
   const hallDispScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.14), hallDispMat);
   hallDispScreen.position.set(0, y + 2.40, SHAFT_D/2 + 0.053);
@@ -1791,31 +1805,47 @@ setupHideList();
 const fadeInDoorMode = [];
 function collectFadeable() {
   fadeInDoorMode.length = 0;
-  // cab 內裝（handrails/COP/mirror/seat/ceiling 等都 fade）
+  // cab 內裝
   cabInterior.traverse(o => { if (o.isMesh || o.isSprite) fadeInDoorMode.push(o); });
-  // 車頂機構（不是門機構焦點 — 替代原本完全隱藏）
+  // 車頂機構
   cabTopGroup.traverse(o => { if (o.isMesh || o.isSprite) fadeInDoorMode.push(o); });
-  // cab 本體與 sling 也淡化
+  // cab 本體 + sling
   if (typeof cabBody !== 'undefined') fadeInDoorMode.push(cabBody);
   if (typeof sling !== 'undefined') fadeInDoorMode.push(sling);
+  // cab 4 顆導靴
+  if (typeof cabGuideShoes !== 'undefined') cabGuideShoes.forEach(s => fadeInDoorMode.push(s));
+  // 所有標 userData.fadeInDoor 的物件（landing 門框/jamb/sill/hallStation/hallDispBg 等）
+  ELEV.traverse(o => {
+    if (o.userData && o.userData.fadeInDoor && (o.isMesh || o.isSprite || o.isGroup)) {
+      fadeInDoorMode.push(o);
+    }
+  });
 }
 collectFadeable();
-function setFadeMode(faded, targetOpacity = 0.12) {
+function applyFadeToObj(o, faded, targetOpacity) {
+  if (!o.material) return;
+  if (faded) {
+    if (o.userData._origOp === undefined) {
+      o.userData._origOp = o.material.opacity;
+      o.userData._origTrans = o.material.transparent;
+    }
+    o.material.transparent = true;
+    o.material.opacity = Math.min(o.userData._origOp, targetOpacity);
+  } else {
+    if (o.userData._origOp !== undefined) {
+      o.material.opacity = o.userData._origOp;
+      o.material.transparent = o.userData._origTrans;
+      o.userData._origOp = undefined;
+    }
+  }
+}
+function setFadeMode(faded, targetOpacity = 0.10) {
   fadeInDoorMode.forEach(o => {
-    if (!o.material) return;
-    if (faded) {
-      if (o.userData._origOp === undefined) {
-        o.userData._origOp = o.material.opacity;
-        o.userData._origTrans = o.material.transparent;
-      }
-      o.material.transparent = true;
-      o.material.opacity = Math.min(o.userData._origOp, targetOpacity);
+    if (o.isGroup) {
+      // 群組沒材質 → 遞迴所有子物件
+      o.traverse(c => { if (c.isMesh || c.isSprite) applyFadeToObj(c, faded, targetOpacity); });
     } else {
-      if (o.userData._origOp !== undefined) {
-        o.material.opacity = o.userData._origOp;
-        o.material.transparent = o.userData._origTrans;
-        o.userData._origOp = undefined;
-      }
+      applyFadeToObj(o, faded, targetOpacity);
     }
   });
 }
@@ -2042,8 +2072,9 @@ function setDoorMode(on) {
   landingFloorGroups.forEach(lf => {
     lf.group.visible = on ? (lf.floor === 2) : true;
   });
-  // 門機構外的物件 fade 到半透明（cab body / 內裝 / 車頂機構）
-  setFadeMode(on, 0.12);
+  // 門機構外的物件 fade 到接近全透明（cab body / 內裝 / 車頂 / 導靴 / 門框 / hall station）
+  // 留下：cab門+landing門+vane+clutch+door operator+photocell+hangers → 全清楚
+  setFadeMode(on, 0.08);
   if (on) {
     // 鏡頭飛到 2F cab 門前（doorMode 強制把 cab 鎖在 2F，這裡用 2F 預測位置）
     const lockedCabY = 1 * FLOOR_H + 1.15;  // 4.65 (2F)
