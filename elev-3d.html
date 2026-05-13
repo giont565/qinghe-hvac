@@ -70,10 +70,10 @@
   .sce-btn .ico { font-size:14px; flex-shrink:0; }
   .sce-btn[data-sce="osg"]:hover { background:rgba(244,114,182,.18); border-color:rgba(244,114,182,.6); }
   .sce-btn.reset-btn { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.12); margin-top:4px; }
-  /* 速度控制 row */
-  .speed-row { display:flex; gap:4px; align-items:center; margin-top:10px; padding-top:10px; border-top:1px dashed rgba(255,255,255,.10); }
-  .speed-label { font-size:10px; color:var(--sub); letter-spacing:.18em; text-transform:uppercase; margin-right:4px; flex-shrink:0; }
-  .speed-btn { flex:1; padding:5px 0; font-size:11px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:5px; color:var(--ink); cursor:pointer; font-family:inherit; transition:background .15s, border-color .15s; }
+  /* 速度控制 row — 6 顆按鈕排 2 行 grid（label 跨 2 行） */
+  .speed-row { display:grid; grid-template-columns:auto repeat(3, 1fr); gap:4px; align-items:center; margin-top:10px; padding-top:10px; border-top:1px dashed rgba(255,255,255,.10); }
+  .speed-label { font-size:10px; color:var(--sub); letter-spacing:.18em; text-transform:uppercase; padding-right:6px; grid-row:span 2; display:flex; align-items:center; }
+  .speed-btn { padding:5px 0; font-size:11px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:5px; color:var(--ink); cursor:pointer; font-family:inherit; transition:background .15s, border-color .15s; }
   .speed-btn:hover { background:rgba(255,255,255,.09); }
   .speed-btn.active { background:rgba(0,212,255,.18); border-color:rgba(0,212,255,.5); color:#00d4ff; }
 
@@ -170,6 +170,8 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="sce-btn reset-btn" data-sce="reset"><span class="ico">↺</span><span>Reset 回到 normal loop</span></button>
     <div class="speed-row">
       <span class="speed-label">⚡ 速度</span>
+      <button class="speed-btn" data-speed="0.15">0.15×</button>
+      <button class="speed-btn" data-speed="0.25">0.25×</button>
       <button class="speed-btn" data-speed="0.5">0.5×</button>
       <button class="speed-btn active" data-speed="1">1×</button>
       <button class="speed-btn" data-speed="2">2×</button>
