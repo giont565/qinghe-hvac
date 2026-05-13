@@ -1216,8 +1216,9 @@
   .status-bar .checks .warn { color:#fbbf24; }
   .status-bar .checks .err { color:#f472b6; }
 
-  /* 右側即時讀值 panel — 設備 live readings */
-  .gauges { position:fixed; right:16px; top:50%; transform:translateY(-50%); z-index:10; width:200px; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(0,212,255,.25); border-radius:12px; padding:12px 14px; pointer-events:none; }
+  /* 左側即時讀值 panel — 設備 live readings（與 #selected 同位、互斥淡化） */
+  .gauges { position:fixed; left:16px; top:50%; transform:translateY(-50%); z-index:9; width:200px; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(0,212,255,.25); border-radius:12px; padding:12px 14px; pointer-events:none; transition:opacity .25s; }
+  .gauges.dimmed { opacity:0.12; }
   .gauges .sub { color:#00d4ff; margin-bottom:8px; }
   .gauges .g-row { display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-bottom:1px dashed rgba(255,255,255,.06); font-size:11px; }
   .gauges .g-row:last-child { border:none; }
@@ -1237,6 +1238,12 @@
     .gauges { display:none; }
     .status-bar { bottom:120px; min-width:0; left:12px; right:12px; transform:none; }
     .sysled { right:20px; bottom:160px; }
+  }
+
+  /* gauges 移到左側後可能被 hud-tl 擋；hud-tl 縮窄一點避免遮 */
+  @media (min-width: 769px) and (max-height: 700px) {
+    .gauges { width:180px; padding:10px 12px; }
+    .gauges .g-row { padding:3px 0; }
   }
 </style>
 </head>
@@ -2303,10 +2310,14 @@ canvas.addEventListener('click', (e) => {
         selSpecs.appendChild(row);
       });
       selectedEl.classList.add('show');
+      const gEl = document.getElementById('gauges');
+      if (gEl) gEl.classList.add('dimmed');     // 點選元件時 gauges 淡化讓 selected 突顯
       return;
     }
   }
   selectedEl.classList.remove('show');
+  const gEl = document.getElementById('gauges');
+  if (gEl) gEl.classList.remove('dimmed');
 });
 
 // ============ HUD Controls + 平滑 Explode 動畫 ============
