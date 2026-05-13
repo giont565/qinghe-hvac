@@ -115,6 +115,7 @@ window.addEventListener('unhandledrejection', function(e) {
   <div class="controls">
     <button class="ctrl-btn" data-action="door"><span>🔍 門機構特寫</span><span class="key">D</span></button>
     <button class="ctrl-btn" data-action="cabin"><span>🦽 殘障內裝特寫</span><span class="key">C</span></button>
+    <button class="ctrl-btn active" data-action="mrtype"><span id="mrTypeLabel">🏠 有機房 MR</span><span class="key">M</span></button>
     <button class="ctrl-btn" data-action="explode"><span>系統拆解 Exploded</span><span class="key">E</span></button>
     <button class="ctrl-btn active" data-action="shaft"><span>顯示井道 Shaft</span><span class="key">S</span></button>
     <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
@@ -1081,6 +1082,9 @@ machGroup.userData = { name:"Hoist Machine 牽引機", kind:"machine", desc:"永
 machGroup.userData.basePos = machGroup.position.clone();
 
 // ============ 機房空間（Machine Room — EN 81-20 § 6 / CNS 12642 § 7）============
+// 「有機房 MR」配置獨有元件 — 切換到 MRL 時整批隱藏
+const mrOnlyObjects = [];
+function addMR(o) { mrOnlyObjects.push(o); return o; }
 // 分隔樓板（井道頂部 vs 機房地坪）— 4 條混凝土帶圍出維修開口（hatch）
 const mrFloorMat = new THREE.MeshStandardMaterial({ color: 0x8a8e96, roughness: 0.9, metalness: 0.1 });
 const MR_FLOOR_Y = 11.50;       // 機房地坪中心 Y
@@ -1091,19 +1095,19 @@ const HATCH_Z_BACK  = -0.45;    // 開口後緣
 // 左側板
 const mrFloorL = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W/2 - HATCH_X_HALF, MR_FLOOR_THICK, SHAFT_D), mrFloorMat);
 mrFloorL.position.set(-(SHAFT_W/2 + HATCH_X_HALF) / 2, MR_FLOOR_Y, 0);
-ELEV.add(mrFloorL);
+ELEV.add(mrFloorL); addMR(mrFloorL);
 // 右側板
 const mrFloorR = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W/2 - HATCH_X_HALF, MR_FLOOR_THICK, SHAFT_D), mrFloorMat);
 mrFloorR.position.set((SHAFT_W/2 + HATCH_X_HALF) / 2, MR_FLOOR_Y, 0);
-ELEV.add(mrFloorR);
+ELEV.add(mrFloorR); addMR(mrFloorR);
 // 前緣窄條（開口前緣到 shaft 前牆）
 const mrFloorFront = new THREE.Mesh(new THREE.BoxGeometry(HATCH_X_HALF * 2, MR_FLOOR_THICK, SHAFT_D/2 - HATCH_Z_FRONT), mrFloorMat);
 mrFloorFront.position.set(0, MR_FLOOR_Y, (HATCH_Z_FRONT + SHAFT_D/2) / 2);
-ELEV.add(mrFloorFront);
+ELEV.add(mrFloorFront); addMR(mrFloorFront);
 // 後緣板（開口後緣到 shaft 後牆）
 const mrFloorBack = new THREE.Mesh(new THREE.BoxGeometry(HATCH_X_HALF * 2, MR_FLOOR_THICK, -SHAFT_D/2 - HATCH_Z_BACK), mrFloorMat);
 mrFloorBack.position.set(0, MR_FLOOR_Y, (HATCH_Z_BACK - SHAFT_D/2) / 2);
-ELEV.add(mrFloorBack);
+ELEV.add(mrFloorBack); addMR(mrFloorBack);
 mrFloorL.userData = { name:"機房樓板 MR Floor", kind:"machine",
   desc:"分隔井道與機房 — RC 150mm 樓板含 1.6×1.6 m 維修開口（hatch）",
   specs:[["材質","RC C30 + Φ12 雙層雙向鋼筋"],["承重","≥ 600 kg/m²"],["防火","2 hr 防火時效"],["開口","1.6 × 1.6 m 給鋼索 + 維修通過"]] };
@@ -1113,7 +1117,7 @@ mrFloorL.userData = { name:"機房樓板 MR Floor", kind:"machine",
   const grip = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W/2 - HATCH_X_HALF - 0.04, 0.005, SHAFT_D - 0.05),
     new THREE.MeshStandardMaterial({ color: 0x2a2e36, roughness: 0.95 }));
   grip.position.set(x, MR_FLOOR_Y + MR_FLOOR_THICK/2 + 0.003, z);
-  ELEV.add(grip);
+  ELEV.add(grip); addMR(grip);
 });
 
 // 安全欄杆（hatch 四周 1.1 m 高，黃黑 — 防墜落）
@@ -1127,7 +1131,7 @@ function mrRail(p1, p2, y) {
   tube.position.set((p1.x + p2.x)/2, y, (p1.z + p2.z)/2);
   tube.rotation.z = Math.PI/2;
   tube.rotation.y = Math.atan2(dz, dx);
-  ELEV.add(tube);
+  ELEV.add(tube); addMR(tube);
   return tube;
 }
 // hatch 4 角（地坪上）柱子
@@ -1140,7 +1144,7 @@ const corners = [
 corners.forEach(c => {
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.10, 12), railTube);
   post.position.set(c.x, MR_FLOOR_Y + MR_FLOOR_THICK/2 + 0.55, c.z);
-  ELEV.add(post);
+  ELEV.add(post); addMR(post);
 });
 // 上欄 + 中欄 — 左/右/後三邊（前緣留出工作面）
 [
@@ -1171,7 +1175,7 @@ for (let i = 0; i < 5; i++) {
 vent.userData = { name:"機房通風百葉 Louver", kind:"machine",
   desc:"自然通風 — 機房溫度 5~40°C，葉片下傾防雨",
   specs:[["面積","0.30 m²"],["要求","EN 81-20 § 6.3.5 機房溫升 ≤ 40°C"],["材質","鋁合金 + 防蟲網"]] };
-ELEV.add(vent);
+ELEV.add(vent); addMR(vent);
 
 // 機房檢修門標示（shaft 前牆上的銘牌，外面看得到）
 const mrDoorSign = (() => {
@@ -1193,7 +1197,7 @@ const mrDoorSign = (() => {
     specs:[["顏色","RAL 1023 黃 + 黑字"],["標準","CNS 12642 § 7.5 / IEC 60204-1"]] };
   return mesh;
 })();
-ELEV.add(mrDoorSign);
+ELEV.add(mrDoorSign); addMR(mrDoorSign);
 
 // 維修緊急電話（壁掛）
 const mrPhone = new THREE.Group();
@@ -1208,7 +1212,7 @@ phoneHandle.position.set(0.03, 0.05, 0); mrPhone.add(phoneHandle);
 mrPhone.userData = { name:"機房緊急電話", kind:"safety",
   desc:"機房內維修人員受困 — 24h 連線到保全中心",
   specs:[["型式","SIP 防爆型"],["連線","24h 保全 + 維修商"],["標準","EN 81-28"]] };
-ELEV.add(mrPhone);
+ELEV.add(mrPhone); addMR(mrPhone);
 
 // ===== 機座 Machine Bedplate（曳引機底座 + 4 個避震墊）=====
 const bedplate = new THREE.Mesh(new THREE.BoxGeometry(1.50, 0.10, 1.00),
@@ -1333,7 +1337,7 @@ const mrLight = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.30),
 mrLight.position.set(0, SHAFT_H - 0.10, 0);
 mrLight.userData = { name:"機房照明 LED", kind:"light",
   desc:"4,000K 主照明 + 緊急照明備援 30 分鐘", specs:[["照度","≥ 200 lx 在地板"],["備援","NiMH 電池 30 min"]] };
-ELEV.add(mrLight);
+ELEV.add(mrLight); addMR(mrLight);
 
 // ===== 電纜架 Cable Tray（控制盤 → 曳引機/井道）=====
 const trayMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.5, roughness: 0.5 });
@@ -2047,11 +2051,22 @@ function setCabinMode(on) {
 }
 document.getElementById('cabinPanelClose').addEventListener('click', () => setCabinMode(false));
 
+// 機房類型切換：true=有機房 MR / false=無機房 MRL
+let isMR = true;
+function setMRType(mr) {
+  isMR = mr;
+  mrOnlyObjects.forEach(o => o.visible = mr);
+  const lbl = document.getElementById('mrTypeLabel');
+  if (lbl) lbl.textContent = mr ? '🏠 有機房 MR' : '🏗 無機房 MRL';
+  document.querySelector('[data-action="mrtype"]').classList.toggle('active', mr);
+}
+
 document.querySelectorAll('.ctrl-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const a = btn.dataset.action;
     if (a === 'door') setDoorMode(!doorMode);
     else if (a === 'cabin') setCabinMode(!cabinMode);
+    else if (a === 'mrtype') setMRType(!isMR);
     else if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
     else if (a === 'shaft') { setShaftVis(!shaftOn); btn.classList.toggle('active', shaftOn); }
     else if (a === 'reset') {
@@ -2065,6 +2080,7 @@ window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === 'd') setDoorMode(!doorMode);
   else if (k === 'c') setCabinMode(!cabinMode);
+  else if (k === 'm') setMRType(!isMR);
   else if (k === 'e') setExplode(!exploded);
   else if (k === 's') setShaftVis(!shaftOn);
   else if (k === 'r') {
