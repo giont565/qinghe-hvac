@@ -60,6 +60,32 @@
   .site-tabs a:hover { background:rgba(255,255,255,.06); color:var(--ink); }
   .site-tabs a.is-active { background:rgba(163,230,53,.14); color:#a3e635; border:1px solid rgba(163,230,53,.3); }
   @media (max-width: 768px) { .site-nav { padding:0 8px; height:42px; font-size:11px; } .site-brand span:last-child { display:none; } }
+
+  /* ============ 動作劇本（Sequence of Operations）UI ============ */
+  .scen-divider { height:1px; background:rgba(251,146,60,.25); margin:14px -4px 8px; }
+  .scen-title { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#fb923c; margin-bottom:8px; }
+  .sce-btn { display:flex; align-items:center; gap:8px; padding:8px 12px; font-size:12px; background:rgba(251,146,60,.08); border:1px solid rgba(251,146,60,.25); border-radius:7px; color:var(--ink); cursor:pointer; transition:background .2s, border-color .2s; font-family:inherit; text-align:left; }
+  .sce-btn:hover { background:rgba(251,146,60,.18); border-color:rgba(251,146,60,.5); }
+  .sce-btn.running { background:rgba(251,146,60,.28); border-color:#fb923c; box-shadow:0 0 12px rgba(251,146,60,.4); }
+  .sce-btn .ico { font-size:14px; flex-shrink:0; }
+  .sce-btn[data-sce="osg"]:hover { background:rgba(244,114,182,.18); border-color:rgba(244,114,182,.6); }
+  .sce-btn.reset-btn { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.12); margin-top:4px; }
+
+  /* 底部 status bar — 不衝突現有 #doorStepBar (bottom:160px)；本 bar 在 bottom:80px */
+  .scen-status { position:fixed; left:50%; bottom:80px; transform:translateX(-50%); z-index:11; min-width:380px; max-width:560px; background:rgba(15,15,17,.92); backdrop-filter:blur(20px); border:1px solid rgba(251,146,60,.45); border-radius:14px; padding:12px 18px; opacity:0; transition:opacity .3s; pointer-events:none; }
+  .scen-status.show { opacity:1; }
+  .scen-status .sce-name { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#fb923c; margin-bottom:4px; }
+  .scen-status .step-msg { font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .scen-status .checks { font-family:"SF Mono",monospace; font-size:10px; line-height:1.7; color:#86868b; max-height:80px; overflow:hidden; }
+  .scen-status .checks .ok { color:#a3e635; }
+  .scen-status .checks .warn { color:#fbbf24; }
+  .scen-status .checks .err { color:#f472b6; }
+
+  body.ui-hidden .scen-status { display:none !important; }
+
+  @media (max-width: 768px) {
+    .scen-status { left:12px; right:12px; bottom:140px; min-width:0; transform:none; }
+  }
 </style>
 </head>
 <body>
@@ -129,6 +155,13 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="ctrl-btn" data-action="explode"><span>系統拆解 Exploded</span><span class="key">E</span></button>
     <button class="ctrl-btn active" data-action="shaft"><span>顯示井道 Shaft</span><span class="key">S</span></button>
     <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
+    <div class="scen-divider"></div>
+    <div class="scen-title">⚙ 動作劇本 Operation Sequence</div>
+    <button class="sce-btn" data-sce="hallcall"><span class="ico">▶</span><span>3F 召喚 Hall Call</span></button>
+    <button class="sce-btn" data-sce="reentry"><span class="ico">💨</span><span>門光幕觸發 Re-Entry</span></button>
+    <button class="sce-btn" data-sce="overload"><span class="ico">🛑</span><span>超載 110% Overload</span></button>
+    <button class="sce-btn" data-sce="osg"><span class="ico">🚨</span><span>限速器超速 OSG + Safety</span></button>
+    <button class="sce-btn reset-btn" data-sce="reset"><span class="ico">↺</span><span>Reset 回到 normal loop</span></button>
   </div>
 </div>
 
@@ -233,6 +266,13 @@ window.addEventListener('unhandledrejection', function(e) {
 <div class="hud hud-br">
   <p class="sub">Specs</p>
   <p class="info"><b>900 kg</b> · <b>1.0 m/s</b> · <b>4-stop</b> · <b>13 person</b> · <b>Gearless MRL</b></p>
+</div>
+
+<!-- 動作劇本狀態列（不衝突 #doorStepBar）-->
+<div class="scen-status" id="scenStatus">
+  <div class="sce-name" id="ss-name">—</div>
+  <div class="step-msg" id="ss-step">—</div>
+  <div class="checks" id="ss-checks"></div>
 </div>
 
 <div id="selected">
@@ -2438,6 +2478,203 @@ window.addEventListener('keydown', e => {
   }
 });
 
+// ============ 動作劇本（Sequence of Operations）狀態機 ============
+// 設計：normal loop（24s）跑著，劇本 takeOver 後接管 cab/door/視覺效果，end 後釋放回 normal
+// =================================================================
+const elevSim = {
+  active: null,          // 劇本名稱 / null
+  steps: [], stepIdx: 0, scenarioElapsed: 0, lastTickMs: performance.now(),
+  // takeOver 旗標 + 接管值（cab/door 平滑 lerp 由 animate 負責）
+  takeOver: false,
+  targetFloorTarget: 0,   // 0=1F, 1=2F, 2=3F, 3=RF
+  targetFloorCur: 0,
+  doorPhaseTarget: 0,     // 0..1
+  doorPhaseCur: 0,
+  // 視覺異常旗標（由 animate 套用到材質/顏色）
+  photocellAlarm: false,  // 紅外線斷掉 → beam 紅
+  overloadAlarm: false,   // 超載 → emCall 紅 + alarm
+  osgTripped: false,      // 限速器跳脫 → governor + safety 紅
+  brakeReleased: false,   // 制動器釋放（true=綠／false=正常黑）
+  // step log
+  checks: [],
+
+  setStatus(sceName, msg) {
+    document.getElementById('ss-name').textContent = sceName;
+    document.getElementById('ss-step').textContent = msg;
+    document.getElementById('scenStatus').classList.add('show');
+  },
+  hideStatus() { document.getElementById('scenStatus').classList.remove('show'); },
+  addCheck(text, type) {
+    this.checks.push({ text, type });
+    if (this.checks.length > 4) this.checks.shift();
+    const c = document.getElementById('ss-checks');
+    while (c.firstChild) c.removeChild(c.firstChild);
+    this.checks.forEach(x => {
+      const d = document.createElement('div');
+      d.className = x.type || ''; d.textContent = x.text;
+      c.appendChild(d);
+    });
+  },
+
+  start(name) {
+    if (this.active) return;
+    const sce = SCENARIOS[name];
+    if (!sce) return;
+    this.active = name;
+    this.steps = sce.steps;
+    this.stepIdx = 0;
+    this.scenarioElapsed = 0;
+    this.checks = [];
+    this.takeOver = true;
+    // 從 normal loop 接管時，targetFloor 起始用「現在 cab 在哪一層的近似」
+    this.targetFloorCur = (cabGroup.position.y - 1.15) / FLOOR_H;
+    this.targetFloorTarget = this.targetFloorCur;
+    this.doorPhaseCur = 0;
+    this.doorPhaseTarget = 0;
+    document.querySelectorAll('.sce-btn').forEach(b => b.classList.toggle('running', b.dataset.sce === name));
+    this.setStatus(sce.title, this.steps[0].msg);
+    if (this.steps[0].run) this.steps[0].run(this);
+    if (this.steps[0].check) this.addCheck(this.steps[0].check, this.steps[0].checkType || 'ok');
+  },
+
+  end() {
+    this.active = null;
+    this.steps = [];
+    document.querySelectorAll('.sce-btn').forEach(b => b.classList.remove('running'));
+    setTimeout(() => this.hideStatus(), 2200);
+  },
+
+  resetAll() {
+    this.active = null;
+    this.takeOver = false;        // 釋放回 normal loop
+    this.photocellAlarm = false;
+    this.overloadAlarm = false;
+    this.osgTripped = false;
+    this.brakeReleased = false;
+    this.checks = [];
+    document.querySelectorAll('.sce-btn').forEach(b => b.classList.remove('running'));
+    const c = document.getElementById('ss-checks');
+    while (c && c.firstChild) c.removeChild(c.firstChild);
+    this.setStatus('SYSTEM', '回到正常運轉 — Normal Loop');
+    setTimeout(() => this.hideStatus(), 1500);
+  },
+
+  // tick — 每幀呼叫，推進步驟 + lerp targetFloor / doorPhase
+  tick() {
+    const now = performance.now();
+    const dt = Math.min(64, now - this.lastTickMs);
+    this.lastTickMs = now;
+    if (this.active) {
+      this.scenarioElapsed += dt;
+      while (this.stepIdx + 1 < this.steps.length && this.scenarioElapsed >= this.steps[this.stepIdx + 1].at) {
+        this.stepIdx++;
+        const s = this.steps[this.stepIdx];
+        this.setStatus(SCENARIOS[this.active].title, s.msg);
+        if (s.run) s.run(this);
+        if (s.check) this.addCheck(s.check, s.checkType || 'ok');
+        if (s.end) { this.end(); break; }
+      }
+    }
+    // lerp 接管值（即使 active=null 也讓 doorPhaseCur 漸進回 0 避免跳躍）
+    const lerp = (cur, tgt, k) => cur + (tgt - cur) * k;
+    this.targetFloorCur = lerp(this.targetFloorCur, this.targetFloorTarget, 0.018);  // cab 移動慢一點（電梯感）
+    this.doorPhaseCur   = lerp(this.doorPhaseCur,   this.doorPhaseTarget,   0.06);
+
+    // 套用視覺異常（即時、不 lerp）
+    // photocell 變色：染紅
+    if (typeof photocellBeam !== 'undefined' && photocellBeam.material) {
+      if (this.photocellAlarm) {
+        photocellBeam.material.color.setHex(0xf472b6);
+        photocellBeam.visible = true;
+      } else {
+        photocellBeam.material.color.setHex(0xff3030);  // 預設淡紅
+      }
+    }
+    // 限速器跳脫 → governor 變紅、safety 變紅
+    if (this.osgTripped) {
+      if (typeof govGroup !== 'undefined') {
+        govGroup.traverse(o => {
+          if (o.isMesh && o.material && o.material.color) {
+            o.material.emissive && o.material.emissive.setHex(0x441010);
+            o.material.color.setHex(0xf472b6);
+          }
+        });
+      }
+    }
+    // 超載 → emCall 緊急通話按鈕紅閃
+    if (typeof emCall !== 'undefined' && emCall.material) {
+      emCall.material.emissiveIntensity = this.overloadAlarm ? (0.6 + Math.sin(performance.now()*0.012)*0.4) : 0.2;
+    }
+  }
+};
+
+// ============ 4 個劇本（at = 從劇本開始算的 ms）============
+const SCENARIOS = {
+  hallcall: {
+    title: '3F 召喚 · Hall Call Up',
+    steps: [
+      { at: 0,    msg: '1/6 1F 大廳按上行鈕 → 控制盤接收', run: s => s.brakeReleased = false, check: '✓ Hall Call Registered: 3F UP', checkType: 'ok' },
+      { at: 800,  msg: '2/6 制動器釋放（電磁通電 → brake release）', run: s => s.brakeReleased = true, check: '✓ Brake Released · 主接觸器 ON', checkType: 'ok' },
+      { at: 1500, msg: '3/6 PMSM 曳引機啟動 → cab 上行 1F→3F', run: s => { s.targetFloorTarget = 2; s.doorPhaseTarget = 0; } },
+      { at: 7500, msg: '✓ 檢查機制 #1：3F 磁感應條 vane 觸發', check: '✓ 3F Leveling Vane DETECTED · ±5mm', checkType: 'ok' },
+      { at: 8200, msg: '4/6 制動器抱閘（brake set）→ 平層完成', run: s => s.brakeReleased = false, check: '✓ Brake SET · 平層精度合格', checkType: 'ok' },
+      { at: 8800, msg: '5/6 Door Operator 啟動 → cab + landing 同步開', run: s => s.doorPhaseTarget = 1.0 },
+      { at: 11500, msg: '✓ 檢查機制 #2：vane clutch 接合確認', check: '✓ Vane Clutch ENGAGED · landing door 跟隨', checkType: 'ok' },
+      { at: 12500, msg: '6/6 開門完成 — 等候乘客', },
+      { at: 14500, msg: '關門 → 回 normal loop', run: s => s.doorPhaseTarget = 0 },
+      { at: 17500, msg: '✓ 完成 — 釋放回正常運轉', run: s => { s.takeOver = false; }, end: true },
+    ]
+  },
+
+  reentry: {
+    title: '門光幕觸發 · Photocell Re-Entry',
+    steps: [
+      { at: 0,    msg: '1/5 cab 在 2F 開門後關門中（doorPhase 50%）', run: s => { s.targetFloorTarget = 1; s.doorPhaseTarget = 0.5; } },
+      { at: 1500, msg: '2/5 乘客衝進 → photocell 紅外線斷掉', run: s => s.photocellAlarm = true, check: '⚠ Photocell BEAM BROKEN @ 50% close', checkType: 'warn' },
+      { at: 2200, msg: '3/5 Door Operator 反轉 → 重新打開', run: s => s.doorPhaseTarget = 1.0 },
+      { at: 4500, msg: '✓ 檢查機制：beam 復原才能再關', check: '✓ Beam Restored · re-close timer 3s', checkType: 'ok', },
+      { at: 4800, msg: '4/5 photocell 恢復正常（綠）', run: s => s.photocellAlarm = false },
+      { at: 7500, msg: '5/5 重新關門', run: s => s.doorPhaseTarget = 0 },
+      { at: 10500, msg: '✓ 完成 — Door re-close OK', run: s => { s.takeOver = false; }, end: true },
+    ]
+  },
+
+  overload: {
+    title: '超載 · Overload 110%',
+    steps: [
+      { at: 0,    msg: '1/5 cab 在 1F、載重 990 kg（110%）', run: s => { s.targetFloorTarget = 0; s.doorPhaseTarget = 1.0; s.overloadAlarm = true; }, check: '⚠ Load Cell: 990 kg / 900 kg = 110%', checkType: 'warn' },
+      { at: 1200, msg: '2/5 控制盤觸發 OVERLOAD 警示', check: '⚠ Alarm: OVERLOAD_DETECTED', checkType: 'warn' },
+      { at: 2000, msg: '3/5 警鈴 + 緊急通話按鈕紅閃 + 門保持開啟', check: '⚠ Door HELD OPEN · Bell ON', checkType: 'warn' },
+      { at: 3500, msg: '4/5 馬達 disabled — 等乘客減載', check: '⚠ Hoist Motor INHIBITED', checkType: 'warn' },
+      { at: 8500, msg: '✓ 檢查機制：減載至 850 kg < 900 kg', run: s => s.overloadAlarm = false, check: '✓ Load Released · 850 kg / 900 kg = 94%', checkType: 'ok' },
+      { at: 10500, msg: '5/5 解除 → 關門 → 回 normal', run: s => s.doorPhaseTarget = 0 },
+      { at: 13500, msg: '✓ 完成 — 恢復正常運轉', run: s => { s.takeOver = false; }, end: true },
+    ]
+  },
+
+  osg: {
+    title: '🚨 限速器超速 · OSG + Safety Gear',
+    steps: [
+      { at: 0,    msg: '1/5 假設 cab 從 3F→1F 下行中超速 1.4×', run: s => { s.targetFloorTarget = 1.5; s.doorPhaseTarget = 0; }, check: '🚨 Cab Speed: 1.42 m/s > 1.4 × 1.0 trip threshold', checkType: 'err' },
+      { at: 1200, msg: '2/5 Governor 機械跳脫 → 拉繩咬合 safety gear', run: s => s.osgTripped = true, check: '🚨 OSG Tripped · NC contact OPEN → 主迴路切斷', checkType: 'err' },
+      { at: 2000, msg: '3/5 Safety Gear 夾緊 T 型導軌 → cab 急停', run: s => { s.targetFloorTarget = s.targetFloorCur; }, check: '🚨 Safety Gear ENGAGED · Cab decelerating', checkType: 'err' },
+      { at: 4000, msg: '4/5 制動器同步抱閘（雙保險）', run: s => s.brakeReleased = false, check: '🚨 Brake SET · 主迴路 NC 已切', checkType: 'err' },
+      { at: 6000, msg: '✓ 檢查機制：cab 完全靜止、不動', check: '✓ Cab STOPPED · 待技師現場手動 reset', checkType: 'ok' },
+      { at: 9000, msg: '5/5 等候技師到場 — 不會自動恢復', },
+      { at: 12000, msg: '↺ 模擬完成（實務需手動 reset）', run: s => { s.osgTripped = false; s.takeOver = false; }, end: true },
+    ]
+  },
+};
+
+// ============ 按鈕綁定 ============
+document.querySelectorAll('.sce-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sce = btn.dataset.sce;
+    if (sce === 'reset') elevSim.resetAll();
+    else elevSim.start(sce);
+  });
+});
+
 // 動畫：轎廂上下移動 + sheave 轉
 let t = 0;
 let _beltAcc = 0;        // 皮帶齒累積位移
@@ -2456,11 +2693,18 @@ function animate() {
     }
   }
 
+  // === 動作劇本 tick（推進 step + lerp 接管值 + 視覺異常）===
+  elevSim.tick();
+
   // === 電梯運行 + 門開合狀態機 ===
   if (!exploded) {
     let targetFloor = 0;
     let doorPhase = 0;
-    if (doorMode) {
+    if (elevSim.takeOver) {
+      // 劇本接管：用 sim 的 lerp 值，跳過 normal 24s loop
+      targetFloor = elevSim.targetFloorCur;
+      doorPhase = elevSim.doorPhaseCur;
+    } else if (doorMode) {
       // 門特寫模式：cab 鎖在 2F，只跑 open/close 短迴圈（5s）
       // 0-1s: 開 / 1-3s: 全開保持 / 3-4s: 關 / 4-5s: 全關保持
       const dCycle = 5;
