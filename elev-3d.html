@@ -333,6 +333,167 @@ const sling = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.1, 0.1, CAB_D + 0.1
   new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.8, roughness: 0.4 }));
 sling.position.y = CAB_H/2 + 0.1; cabGroup.add(sling);
 
+// ============ 車頂機構（Cab Top Equipment — EN 81-20 §5.4 維修平台）============
+const cabTopGroup = new THREE.Group();
+cabTopGroup.position.set(0, CAB_H/2, 0);  // 局部座標：cabGroup 中心 + CAB_H/2 = cab 頂面
+
+// 1. 車頂金屬蓋板（深灰防滑壓花）
+const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(CAB_W - 0.02, 0.04, CAB_D - 0.02),
+  new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.6, roughness: 0.75 }));
+cabRoof.position.y = 0.02;
+cabRoof.userData = { name:"車頂蓋板 Cab Roof Plate", kind:"cabtop",
+  desc:"車頂金屬蓋板 — 維修人員可站立工作", specs:[["材質","2.0 mm 鋼板防滑壓花"],["承重","≥ 200 kg/m²"]] };
+cabTopGroup.add(cabRoof);
+
+// 2. 緊急逃生口 Emergency Escape Hatch（80×60 cm，黃色蓋板）
+const escapeHatch = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.025, 0.50),
+  new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.55, roughness: 0.5 }));
+escapeHatch.position.set(-0.20, 0.052, -0.20);
+escapeHatch.userData = { name:"頂部緊急逃生口 Emergency Hatch", kind:"safety",
+  desc:"60×80 cm 鉸鏈式蓋板 — cab 卡梯時維修人員引導乘客撤離",
+  specs:[["尺寸","600 × 800 mm 最小"],["開啟","內外都可開、內側帶安全鎖"],["標準","EN 81-20 §5.4.6"]] };
+cabTopGroup.add(escapeHatch);
+// 逃生口邊框 (yellow frame)
+const hatchFrame = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.005, 0.56),
+  new THREE.MeshStandardMaterial({ color: 0x111 }));
+hatchFrame.position.set(-0.20, 0.043, -0.20);
+cabTopGroup.add(hatchFrame);
+
+// 3. 4 個避震墊（sling 與 cab 之間，橡膠）
+[[-0.65, -0.65], [0.65, -0.65], [-0.65, 0.65], [0.65, 0.65]].forEach(([x, z]) => {
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.038, 0.05, 16),
+    new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.85 }));
+  pad.position.set(x, 0.075, z);
+  pad.userData = { name:"車頂避震墊 Anti-Vib Pad", kind:"cabtop",
+    desc:"sling 與 cab 之間避震橡膠墊 — 阻斷曳引機振動傳到 cab", specs:[["材質","NBR 橡膠 Shore A 65"],["數量","4 顆"]] };
+  cabTopGroup.add(pad);
+});
+
+// 4. 鋼索終端組合 Rope Sockets（8 個，sling 上方）
+// sling 在 cab local y = 1.25，cabTopGroup 在 1.15，所以 sling 在 cabTopGroup local y=0.10
+for (let i = 0; i < 8; i++) {
+  const grooveX = -0.10 + (i - 3.5) * 0.022;  // 8 條繩聚在 cab 中央偏左（對齊 sheave grooveX 偏移）
+  // 楔形繩頭（黃色）
+  const wedge = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.014, 0.08, 12),
+    new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7 }));
+  wedge.position.set(grooveX, 0.22, 0);
+  cabTopGroup.add(wedge);
+  // 繩頭螺栓 + 鎖固螺母
+  const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.025, 6),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9 }));
+  nut.position.set(grooveX, 0.30, 0);
+  cabTopGroup.add(nut);
+  if (i === 0) wedge.userData = { name:"鋼索終端 Rope Socket", kind:"safety",
+    desc:"楔形繩頭 — 鋼索通過楔塊 + 開口模 + 螺栓鎖固，可承受 8 倍額定載重",
+    specs:[["數量","8 個 (對應 8 條鋼索)"],["型式","Wedge socket"],["安全係數","≥ 12:1"],["標準","ANSI A17.1 / EN 81-20"]] };
+}
+
+// 5. 車頂檢修控制盒 Inspection Box（紅色 + LED + E-stop + 上/中/下/RUN 按鈕）
+const inspBox = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.22, 0.16),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.55, roughness: 0.45 }));
+inspBox.position.set(0.55, 0.16, 0.35);
+inspBox.userData = { name:"車頂檢修控制盒 Inspection Box", kind:"controller",
+  desc:"維修人員站車頂時的就近控制 — 上/下/STOP，覆寫主控制台",
+  specs:[["按鈕","上升 + 下降 + STOP + RUN/NORMAL"],["優先權","檢修模式覆寫所有自動指令"],["速度限制","≤ 0.63 m/s (CHECK mode)"],["標準","EN 81-20 §5.12.1.5"]] };
+cabTopGroup.add(inspBox);
+// E-stop 紅蘑菇
+const inspEStop = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.018, 24),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x4a0000, emissiveIntensity: 0.4 }));
+inspEStop.rotation.x = Math.PI/2;
+inspEStop.position.set(0.55, 0.22, 0.435);
+cabTopGroup.add(inspEStop);
+// 上/中/下 按鈕
+[[0.18, 0xa3e635, 'UP'], [0.14, 0xfbbf24, 'RUN'], [0.10, 0xa3e635, 'DN']].forEach(([y, col]) => {
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.008, 16),
+    new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.3 }));
+  btn.rotation.x = Math.PI/2;
+  btn.position.set(0.50, y, 0.435);
+  cabTopGroup.add(btn);
+});
+
+// 6. 車頂工作燈 (半球 LED)
+const workLight = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 10),
+  new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xfff4d6, emissiveIntensity: 0.8 }));
+workLight.position.set(0.45, 0.22, -0.40);
+workLight.userData = { name:"車頂工作燈 Inspection Light", kind:"light",
+  desc:"維修照明 — 進檢修模式自動開",
+  specs:[["照度","≥ 50 lx 在車頂面"],["IP","IP54"],["標準","EN 81-20 §5.4.10"]] };
+cabTopGroup.add(workLight);
+
+// 7. 車頂安全欄杆（1.1m 高黃色，cab 周邊四角 + 雙橫桿）
+const cabRailMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.6, roughness: 0.45 });
+const cabPosts = [
+  {x: -CAB_W/2 + 0.05, z: -CAB_D/2 + 0.05},
+  {x:  CAB_W/2 - 0.05, z: -CAB_D/2 + 0.05},
+  {x:  CAB_W/2 - 0.05, z:  CAB_D/2 - 0.30},  // 前緣留 30cm 給門上方
+  {x: -CAB_W/2 + 0.05, z:  CAB_D/2 - 0.30},
+];
+cabPosts.forEach(c => {
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 1.10, 12), cabRailMat);
+  post.position.set(c.x, 0.59, c.z);
+  cabTopGroup.add(post);
+});
+function cabRail3D(p1, p2, y) {
+  const dx = p2.x - p1.x, dz = p2.z - p1.z;
+  const len = Math.sqrt(dx*dx + dz*dz);
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, len, 10), cabRailMat);
+  tube.position.set((p1.x+p2.x)/2, y, (p1.z+p2.z)/2);
+  tube.rotation.z = Math.PI/2;
+  tube.rotation.y = Math.atan2(dz, dx);
+  cabTopGroup.add(tube);
+  return tube;
+}
+const firstRail = cabRail3D(cabPosts[0], cabPosts[1], 1.09);
+firstRail.userData = { name:"車頂安全欄杆 Top Rail", kind:"safety",
+  desc:"維修人員防墜落 — 周邊 1.1m 高、含上下雙橫桿，前緣開口給門上方留檢修空間",
+  specs:[["高度","1,100 mm"],["材質","SUS304 Ø44"],["標準","EN 81-20 §5.4.7 / OSHA 1910.29"]] };
+[[1,2],[2,3],[3,0]].forEach(([i,j]) => cabRail3D(cabPosts[i], cabPosts[j], 1.09));
+[[0,1],[1,2],[2,3],[3,0]].forEach(([i,j]) => cabRail3D(cabPosts[i], cabPosts[j], 0.59));
+
+// 8. 頂部導靴 Top Roller Guide Shoes（2 個，左右對應 cab guide rails）
+[-1, +1].forEach(s => {
+  const shoeBody = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.10, 0.20),
+    new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.8, roughness: 0.4 }));
+  shoeBody.position.set(s * (CAB_W/2 + 0.05), 0.10, 0);
+  cabTopGroup.add(shoeBody);
+  // 3 顆滾輪（夾住導軌 T 字三邊）
+  [[0, 0.08], [-0.05, 0], [0.05, 0]].forEach(([dz, dx]) => {
+    const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.022, 16),
+      new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.5, metalness: 0.6 }));
+    roller.rotation.z = Math.PI/2;
+    roller.position.set(s * (CAB_W/2 + 0.05 + dx), 0.10, dz);
+    cabTopGroup.add(roller);
+  });
+  if (s === +1) shoeBody.userData = { name:"頂部導靴 Top Roller Guide", kind:"machine",
+    desc:"3 顆 PU 滾輪夾住 T 型導軌 — 約束 cab 水平擺動",
+    specs:[["數量","cab 頂 2 個 + 底 2 個"],["材質","PU 滾輪 80A + 軸承"],["側壓","≤ 100 N each"]] };
+});
+
+// 9. 限速器繩夾頭 Governor Rope Clamp（粉色）
+const govClamp = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.04),
+  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.7 }));
+govClamp.position.set(CAB_W/2 - 0.10, 0.10, -CAB_D/2 + 0.15);
+govClamp.userData = { name:"限速器繩夾頭 Governor Rope Clamp", kind:"safety",
+  desc:"連接 cab 與限速器繩 — 超速時限速器拉緊此繩，觸發安全鉗",
+  specs:[["連動","limit switch + 安全鉗"],["重設","維修人員手動 reset"]] };
+cabTopGroup.add(govClamp);
+
+// 10. 隨行電纜終端盒 Traveling Cable Junction Box（黑色 + 扁電纜尾巴）
+const travCableBox = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.10),
+  new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.65 }));
+travCableBox.position.set(-0.55, 0.11, 0.30);
+travCableBox.userData = { name:"隨行電纜終端 Traveling Cable Junction", kind:"controller",
+  desc:"扁形隨行電纜終端 — 連接控制盤訊號/動力 + cab 內所有訊號",
+  specs:[["導體","30 芯 (主電源 6 + 訊號 24)"],["材質","TPE 阻燃 + 鋼絲承拉"],["走線","cab 底 → 井道中段 → 控制盤"],["標準","UL 62 + EN 50525"]] };
+cabTopGroup.add(travCableBox);
+// 扁電纜尾巴（從盒子向 cab 底方向垂出）
+const travCable = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.20, 0.012),
+  new THREE.MeshStandardMaterial({ color: 0x222, roughness: 0.8 }));
+travCable.position.set(-0.55, -0.08, 0.30);
+cabTopGroup.add(travCable);
+
+cabGroup.add(cabTopGroup);
+
 // ============ 殘障標準內裝（CNS 12642 / IBC accessibility）============
 const cabInterior = new THREE.Group();
 const floorY = -CAB_H/2 + 0.02;
