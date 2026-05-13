@@ -816,6 +816,23 @@ const beltUp = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.008, 0.022), beltMat
 beltUp.position.set(0.07, 0.045, 0); doorOpGroup.add(beltUp);
 const beltDown = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.008, 0.022), beltMat);
 beltDown.position.set(0.07, -0.045, 0); doorOpGroup.add(beltDown);
+// 皮帶齒（動畫沿皮帶移動，視覺化方向）
+const beltTeeth = [];
+const beltToothMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, emissive: 0x331400, emissiveIntensity: 0.5 });
+for (let i = 0; i < 8; i++) {
+  const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.014, 0.025), beltToothMat);
+  doorOpGroup.add(tooth);
+  beltTeeth.push(tooth);
+}
+// 滑輪轉動標記（紅條，讓滑輪旋轉看得到）
+[doPulleyL, doPulleyR].forEach(p => {
+  const marker = new THREE.Mesh(
+    new THREE.BoxGeometry(0.005, 0.044, 0.026),
+    new THREE.MeshBasicMaterial({ color: 0xef4444 })
+  );
+  marker.position.set(0, 0.030, 0);
+  p.add(marker);
+});
 // crank arm 從皮帶下方接到門吊架（驅動門開合）
 const armL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.02),
   new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
@@ -846,6 +863,19 @@ cabGroup.add(photocellL);
 const photocellR = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.02), photocellMat);
 photocellR.position.set(cabDoorR_close - doorPanelW/2 + 0.04, doorBaseY + 0.0, CAB_D/2 + 0.07);
 cabGroup.add(photocellR);
+
+// 紅外線光束 (photocell L ↔ R)，門開時可見
+const photocellBeam = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.004, 0.004, 1.0, 6),
+  new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.65, depthTest: false })
+);
+photocellBeam.rotation.z = Math.PI/2;
+photocellBeam.position.set(0, doorBaseY, CAB_D/2 + 0.07);
+photocellBeam.visible = false;
+photocellBeam.userData = { name:"Photocell 紅外線光束", kind:"safety",
+  desc:"L → R 連續紅外線 — 被阻擋立即反向開門",
+  specs:[["波長","880 nm IR"],["反應","< 100 ms"],["標準","EN 81-20 §5.3.7"]] };
+cabGroup.add(photocellBeam);
 // ============ 門控制系統 3D 視覺化（door mode 才顯示）============
 // 內容：VFD 變頻器 + Encoder 編碼器 + 3 顆限位開關 + 4 條控制信號線 + Pulse 流動 + 即時狀態 HUD
 const doorControlGroup = new THREE.Group();
@@ -2256,6 +2286,8 @@ window.addEventListener('keydown', e => {
 
 // 動畫：轎廂上下移動 + sheave 轉
 let t = 0;
+let _beltAcc = 0;        // 皮帶齒累積位移
+let _lastDoorPhase = 0;   // 上一幀 doorPhase（判方向）
 function animate() {
   requestAnimationFrame(animate);
   // 門特寫模式時 t 增長變慢（門開關慢動作）
@@ -2507,11 +2539,52 @@ function animate() {
     armL.position.x = cabDoorL_close - openOffset;
     armR.position.x = cabDoorR_close + openOffset;
     // 馬達輸出軸自轉（門開合中）
-    if (doorPhase > 0.02 && doorPhase < 0.98) {
+    const doorMoving = doorPhase > 0.02 && doorPhase < 0.98;
+    if (doorMoving) {
       doMotor.rotation.x += 0.2;
       doPulleyL.rotation.x += 0.5;
       doPulleyR.rotation.x += 0.5;
     }
+
+    // === 強化動作細節 ===
+    // 1. 皮帶齒沿皮帶移動（上排向右、下排向左，模擬封閉式齒型皮帶）
+    const beltLen = 0.50;
+    const beltSpeed = doorMoving ? (doorPhase > _lastDoorPhase ? 1 : -1) : 0;
+    _beltAcc += beltSpeed * 0.012;
+    beltTeeth.forEach((tooth, i) => {
+      const isUpper = i < 4;
+      const groupIdx = i % 4;
+      const slot = groupIdx / 4 * beltLen;
+      let x;
+      if (isUpper) {
+        x = -0.18 + ((slot + _beltAcc) % beltLen + beltLen) % beltLen;
+      } else {
+        x = 0.32 - ((slot - _beltAcc) % beltLen + beltLen) % beltLen;
+      }
+      tooth.position.set(x, isUpper ? 0.045 : -0.045, 0);
+      tooth.visible = doorMode;  // 只有門特寫才顯示
+    });
+    _lastDoorPhase = doorPhase;
+
+    // 2. 紅外線光束（門開時可見，跟著 photocell 拉長）
+    const beamLx = cabDoorL.position.x + doorPanelW/2 - 0.04;
+    const beamRx = cabDoorR.position.x - doorPanelW/2 + 0.04;
+    const beamLen2 = beamRx - beamLx;
+    if (beamLen2 > 0.05) {
+      photocellBeam.visible = doorMode || cabinDoorForceOpen;
+      photocellBeam.scale.y = beamLen2;
+      photocellBeam.position.x = (beamLx + beamRx) / 2;
+      // 閃爍提示
+      photocellBeam.material.opacity = 0.55 + Math.sin(t * 25) * 0.25;
+    } else {
+      photocellBeam.visible = false;
+    }
+
+    // 3. Vane 接合 clutch 時發光（vane 進入 clutch 範圍 — 即 cab 對位中）
+    const vaneEngaged = doorPhase > 0.05;  // 開門就接合
+    const glowIntensity = vaneEngaged ? (0.5 + Math.sin(t * 15) * 0.3) : 0.15;
+    vaneL.material.emissiveIntensity = glowIntensity;
+    vaneR.material.emissiveIntensity = glowIntensity;
 
     // 找最近的 landing door 同步開合（只有對位中的那層才動）
     const currentFloor = Math.round(targetFloor);
