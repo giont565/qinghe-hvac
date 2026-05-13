@@ -33,6 +33,15 @@
   .info { font-size:11px; line-height:1.6; color:var(--sub); }
   .info b { color:var(--ink); }
   .key-hint kbd { display:inline-block; padding:1px 5px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:3px; color:var(--ink); font-family:inherit; font-size:10px; }
+  /* 純視圖模式 — 隱藏所有面板，只露出小型「顯示 UI」按鈕 */
+  body.ui-hidden .hud,
+  body.ui-hidden #selected,
+  body.ui-hidden #doorPanel,
+  body.ui-hidden #cabinPanel,
+  body.ui-hidden #doorStepBar { display:none !important; }
+  #showUiBtn { position:fixed; top:16px; right:16px; z-index:20; padding:8px 14px; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(163,230,53,.4); border-radius:8px; color:#a3e635; cursor:pointer; font-family:inherit; font-size:12px; display:none; }
+  #showUiBtn:hover { background:rgba(163,230,53,.15); }
+  body.ui-hidden #showUiBtn { display:block; }
   #selected { position:fixed; left:16px; top:50%; transform:translateY(-50%); z-index:10; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(163,230,53,.3); border-radius:12px; padding:14px 18px; min-width:240px; max-width:280px; font-size:12px; opacity:0; transition:opacity .25s; pointer-events:none; }
   #selected.show { opacity:1; }
   #selected h3 { font-size:14px; font-weight:600; margin-bottom:6px; color:var(--sensor); }
@@ -116,6 +125,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button class="ctrl-btn" data-action="door"><span>🔍 門機構特寫</span><span class="key">D</span></button>
     <button class="ctrl-btn" data-action="cabin"><span>🦽 殘障內裝特寫</span><span class="key">C</span></button>
     <button class="ctrl-btn active" data-action="mrtype"><span id="mrTypeLabel">🏠 有機房 MR</span><span class="key">M</span></button>
+    <button class="ctrl-btn" data-action="hideui"><span>📺 純視圖</span><span class="key">H</span></button>
     <button class="ctrl-btn" data-action="explode"><span>系統拆解 Exploded</span><span class="key">E</span></button>
     <button class="ctrl-btn active" data-action="shaft"><span>顯示井道 Shaft</span><span class="key">S</span></button>
     <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
@@ -213,6 +223,8 @@ window.addEventListener('unhandledrejection', function(e) {
     </p>
   </div>
 </div>
+
+<button id="showUiBtn" onclick="document.body.classList.remove('ui-hidden')">📺 顯示介面</button>
 
 <div class="hud hud-bl">
   <p class="key-hint"><kbd>單指/左鍵</kbd> 旋轉　<kbd>滾輪/雙指</kbd> 縮放　<kbd>點擊</kbd> 元件查看</p>
@@ -2217,6 +2229,7 @@ document.querySelectorAll('.ctrl-btn').forEach(btn => {
     if (a === 'door') setDoorMode(!doorMode);
     else if (a === 'cabin') setCabinMode(!cabinMode);
     else if (a === 'mrtype') setMRType(!isMR);
+    else if (a === 'hideui') document.body.classList.toggle('ui-hidden');
     else if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
     else if (a === 'shaft') { setShaftVis(!shaftOn); btn.classList.toggle('active', shaftOn); }
     else if (a === 'reset') {
@@ -2231,6 +2244,7 @@ window.addEventListener('keydown', e => {
   if (k === 'd') setDoorMode(!doorMode);
   else if (k === 'c') setCabinMode(!cabinMode);
   else if (k === 'm') setMRType(!isMR);
+  else if (k === 'h') document.body.classList.toggle('ui-hidden');
   else if (k === 'e') setExplode(!exploded);
   else if (k === 's') setShaftVis(!shaftOn);
   else if (k === 'r') {
