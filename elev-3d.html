@@ -143,6 +143,17 @@ window.addEventListener('unhandledrejection', function(e) {
     <span style="font-weight:600;color:#a3e635;font-size:14px">🚪 門機構運作原理</span>
     <span id="doorPanelClose" style="cursor:pointer;color:#86868b;font-size:18px;line-height:1">×</span>
   </div>
+  <!-- 顯示選項 -->
+  <div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#9aa0a8">
+    <label style="cursor:pointer;display:flex;align-items:center;gap:4px">
+      <input type="checkbox" id="toggleCabTop" style="cursor:pointer">
+      <span>顯示車頂機構</span>
+    </label>
+    <label style="cursor:pointer;display:flex;align-items:center;gap:4px">
+      <input type="checkbox" id="toggleCabBody" checked style="cursor:pointer">
+      <span>顯示 cab 外殼（透視）</span>
+    </label>
+  </div>
   <!-- 分頁切換 -->
   <div style="display:flex;gap:4px;padding:3px;background:rgba(0,0,0,.35);border-radius:7px;margin-bottom:10px">
     <button class="door-tab active" data-doortab="teach" style="flex:1;padding:6px 0;font-size:11px;background:rgba(163,230,53,.18);border:1px solid rgba(163,230,53,.4);color:#a3e635;border-radius:5px;cursor:pointer;font-family:inherit">🎓 教學</button>
@@ -2075,6 +2086,16 @@ function setDoorMode(on) {
   // 門機構外的物件 fade 到接近全透明（cab body / 內裝 / 車頂 / 導靴 / 門框 / hall station）
   // 留下：cab門+landing門+vane+clutch+door operator+photocell+hangers → 全清楚
   setFadeMode(on, 0.08);
+  // 預設隱藏車頂機構（擋視野），勾 checkbox 才顯示
+  if (on) {
+    cabTopGroup.visible = false;
+    const cb = document.getElementById('toggleCabTop');
+    if (cb) cb.checked = false;
+    const cb2 = document.getElementById('toggleCabBody');
+    if (cb2) cb2.checked = true;
+  } else {
+    cabTopGroup.visible = true;  // 離開門特寫，車頂回來
+  }
   if (on) {
     // 鏡頭飛到 2F cab 門前（doorMode 強制把 cab 鎖在 2F，這裡用 2F 預測位置）
     const lockedCabY = 1 * FLOOR_H + 1.15;  // 4.65 (2F)
@@ -2098,6 +2119,18 @@ function setDoorMode(on) {
 document.getElementById('doorPanelClose').addEventListener('click', () => setDoorMode(false));
 document.querySelectorAll('.door-tab').forEach(b => {
   b.addEventListener('click', () => setDoorViewMode(b.dataset.doortab));
+});
+// 車頂顯示 toggle
+document.getElementById('toggleCabTop').addEventListener('change', e => {
+  cabTopGroup.visible = e.target.checked;
+});
+// cab 外殼顯示 toggle (勾 = 半透明可見 / 不勾 = 完全隱藏)
+document.getElementById('toggleCabBody').addEventListener('change', e => {
+  const show = e.target.checked;
+  cabBody.visible = show;
+  sling.visible = show;
+  cabInterior.visible = show;
+  cabGuideShoes.forEach(s => s.visible = show);
 });
 
 // ===== 殘障內裝特寫模式 =====
