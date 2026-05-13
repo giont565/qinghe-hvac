@@ -1492,7 +1492,9 @@ function paintHallDisp(cv, tex, currentFloor, dirCh) {
 const ldPanelW = CAB_W/2 - 0.02;
 const ldPanelH = CAB_H - 0.2;
 const ldFloors = [1, 2, 3];
+const landingFloorGroups = [];  // [{floor, group}] — 給特寫模式 per-floor 過濾用
 ldFloors.forEach(f => {
+  const landingFloorGroup = new THREE.Group();
   const y = (f - 1) * FLOOR_H;
   const doorCenterY = y + ldPanelH/2 + 0.05;
 
@@ -1508,26 +1510,26 @@ ldFloors.forEach(f => {
   // 上樑（橫跨整個外框寬度）
   const header = new THREE.Mesh(new THREE.BoxGeometry(frameOuterW, headerH, 0.05), frameMat);
   header.position.set(0, doorCenterY + openH/2 + headerH/2, frameZ);
-  ELEV.add(header);
+  landingFloorGroup.add(header);
   // 左門柱
   const jambL = new THREE.Mesh(new THREE.BoxGeometry(jambW, openH, 0.05), frameMat);
   jambL.position.set(-(openW/2 + jambW/2), doorCenterY, frameZ);
-  ELEV.add(jambL);
+  landingFloorGroup.add(jambL);
   // 右門柱
   const jambR = new THREE.Mesh(new THREE.BoxGeometry(jambW, openH, 0.05), frameMat);
   jambR.position.set(openW/2 + jambW/2, doorCenterY, frameZ);
-  ELEV.add(jambR);
+  landingFloorGroup.add(jambR);
   // 地檻 sill（薄條，貼地面）
   const sill = new THREE.Mesh(new THREE.BoxGeometry(frameOuterW, 0.04, 0.10),
     new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.3 }));
   sill.position.set(0, y + 0.02, frameZ);
-  ELEV.add(sill);
+  landingFloorGroup.add(sill);
 
   // 門上方水平軌道 (鋼軌)
   const ldTrack = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.15, 0.04, 0.04),
     new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.3 }));
   ldTrack.position.set(0, doorCenterY + ldPanelH/2 + 0.04, SHAFT_D/2 + 0.075);
-  ELEV.add(ldTrack);
+  landingFloorGroup.add(ldTrack);
 
   // 左右門片
   const ldMat = new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.85, roughness: 0.3 });
@@ -1538,7 +1540,7 @@ ldFloors.forEach(f => {
   ldL.position.set(ldL_close, doorCenterY, SHAFT_D/2 + 0.07);
   ldR.position.set(ldR_close, doorCenterY, SHAFT_D/2 + 0.07);
   ldL.userData = { name:`Landing Door ${f}F (Left)`, kind:"door", desc:`${f} 樓層門左片 — passive 跟隨轎門 vane`, specs:[["材質","髮絲紋 SUS304"],["驅動","passive（被 cab vane 拉動）"],["互鎖","mechanical + electrical"]] };
-  ELEV.add(ldL); ELEV.add(ldR);
+  landingFloorGroup.add(ldL); landingFloorGroup.add(ldR);
 
   // 門吊架 + 滑輪 (掛在上方軌道)
   for (let h of [{x: ldL_close, off: -0.06}, {x: ldL_close, off: 0.06}, {x: ldR_close, off: -0.06}, {x: ldR_close, off: 0.06}]) {
@@ -1546,7 +1548,7 @@ ldFloors.forEach(f => {
       new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.95, roughness: 0.2 }));
     hg.rotation.x = Math.PI/2;
     hg.position.set(h.x + h.off, doorCenterY + ldPanelH/2 + 0.04, SHAFT_D/2 + 0.085);
-    ELEV.add(hg);
+    landingFloorGroup.add(hg);
   }
 
   // Clutch / lock 機構（左片內側、給 cab vane 夾住的U形溝）
@@ -1554,10 +1556,10 @@ ldFloors.forEach(f => {
   const clutchL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.025), clutchMat);
   clutchL.position.set(ldL_close + ldPanelW/2 - 0.005, doorCenterY, SHAFT_D/2 + 0.045);
   clutchL.userData = { name:`Landing Clutch ${f}F`, kind:"door", desc:"樓層門 clutch（U 形夾鉤）— 只在 cab vane 進入時連動", specs:[["材質","硬化鋼"],["接合條件","cab 對位 ±50mm"]] };
-  ELEV.add(clutchL);
+  landingFloorGroup.add(clutchL);
   const clutchR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.025), clutchMat);
   clutchR.position.set(ldR_close - ldPanelW/2 + 0.005, doorCenterY, SHAFT_D/2 + 0.045);
-  ELEV.add(clutchR);
+  landingFloorGroup.add(clutchR);
 
   // ===== 外叫面板 Hall Call Station（門框右側，廳堂可見）=====
   const hallStation = new THREE.Group();
@@ -1592,7 +1594,7 @@ ldFloors.forEach(f => {
     dnArrow.position.set(0, -0.08, 0.025); hallStation.add(dnArrow);
   }
   hallStation.userData = { name:`Hall Call ${f}F`, kind:"hall", desc:`${f} 樓外叫面板（廳堂呼梯）`, specs:[["按鈕","Φ50 mm 不鏽鋼"],["凸字","三角符號 + 點字"],["燈","呼叫亮、到達熄"]] };
-  ELEV.add(hallStation);
+  landingFloorGroup.add(hallStation);
 
   // ===== 到樓顯示器 Hall Position Indicator（門框上方，全廳堂可見）=====
   const hallDispCv = document.createElement('canvas'); hallDispCv.width = 320; hallDispCv.height = 96;
@@ -1602,16 +1604,18 @@ ldFloors.forEach(f => {
   const hallDispBg = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.17, 0.025),
     new THREE.MeshStandardMaterial({ color: 0x111, metalness: 0.6, roughness: 0.5 }));
   hallDispBg.position.set(0, y + 2.40, SHAFT_D/2 + 0.04);
-  ELEV.add(hallDispBg);
+  landingFloorGroup.add(hallDispBg);
   // LED 字幕（畫在面板上）
   const hallDispScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.14), hallDispMat);
   hallDispScreen.position.set(0, y + 2.40, SHAFT_D/2 + 0.053);
-  ELEV.add(hallDispScreen);
+  landingFloorGroup.add(hallDispScreen);
   hallDispScreen.userData = { name:`到樓顯示器 ${f}F`, kind:"hall", desc:"廳堂用 LED 顯示器 — 顯示 cab 目前樓層 + 方向", specs:[["尺寸","460×140 mm"],["顯示","7-seg LED 紅"],["方向","↑↓ 箭頭"]] };
   // 存指標讓 animate 即時更新
   hallDisplays.push({ canvas: hallDispCv, tex: hallDispTex, floor: f });
 
   landingDoors.push({ floor: f, L: ldL, R: ldR, clutchL, clutchR, ldL_close, ldR_close, y });
+  ELEV.add(landingFloorGroup);
+  landingFloorGroups.push({ floor: f, group: landingFloorGroup });
 });
 
 // ============ 11. Controller Cabinet (旁置控制盤) ============
@@ -1761,13 +1765,20 @@ labelDefs.forEach(d => {
   labelGroups.push({ sprite, line, dot });
 });
 
-// 切到門特寫模式時要隱藏的東西
+// 切到特寫模式時要隱藏的「井道雜訊」（與 door/cabin 教學無關的元件）
 const hideInDoorMode = [];
 function setupHideList() {
   hideInDoorMode.length = 0;
   hideInDoorMode.push(cwGroup);
   hideInDoorMode.push(machGroup);
+  hideInDoorMode.push(ctrlElev);             // 外部控制盤
+  hideInDoorMode.push(cabTopGroup);           // 車頂機構（不是門機構焦點）
+  hideInDoorMode.push(topLimitSwitch);
   if (typeof govGroup !== 'undefined') hideInDoorMode.push(govGroup);
+  if (typeof govRope !== 'undefined') hideInDoorMode.push(govRope);
+  // 鋼索全部隱藏（門/內裝特寫不看曳引繩）
+  cabRopes.forEach(r => hideInDoorMode.push(r.mesh));
+  cwRopes.forEach(r => hideInDoorMode.push(r.mesh));
 }
 setupHideList();
 
@@ -1989,6 +2000,10 @@ function setDoorMode(on) {
   }
   // 隱藏雜訊
   hideInDoorMode.forEach(o => o.visible = !on);
+  // 只顯示 2F 的 landing（門機構特寫鎖 2F），退出全顯
+  landingFloorGroups.forEach(lf => {
+    lf.group.visible = on ? (lf.floor === 2) : true;
+  });
   if (on) {
     // 鏡頭飛到 2F cab 門前（doorMode 強制把 cab 鎖在 2F，這裡用 2F 預測位置）
     const lockedCabY = 1 * FLOOR_H + 1.15;  // 4.65 (2F)
@@ -2030,6 +2045,12 @@ function setCabinMode(on) {
     l.line.visible = on;
     l.dot.visible = on;
   });
+  // 內裝特寫鎖 1F：只顯示 1F landing，其他樓層隱藏
+  landingFloorGroups.forEach(lf => {
+    lf.group.visible = on ? (lf.floor === 1) : true;
+  });
+  // 同步 hideInDoorMode 也用在內裝模式（共用雜訊隱藏）
+  hideInDoorMode.forEach(o => o.visible = !on);
   if (on) {
     // 鏡頭站 1F 廳堂 1.75m 眼高，看進開門的 cab — 最自然的「確認內裝」視角
     const lockedCabY = 0 * FLOOR_H + 1.15;  // 1F: 1.15
