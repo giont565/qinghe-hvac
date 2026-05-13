@@ -1535,12 +1535,13 @@ function setCabinMode(on) {
   cabinDoorForceOpen = on;
   if (on && doorMode) setDoorMode(false);  // 兩種特寫互斥
   if (on) {
-    // 鏡頭飛進 2F cab 內部偏前（看得到後牆鏡 + 兩側扶手 + COP）
-    const lockedCabY = 1 * FLOOR_H + 1.15;
+    // 鏡頭站 1F 廳堂 1.75m 眼高，看進開門的 cab — 最自然的「確認內裝」視角
+    const lockedCabY = 0 * FLOOR_H + 1.15;  // 1F: 1.15
     cabGroup.position.y = lockedCabY;
     cwGroup.position.y = (FLOOR_H * 2) - (lockedCabY - 1.15) + 0.85;
-    doorModeTargetCam.set(cabGroup.position.x + 0.3, lockedCabY + 0.6, CAB_Z + 1.6);
-    doorModeTargetTar.set(cabGroup.position.x, lockedCabY, CAB_Z - 0.3);
+    // 相機在廳堂前 2.5m，1.6m 眼高，看 cab 中心稍偏內後牆
+    doorModeTargetCam.set(0.0, lockedCabY + 0.45, CAB_Z + 2.4);
+    doorModeTargetTar.set(0.0, lockedCabY, CAB_Z - 0.5);
     camera.position.copy(doorModeTargetCam);
     controls.target.copy(doorModeTargetTar);
     controls.update();
@@ -1624,9 +1625,9 @@ function animate() {
         targetFloor = 2 - (phase - 20) / 4 * 2;
       }
     }
-    // 殘障特寫模式：強制 cab 停 2F + 門全開（方便觀察內裝）
+    // 殘障特寫模式：強制 cab 停 1F (廳堂視角自然) + 門全開
     if (cabinDoorForceOpen) {
-      targetFloor = 1;
+      targetFloor = 0;  // 1F (ground floor)
       doorPhase = 1;
     }
     const cabY = targetFloor * FLOOR_H + 1.15;  // 平層基準，對齊 landing door
