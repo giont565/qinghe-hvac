@@ -120,6 +120,13 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
 </div>
 
+<!-- 門機構步驟指示器（畫面底部置中） -->
+<div id="doorStepBar" style="position:fixed;bottom:200px;left:50%;transform:translateX(-50%);background:rgba(15,15,17,.92);backdrop-filter:blur(20px);border:1px solid rgba(163,230,53,.4);border-radius:8px;padding:10px 18px;font-size:13px;z-index:11;display:none;min-width:360px;text-align:center">
+  <div style="font-size:10px;color:#86868b;letter-spacing:.2em;margin-bottom:4px">CURRENT STEP</div>
+  <div id="doorStepText" style="color:#a3e635;font-weight:600;font-size:14px;line-height:1.4">⏸ 待機</div>
+  <div id="doorStepDesc" style="color:#86868b;font-size:11px;margin-top:4px"></div>
+</div>
+
 <!-- 門機構特寫面板 -->
 <div id="doorPanel" style="position:fixed;right:16px;bottom:16px;width:340px;background:rgba(15,15,17,.92);backdrop-filter:blur(20px);border:1px solid rgba(163,230,53,.4);border-radius:12px;padding:14px 18px;font-size:12px;z-index:11;display:none;line-height:1.6">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -751,24 +758,85 @@ labelDefs.forEach(d => {
 const hideInDoorMode = [];
 function setupHideList() {
   hideInDoorMode.length = 0;
-  // 配重 + cw 導軌 + 牽引繩 + 機房 + governor
   hideInDoorMode.push(cwGroup);
   hideInDoorMode.push(machGroup);
   if (typeof govGroup !== 'undefined') hideInDoorMode.push(govGroup);
 }
 setupHideList();
 
+// ============ 門機構：動作箭頭 (motion arrows) + 步驟動畫 ============
+// 為每個 STEP 建立 3D 箭頭，動作中閃爍標示當前進行的步驟
+const motionArrows = {};
+function makeArrow(dir, origin, length, color) {
+  const a = new THREE.ArrowHelper(dir.normalize(), origin, length, color, length*0.35, length*0.2);
+  a.line.material.linewidth = 3;
+  a.line.material.transparent = true;
+  a.cone.material.transparent = true;
+  a.visible = false;
+  return a;
+}
+// 1. 馬達轉動箭頭（弧形示意，用線段近似）
+const motorArrowGeo = new THREE.BufferGeometry();
+const motorArc = [];
+for (let i = 0; i <= 20; i++) {
+  const ang = (i / 20) * Math.PI * 1.4 - Math.PI * 0.2;
+  motorArc.push(new THREE.Vector3(-0.25 + 0.13 * Math.cos(ang), doorBaseY + doorPanelH/2 + 0.18 + 0.13 * Math.sin(ang), CAB_D/2 + 0.08));
+}
+motorArrowGeo.setFromPoints(motorArc);
+const motorArrow = new THREE.Line(motorArrowGeo, new THREE.LineBasicMaterial({ color: 0xfb923c, linewidth: 3, transparent: true, depthTest: false }));
+motorArrow.visible = false; motorArrow.renderOrder = 997;
+cabGroup.add(motorArrow);
+motionArrows.motor = motorArrow;
+
+// 2. 皮帶移動箭頭（水平雙向，上排向右、下排向左）
+motionArrows.beltUp = makeArrow(new THREE.Vector3(1,0,0), new THREE.Vector3(-0.10, doorBaseY + doorPanelH/2 + 0.225, CAB_D/2 + 0.10), 0.3, 0xfb923c);
+motionArrows.beltDown = makeArrow(new THREE.Vector3(-1,0,0), new THREE.Vector3(0.10, doorBaseY + doorPanelH/2 + 0.135, CAB_D/2 + 0.10), 0.3, 0xfb923c);
+cabGroup.add(motionArrows.beltUp);
+cabGroup.add(motionArrows.beltDown);
+
+// 3. Crank arm 向下推動箭頭（垂直，從上往下）
+motionArrows.armL = makeArrow(new THREE.Vector3(0,-1,0), new THREE.Vector3(cabDoorL_close, doorBaseY + doorPanelH/2 + 0.30, CAB_D/2 + 0.08), 0.25, 0xfb923c);
+motionArrows.armR = makeArrow(new THREE.Vector3(0,-1,0), new THREE.Vector3(cabDoorR_close, doorBaseY + doorPanelH/2 + 0.30, CAB_D/2 + 0.08), 0.25, 0xfb923c);
+cabGroup.add(motionArrows.armL);
+cabGroup.add(motionArrows.armR);
+
+// 4. 門片滑動箭頭（左門向左、右門向右）— 動態長度
+motionArrows.doorL = makeArrow(new THREE.Vector3(-1,0,0), new THREE.Vector3(cabDoorL_close - 0.05, doorBaseY + doorPanelH/4, CAB_D/2 + 0.08), 0.35, 0x9aa0a8);
+motionArrows.doorR = makeArrow(new THREE.Vector3(1,0,0), new THREE.Vector3(cabDoorR_close + 0.05, doorBaseY + doorPanelH/4, CAB_D/2 + 0.08), 0.35, 0x9aa0a8);
+cabGroup.add(motionArrows.doorL);
+cabGroup.add(motionArrows.doorR);
+
+// 5. Vane 接合 clutch 的「夾入」標示（從 vane 向 clutch 方向）
+motionArrows.vane = makeArrow(new THREE.Vector3(0,0,1), new THREE.Vector3(cabDoorR_close - 0.05, doorBaseY + 0.2, CAB_D/2 + 0.10), 0.25, 0xa3e635);
+cabGroup.add(motionArrows.vane);
+
+// 6. Landing door 跟隨開合箭頭（在 cab 外，水平）
+motionArrows.ldL = makeArrow(new THREE.Vector3(-1,0,0), new THREE.Vector3(-CAB_W/4, doorBaseY + doorPanelH/4, CAB_D/2 + 0.65), 0.35, 0xfb923c);
+motionArrows.ldR = makeArrow(new THREE.Vector3(1,0,0), new THREE.Vector3(CAB_W/4, doorBaseY + doorPanelH/4, CAB_D/2 + 0.65), 0.35, 0xfb923c);
+cabGroup.add(motionArrows.ldL);
+cabGroup.add(motionArrows.ldR);
+
+function showArrows(visible) {
+  for (const k in motionArrows) motionArrows[k].visible = visible;
+}
+
 const doorPanel = document.getElementById('doorPanel');
+const doorStepBar = document.getElementById('doorStepBar');
+const doorStepText = document.getElementById('doorStepText');
+const doorStepDesc = document.getElementById('doorStepDesc');
 function setDoorMode(on) {
   doorMode = on;
   document.querySelector('[data-action="door"]').classList.toggle('active', on);
   doorPanel.style.display = on ? 'block' : 'none';
+  doorStepBar.style.display = on ? 'block' : 'none';
   // 顯示/隱藏所有標籤 + 引線 + 端點
   labelGroups.forEach(g => {
     g.sprite.visible = on;
     g.line.visible = on;
     g.dot.visible = on;
   });
+  // 顯示箭頭
+  showArrows(on);
   // 隱藏雜訊
   hideInDoorMode.forEach(o => o.visible = !on);
   if (on) {
@@ -848,6 +916,50 @@ function animate() {
     if (moving) {
       sheave.rotation.x += 0.12;
       motor.rotation.x += 0.12;
+    }
+
+    // === 門特寫步驟指示（依 doorPhase 顯示對應箭頭 + 文字）===
+    if (doorMode) {
+      // doorPhase: 0 (全關) → 1 (全開) → 0 (再關)
+      // 用 doorPhase 速率（diff）判斷在開/在關/靜止
+      // 5 steps in opening:
+      //   step1 (0-0.15): motor 啟動 → motorArrow 亮
+      //   step2 (0.10-0.25): belt 帶動 → beltArrow
+      //   step3 (0.15-0.40): crank arm 推動 → armArrow
+      //   step4 (0.30-0.70): 門片滑動 + vane 夾住 clutch
+      //   step5 (0.50-1.0): landing door 跟隨 + photocell 監控
+      const isOpening = doorPhase > 0.02;
+      const stepIdx = doorPhase < 0.02 ? 0 :
+                      doorPhase < 0.15 ? 1 :
+                      doorPhase < 0.30 ? 2 :
+                      doorPhase < 0.55 ? 3 :
+                      doorPhase < 0.85 ? 4 : 5;
+      // 閃爍效果
+      const blink = (Math.sin(t * 600) + 1) / 2 * 0.6 + 0.4;
+      const setArrowOp = (key, on) => {
+        const a = motionArrows[key];
+        if (!a) return;
+        a.visible = on;
+        if (a.line) a.line.material.opacity = on ? blink : 0;
+        if (a.cone) a.cone.material.opacity = on ? blink : 0;
+        if (a.material) a.material.opacity = on ? blink : 0;
+      };
+      // 全暗
+      ['motor','beltUp','beltDown','armL','armR','doorL','doorR','vane','ldL','ldR'].forEach(k => setArrowOp(k, false));
+      // 該步驟亮
+      const stepInfo = [
+        { k:[],                                              text:'⏸ 門待機（cab 平層中）', desc:'cab 對位 ±50mm 內，等待 vane 進入 clutch' },
+        { k:['motor'],                                       text:'① 馬達啟動 Motor START', desc:'VFD 控制門馬達正轉，驅動帶動皮帶' },
+        { k:['motor','beltUp','beltDown'],                  text:'② 皮帶傳動 Belt DRIVE',  desc:'封閉式齒型皮帶把馬達轉動轉成水平直線運動' },
+        { k:['beltUp','beltDown','armL','armR'],            text:'③ Crank Arm 拉動 ARM',  desc:'crank arm 從皮帶下方拉桿接到門吊架，左右反向同步位移' },
+        { k:['armL','armR','doorL','doorR','vane'],         text:'④ 門片滑動 + Vane 接合', desc:'門吊架沿上軌滑動，vane 機械夾住 landing door clutch' },
+        { k:['doorL','doorR','vane','ldL','ldR'],           text:'⑤ Landing Door 跟隨開', desc:'樓層門被 vane 拉動 — 自己沒馬達也跟著開；photocell 全程監控防夾' },
+      ];
+      const info = stepInfo[stepIdx];
+      info.k.forEach(k => setArrowOp(k, true));
+      // 更新文字
+      doorStepText.textContent = info.text;
+      doorStepDesc.textContent = info.desc;
     }
 
     // === 門開合（cab + 對應 landing 同步）===
