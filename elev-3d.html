@@ -382,6 +382,179 @@ cabGroup.add(photocellL);
 const photocellR = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.02), photocellMat);
 photocellR.position.set(cabDoorR_close - doorPanelW/2 + 0.04, doorBaseY + 0.0, CAB_D/2 + 0.07);
 cabGroup.add(photocellR);
+// ============ 門控制系統 3D 視覺化（door mode 才顯示）============
+// 內容：VFD 變頻器 + Encoder 編碼器 + 3 顆限位開關 + 4 條控制信號線 + Pulse 流動 + 即時狀態 HUD
+const doorControlGroup = new THREE.Group();
+doorControlGroup.visible = false;
+
+// 小型 3D 標籤 helper
+function makeMiniLabel(text, color, w = 0.36, h = 0.07) {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 56;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(15,16,20,0.95)'; cx.fillRect(0, 0, 256, 56);
+  cx.strokeStyle = color; cx.lineWidth = 2; cx.strokeRect(1, 1, 254, 54);
+  cx.fillStyle = color; cx.font = 'bold 22px sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(text, 128, 30);
+  const tex = new THREE.CanvasTexture(cv);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  mesh.renderOrder = 995;
+  return mesh;
+}
+
+// ---- 1. VFD 變頻驅動模組（門上方左側） ----
+const vfdY = doorBaseY + doorPanelH/2 + 0.40;
+const vfdBox = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.14),
+  new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.35 }));
+vfdBox.position.set(-0.55, vfdY, CAB_D/2 - 0.08);
+doorControlGroup.add(vfdBox);
+// 散熱鰭片
+for (let i = -1; i <= 1; i++) {
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.006, 0.135),
+    new THREE.MeshStandardMaterial({ color: 0x374151, metalness: 0.9 }));
+  fin.position.set(-0.55, vfdY + 0.075 + i * 0.020, CAB_D/2 - 0.08);
+  doorControlGroup.add(fin);
+}
+// VFD 指示燈 (green=ready / orange=run)
+const vfdLed = new THREE.Mesh(new THREE.SphereGeometry(0.013, 12, 8),
+  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0xa3e635, emissiveIntensity: 1.0 }));
+vfdLed.position.set(-0.46, vfdY + 0.02, CAB_D/2 - 0.01);
+doorControlGroup.add(vfdLed);
+// VFD 標籤
+const vfdLbl = makeMiniLabel('VFD 變頻驅動', '#fbbf24', 0.42, 0.085);
+vfdLbl.position.set(-0.55, vfdY + 0.18, CAB_D/2 - 0.02);
+doorControlGroup.add(vfdLbl);
+
+// ---- 2. Encoder 編碼器（馬達後端） ----
+const encDisk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.010, 24),
+  new THREE.MeshStandardMaterial({ color: 0xb0b6be, metalness: 0.9, roughness: 0.3 }));
+encDisk.rotation.z = Math.PI/2;
+encDisk.position.set(-0.43, doorBaseY + doorPanelH/2 + 0.18, CAB_D/2 - 0.05);
+// 編碼盤上的狹縫條紋（讓人看得到轉動）
+for (let i = 0; i < 12; i++) {
+  const ang = i * Math.PI / 6;
+  const tick = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.010, 0.012),
+    new THREE.MeshBasicMaterial({ color: 0x111 }));
+  tick.position.set(0.006, 0.034 * Math.sin(ang), 0.034 * Math.cos(ang));
+  encDisk.add(tick);  // attach to disk → 跟著轉
+}
+doorControlGroup.add(encDisk);
+// 讀取頭（紅色小盒，固定在盤旁邊）
+const encReader = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.018, 0.022),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b, emissiveIntensity: 0.6 }));
+encReader.position.set(-0.43, doorBaseY + doorPanelH/2 + 0.225, CAB_D/2 - 0.05);
+doorControlGroup.add(encReader);
+const encLbl = makeMiniLabel('Encoder 編碼器', '#86868b', 0.42, 0.075);
+encLbl.position.set(-0.43, doorBaseY + doorPanelH/2 + 0.32, CAB_D/2 - 0.05);
+doorControlGroup.add(encLbl);
+
+// ---- 3. 限位開關 Limit Switches（cab track 上） ----
+function addLimitSwitch(localX, color, name) {
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0x222, metalness: 0.7 }));
+  const swY = cabTrack.position.y - 0.045;
+  body.position.set(localX, swY, CAB_D/2 + 0.07);
+  doorControlGroup.add(body);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15 }));
+  lamp.position.set(localX, swY + 0.022, CAB_D/2 + 0.09);
+  doorControlGroup.add(lamp);
+  const hex = '#' + color.toString(16).padStart(6,'0');
+  const lbl = makeMiniLabel(name, hex, 0.32, 0.06);
+  lbl.position.set(localX, swY + 0.10, CAB_D/2 + 0.10);
+  doorControlGroup.add(lbl);
+  return lamp;
+}
+const lsClose  = addLimitSwitch(0,                          0xef4444, 'LS-CLOSE 全關');
+const lsOpenL  = addLimitSwitch(-CAB_W/2 + 0.18,            0x10b981, 'LS-OPEN-L 左全開');
+const lsOpenR  = addLimitSwitch( CAB_W/2 - 0.18,            0x10b981, 'LS-OPEN-R 右全開');
+
+// ---- 4. 控制信號線（4 條：Cmd / Drive / FB / Safety） ----
+const ctrlWires = [];
+function makeCtrlWire(from, to, color, arch = 0.10) {
+  const mid = new THREE.Vector3((from.x+to.x)/2, Math.max(from.y,to.y) + arch, (from.z+to.z)/2);
+  const curve = new THREE.CatmullRomCurve3([from.clone(), mid, to.clone()]);
+  const pts = curve.getPoints(28);
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.45, depthTest: false });
+  const line = new THREE.Line(geo, mat); line.renderOrder = 994;
+  doorControlGroup.add(line);
+  const pulse = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthTest: false }));
+  pulse.renderOrder = 996;
+  doorControlGroup.add(pulse);
+  const obj = { curve, line, lineMat: mat, pulse, color, t: Math.random() };
+  ctrlWires.push(obj);
+  return obj;
+}
+const VFD_OUT    = new THREE.Vector3(-0.50, vfdY, CAB_D/2 - 0.04);
+const VFD_IN_FB  = new THREE.Vector3(-0.50, vfdY + 0.04, CAB_D/2 - 0.04);
+const VFD_IN_SF  = new THREE.Vector3(-0.50, vfdY - 0.04, CAB_D/2 - 0.04);
+const VFD_IN_CMD = new THREE.Vector3(-0.65, vfdY + 0.30, CAB_D/2 - 0.05);
+const MOTOR_IN   = new THREE.Vector3(-0.30, doorBaseY + doorPanelH/2 + 0.18, CAB_D/2 - 0.05);
+const MOTOR_REAR = new THREE.Vector3(-0.43, doorBaseY + doorPanelH/2 + 0.22, CAB_D/2 - 0.05);
+const PC_OUT     = new THREE.Vector3(cabDoorL_close + doorPanelW/2 - 0.04, doorBaseY + 0.0, CAB_D/2 + 0.07);
+const CMD_IN     = new THREE.Vector3(-1.10, vfdY + 0.55, CAB_D/2 - 0.05);
+
+const wCmd   = makeCtrlWire(CMD_IN, VFD_IN_CMD, 0xfbbf24, 0.05);  // BA controller → VFD
+const wDrive = makeCtrlWire(VFD_OUT, MOTOR_IN,  0xfb923c, 0.06);  // VFD → 馬達 (驅動)
+const wFb    = makeCtrlWire(MOTOR_REAR, VFD_IN_FB, 0x86868b, 0.08); // Encoder → VFD (回授)
+const wSafe  = makeCtrlWire(PC_OUT, VFD_IN_SF,  0xf472b6, 0.18);  // Photocell → VFD (安全)
+
+// 信號線標籤
+function addWireLabel(text, color, x, y, z) {
+  const lbl = makeMiniLabel(text, color, 0.38, 0.07);
+  lbl.position.set(x, y, z);
+  doorControlGroup.add(lbl);
+}
+addWireLabel('① Cmd 開門指令',    '#fbbf24', -0.85, vfdY + 0.50, CAB_D/2 - 0.02);
+addWireLabel('② Drive 驅動電流',  '#fb923c', -0.42, vfdY - 0.05, CAB_D/2 + 0.04);
+addWireLabel('③ FB 編碼器回授',   '#9aa0a8', -0.18, vfdY + 0.18, CAB_D/2 + 0.04);
+addWireLabel('④ Safety 光電',     '#f472b6',  0.10, vfdY - 0.18, CAB_D/2 + 0.10);
+
+// ---- 5. 即時狀態 HUD（飄在 cab 左側） ----
+const stateCv = document.createElement('canvas'); stateCv.width = 512; stateCv.height = 360;
+const stateTex = new THREE.CanvasTexture(stateCv);
+const stateMat = new THREE.MeshBasicMaterial({ map: stateTex, transparent: true, depthTest: false });
+const stateCard = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.67), stateMat);
+stateCard.position.set(-2.0, doorBaseY + doorPanelH/2 - 0.1, CAB_D/2 + 0.3);
+stateCard.renderOrder = 997;
+doorControlGroup.add(stateCard);
+
+let encCountAcc = 0;
+function paintStateCard(rpm, vfdPct, doorPct, lsCloseOn, lsOpenOn, photoOk, stageText) {
+  const ctx = stateCv.getContext('2d');
+  ctx.fillStyle = '#0f1014'; ctx.fillRect(0, 0, 512, 360);
+  ctx.strokeStyle = '#a3e635'; ctx.lineWidth = 3; ctx.strokeRect(3, 3, 506, 354);
+  ctx.fillStyle = '#a3e635'; ctx.font = 'bold 22px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('🔧 門控制系統即時狀態', 18, 32);
+  ctx.fillStyle = '#9aa0a8'; ctx.font = '15px sans-serif';
+  ctx.fillText(stageText, 18, 58);
+  ctx.strokeStyle = '#374151'; ctx.beginPath(); ctx.moveTo(18, 72); ctx.lineTo(494, 72); ctx.stroke();
+  const rows = [
+    ['VFD 輸出頻率',  vfdPct.toFixed(0) + ' %',                vfdPct > 5 ? '#fb923c' : '#9aa0a8'],
+    ['馬達轉速',      rpm.toFixed(0) + ' RPM',                 rpm > 50 ? '#fb923c' : '#9aa0a8'],
+    ['Encoder 累計',  encCountAcc.toFixed(0) + ' pulses',     '#86868b'],
+    ['門位置',        doorPct.toFixed(1) + ' %',              '#e8eaef'],
+    ['LS-CLOSE',     lsCloseOn ? '⬤ ON'  : '○ off',          lsCloseOn ? '#ef4444' : '#5b5e66'],
+    ['LS-OPEN',      lsOpenOn  ? '⬤ ON'  : '○ off',          lsOpenOn  ? '#10b981' : '#5b5e66'],
+    ['Photocell',    photoOk ? '✓ 暢通' : '✗ 阻擋',          photoOk ? '#a3e635' : '#ef4444'],
+  ];
+  ctx.font = '17px monospace';
+  rows.forEach((r, i) => {
+    const y = 100 + i * 32;
+    ctx.fillStyle = '#9aa0a8'; ctx.fillText(r[0], 20, y);
+    ctx.fillStyle = r[2];      ctx.fillText(r[1], 260, y);
+  });
+  stateTex.needsUpdate = true;
+}
+paintStateCard(0, 0, 0, true, false, true, '⏸ 待機中');
+
+// 把整個控制群組綁到 cabGroup（隨 cab 移動）
+cabGroup.add(doorControlGroup);
+
 cabGroup.userData = { name:"Cab 轎廂", kind:"cab", desc:"乘客車廂 + 雙開門 + COP 操作板", specs:[["容量","13 人 / 900 kg"],["速度","1.0 m/s"],["材質","SUS304 髮絲紋"],["門","中分雙開 2-panel"]] };
 cabGroup.userData.basePos = cabGroup.position.clone();
 ELEV.add(cabGroup);
@@ -974,8 +1147,9 @@ function setDoorMode(on) {
   });
   // 顯示箭頭
   showArrows(on);
-  // 顯示 3D 流程示意板（特寫才顯示）
+  // 顯示 3D 流程示意板 + 控制系統視覺化（特寫才顯示）
   schematicGroup.visible = on;
+  doorControlGroup.visible = on;
   // 隱藏雜訊
   hideInDoorMode.forEach(o => o.visible = !on);
   if (on) {
@@ -1134,6 +1308,59 @@ function animate() {
         obj.mat.color.setHex(isActive ? 0xa3e635 : 0x86868b);
         obj.coneMat.color.setHex(isActive ? 0xa3e635 : 0x86868b);
       });
+
+      // === 控制系統即時動作 ===
+      const running = stepIdx >= 1 && stepIdx <= 5;
+      // VFD LED：執行中橙閃，待機綠常亮
+      vfdLed.material.color.setHex(running ? 0xfb923c : 0xa3e635);
+      vfdLed.material.emissive.setHex(running ? 0xfb923c : 0xa3e635);
+      vfdLed.material.emissiveIntensity = running ? (0.8 + Math.sin(t*30) * 0.6) : 0.9;
+      // Encoder 盤跟著馬達自轉
+      if (running) {
+        encDisk.rotation.x += 0.4;
+        encCountAcc += 6;
+      }
+      // 限位開關燈：close 在 doorPhase≈0、open 在 doorPhase≈1
+      const lsCloseOn = doorPhase < 0.03;
+      const lsOpenOn  = doorPhase > 0.97;
+      [[lsClose, lsCloseOn, 0xef4444], [lsOpenL, lsOpenOn, 0x10b981], [lsOpenR, lsOpenOn, 0x10b981]]
+        .forEach(([lamp, on, col]) => {
+          lamp.material.emissiveIntensity = on ? 1.4 : 0.12;
+          lamp.scale.setScalar(on ? 1.5 : 1.0);
+        });
+      // Pulse 沿信號線流動
+      const wireActive = {
+        wCmd:   stepIdx === 1 || stepIdx === 0,  // 開門指令在啟動瞬間 + 待機監聽
+        wDrive: running,                          // 驅動電流持續
+        wFb:    running,                          // 編碼器回授持續
+        wSafe:  true,                             // 安全迴路永遠在
+      };
+      [[wCmd,'wCmd'],[wDrive,'wDrive'],[wFb,'wFb'],[wSafe,'wSafe']].forEach(([w, k]) => {
+        const act = wireActive[k];
+        if (act) {
+          w.t = (w.t + 0.025) % 1;
+          const p = w.curve.getPointAt(w.t);
+          w.pulse.position.copy(p);
+          w.pulse.material.opacity = 0.95;
+          w.lineMat.opacity = 0.85;
+        } else {
+          w.pulse.material.opacity = 0;
+          w.lineMat.opacity = 0.30;
+        }
+      });
+      // 即時狀態 HUD
+      const rpm    = running ? (1100 + Math.sin(t*8)*120) : 0;
+      const vfdPct = running ? (35 + Math.abs(Math.sin(t*5))*45) : 0;
+      const stageNames = ['⏸ 待機中（cab 平層、VFD ready）',
+                          '▶ Stage 1：VFD 接收 Cmd → 馬達起步',
+                          '▶ Stage 2：VFD 升頻 → 皮帶加速',
+                          '▶ Stage 3：crank arm 推動門吊架',
+                          '▶ Stage 4：vane 接合 landing clutch',
+                          '▶ Stage 5：landing door 跟隨開 + photocell 監控'];
+      paintStateCard(rpm, vfdPct, doorPhase*100, lsCloseOn, lsOpenOn, true, stageNames[stepIdx]);
+    } else {
+      // 非 door mode 時關掉 pulse 不耗效能
+      ctrlWires.forEach(w => { if (w.pulse.material.opacity > 0) w.pulse.material.opacity = 0; });
     }
 
     // === 門開合（cab + 對應 landing 同步）===
