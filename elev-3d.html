@@ -260,14 +260,97 @@ for (let i = 0; i < 4; i++) {
   btn.position.set(CAB_W/2 - 0.005, 0.55 - i*0.12, 0.3);
   cabGroup.add(btn);
 }
-// 轎門（雙開）
+// ===== 轎門 + 門機構 (雙開、含 operator + vane) =====
 const doorMat = new THREE.MeshStandardMaterial({ color: 0xb0b4ba, metalness: 0.85, roughness: 0.3 });
-const cabDoorL = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.05, CAB_H - 0.2, 0.04), doorMat);
-cabDoorL.position.set(-CAB_W/4 + 0.025, 0, CAB_D/2 + 0.02);
+const doorPanelW = CAB_W/2 - 0.05;
+const doorPanelH = CAB_H - 0.2;
+const doorBaseY = -0.05;  // 門中心 Y
+
+// 內門（轎門）左右兩片
+const cabDoorL = new THREE.Mesh(new THREE.BoxGeometry(doorPanelW, doorPanelH, 0.04), doorMat);
+const cabDoorR = new THREE.Mesh(new THREE.BoxGeometry(doorPanelW, doorPanelH, 0.04), doorMat);
+const cabDoorL_close = -CAB_W/4 + 0.025;  // 完全關 X 位置
+const cabDoorR_close = CAB_W/4 - 0.025;
+cabDoorL.position.set(cabDoorL_close, doorBaseY, CAB_D/2 + 0.025);
+cabDoorR.position.set(cabDoorR_close, doorBaseY, CAB_D/2 + 0.025);
+cabDoorL.userData = { name:"Cab Door (Left) 轎門左片", kind:"door", desc:"轎廂內門左片，與 vane 連動", specs:[["材質","髮絲紋 SUS304"],["驅動","door operator + 皮帶"]] };
 cabGroup.add(cabDoorL);
-const cabDoorR = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.05, CAB_H - 0.2, 0.04), doorMat);
-cabDoorR.position.set(CAB_W/4 - 0.025, 0, CAB_D/2 + 0.02);
 cabGroup.add(cabDoorR);
+
+// 門上方軌道（橫桿，sliding rail）
+const trackMat = new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.3 });
+const cabTrack = new THREE.Mesh(new THREE.BoxGeometry(CAB_W - 0.05, 0.04, 0.04), trackMat);
+cabTrack.position.set(0, doorBaseY + doorPanelH/2 + 0.06, CAB_D/2 + 0.02);
+cabGroup.add(cabTrack);
+
+// 門吊架（每扇門上方的滑塊）
+const hangerMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.85, roughness: 0.35 });
+const hangerL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.06, 0.03), hangerMat);
+const hangerR = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.06, 0.03), hangerMat);
+hangerL.position.set(cabDoorL_close, cabTrack.position.y - 0.005, CAB_D/2 + 0.04);
+hangerR.position.set(cabDoorR_close, cabTrack.position.y - 0.005, CAB_D/2 + 0.04);
+cabGroup.add(hangerL); cabGroup.add(hangerR);
+
+// 門機 Door Operator（門上方馬達 + crank arm + 皮帶）
+const doorOpGroup = new THREE.Group();
+doorOpGroup.position.set(0, doorBaseY + doorPanelH/2 + 0.18, CAB_D/2 - 0.05);
+// 馬達本體
+const doMotor = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.14, 16),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.4 }));
+doMotor.rotation.z = Math.PI/2;
+doMotor.position.set(-0.25, 0, 0);
+doorOpGroup.add(doMotor);
+// 馬達後散熱
+const doMotorFan = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.06, 12),
+  new THREE.MeshStandardMaterial({ color: 0x444, metalness: 0.7 }));
+doMotorFan.rotation.z = Math.PI/2;
+doMotorFan.position.set(-0.35, 0, 0); doorOpGroup.add(doMotorFan);
+// 馬達輸出皮帶輪
+const doPulleyL = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.025, 24),
+  new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
+doPulleyL.rotation.z = Math.PI/2;
+doPulleyL.position.set(-0.18, 0, 0); doorOpGroup.add(doPulleyL);
+// 被動皮帶輪（門中央上方）
+const doPulleyR = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.025, 24),
+  new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
+doPulleyR.rotation.z = Math.PI/2;
+doPulleyR.position.set(0.32, 0, 0); doorOpGroup.add(doPulleyR);
+// 皮帶（上下兩條線視覺）
+const beltMat = new THREE.MeshStandardMaterial({ color: 0x222, metalness: 0.3, roughness: 0.8 });
+const beltUp = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.008, 0.022), beltMat);
+beltUp.position.set(0.07, 0.045, 0); doorOpGroup.add(beltUp);
+const beltDown = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.008, 0.022), beltMat);
+beltDown.position.set(0.07, -0.045, 0); doorOpGroup.add(beltDown);
+// crank arm 從皮帶下方接到門吊架（驅動門開合）
+const armL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.02),
+  new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
+armL.position.set(cabDoorL_close, doorBaseY + doorPanelH/2 + 0.10, CAB_D/2 - 0.03);
+doorOpGroup.add(armL);
+const armR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.02),
+  new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
+armR.position.set(cabDoorR_close, doorBaseY + doorPanelH/2 + 0.10, CAB_D/2 - 0.03);
+doorOpGroup.add(armR);
+doorOpGroup.userData = { name:"Door Operator 門機", kind:"door", desc:"轎門驅動：馬達 + 皮帶 + crank arm", specs:[["馬達","VFD 控 DC 馬達"],["驅動","封閉式齒型皮帶"],["開啟時間","2.5s"],["保護","photocell + 防夾邊"]] };
+cabGroup.add(doorOpGroup);
+
+// Vane（離合葉/扁刀）— 轎門左片上掛的垂直鐵片，到樓層才會夾住 landing door clutch
+const vaneMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.35, emissive: 0x441f00, emissiveIntensity: 0.15 });
+const vaneL = new THREE.Mesh(new THREE.BoxGeometry(0.025, doorPanelH - 0.4, 0.05), vaneMat);
+vaneL.position.set(cabDoorL_close + doorPanelW/2, doorBaseY, CAB_D/2 + 0.06);
+vaneL.userData = { name:"Door Vane 離合葉", kind:"door", desc:"轎門 vane (skate)：到樓層才夾住 landing door 的 clutch 一起拉開", specs:[["位置","轎門左片外緣"],["原理","只有在樓層水平誤差 ±50mm 內才接合"]] };
+cabGroup.add(vaneL);
+const vaneR = new THREE.Mesh(new THREE.BoxGeometry(0.025, doorPanelH - 0.4, 0.05), vaneMat);
+vaneR.position.set(cabDoorR_close - doorPanelW/2, doorBaseY, CAB_D/2 + 0.06);
+cabGroup.add(vaneR);
+
+// Photocell 光電（門邊感應，紅外線阻擋偵測）
+const photocellMat = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.7 });
+const photocellL = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.02), photocellMat);
+photocellL.position.set(cabDoorL_close + doorPanelW/2 - 0.04, doorBaseY + 0.0, CAB_D/2 + 0.07);
+cabGroup.add(photocellL);
+const photocellR = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.04, 0.02), photocellMat);
+photocellR.position.set(cabDoorR_close - doorPanelW/2 + 0.04, doorBaseY + 0.0, CAB_D/2 + 0.07);
+cabGroup.add(photocellR);
 cabGroup.userData = { name:"Cab 轎廂", kind:"cab", desc:"乘客車廂 + 雙開門 + COP 操作板", specs:[["容量","13 人 / 900 kg"],["速度","1.0 m/s"],["材質","SUS304 髮絲紋"],["門","中分雙開 2-panel"]] };
 cabGroup.userData.basePos = cabGroup.position.clone();
 ELEV.add(cabGroup);
@@ -418,23 +501,82 @@ const govRope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, SHAFT_H 
 govRope.position.set(SHAFT_W/2 - 0.15, (SHAFT_H - 2.3 - 0.5)/2, -0.3);
 ELEV.add(govRope);
 
-// ============ 10. Door Operator + Landing Doors (3 層) ============
-[1, 2, 3].forEach(f => {
+// ============ 10. Landing Doors (3 層) + 門框 + 軌道 + 吊架 + Clutch ============
+const landingDoors = [];  // [{floor, L, R, clutchL, clutchR, baseL_X, baseR_X, y}]
+const ldPanelW = CAB_W/2 - 0.02;
+const ldPanelH = CAB_H - 0.2;
+const ldFloors = [1, 2, 3];
+ldFloors.forEach(f => {
   const y = (f - 1) * FLOOR_H;
-  const ldL = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.02, CAB_H - 0.2, 0.04),
-    new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.85, roughness: 0.3 }));
-  ldL.position.set(-CAB_W/4 + 0.01, y + (CAB_H - 0.2)/2 + 0.05, SHAFT_D/2 + 0.02);
-  ldL.userData = { name:`Landing Door ${f}F (Left)`, kind:"door", desc:`${f} 樓層門 — 左片`, specs:[["材質","髮絲紋 SUS304"],["互鎖","mechanical + electrical interlock"]] };
-  ELEV.add(ldL);
-  const ldR = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.02, CAB_H - 0.2, 0.04),
-    new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.85, roughness: 0.3 }));
-  ldR.position.set(CAB_W/4 - 0.01, y + (CAB_H - 0.2)/2 + 0.05, SHAFT_D/2 + 0.02);
-  ELEV.add(ldR);
-  // 樓層 hall button (兩按鈕 ↑↓ 或單按鈕)
-  const hall = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.02),
-    new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.8 }));
-  hall.position.set(CAB_W/2 + 0.35, y + 1.2, SHAFT_D/2 + 0.03);
-  ELEV.add(hall);
+  const doorCenterY = y + ldPanelH/2 + 0.05;
+
+  // 門框（外框 architrave）
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.25, ldPanelH + 0.15, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.8, roughness: 0.4 }));
+  frame.position.set(0, doorCenterY, SHAFT_D/2 + 0.025);
+  ELEV.add(frame);
+  // 框內挖空（用黑面板模擬）
+  const opening = new THREE.Mesh(new THREE.BoxGeometry(CAB_W - 0.02, ldPanelH - 0.04, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x050505 }));
+  opening.position.set(0, doorCenterY, SHAFT_D/2 + 0.025);
+  ELEV.add(opening);
+
+  // 門上方水平軌道 (鋼軌)
+  const ldTrack = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.15, 0.04, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.3 }));
+  ldTrack.position.set(0, doorCenterY + ldPanelH/2 + 0.04, SHAFT_D/2 + 0.075);
+  ELEV.add(ldTrack);
+
+  // 左右門片
+  const ldMat = new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.85, roughness: 0.3 });
+  const ldL = new THREE.Mesh(new THREE.BoxGeometry(ldPanelW, ldPanelH, 0.04), ldMat);
+  const ldR = new THREE.Mesh(new THREE.BoxGeometry(ldPanelW, ldPanelH, 0.04), ldMat);
+  const ldL_close = -CAB_W/4 + 0.01;
+  const ldR_close = CAB_W/4 - 0.01;
+  ldL.position.set(ldL_close, doorCenterY, SHAFT_D/2 + 0.07);
+  ldR.position.set(ldR_close, doorCenterY, SHAFT_D/2 + 0.07);
+  ldL.userData = { name:`Landing Door ${f}F (Left)`, kind:"door", desc:`${f} 樓層門左片 — passive 跟隨轎門 vane`, specs:[["材質","髮絲紋 SUS304"],["驅動","passive（被 cab vane 拉動）"],["互鎖","mechanical + electrical"]] };
+  ELEV.add(ldL); ELEV.add(ldR);
+
+  // 門吊架 + 滑輪 (掛在上方軌道)
+  for (let h of [{x: ldL_close, off: -0.06}, {x: ldL_close, off: 0.06}, {x: ldR_close, off: -0.06}, {x: ldR_close, off: 0.06}]) {
+    const hg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12),
+      new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.95, roughness: 0.2 }));
+    hg.rotation.x = Math.PI/2;
+    hg.position.set(h.x + h.off, doorCenterY + ldPanelH/2 + 0.04, SHAFT_D/2 + 0.085);
+    ELEV.add(hg);
+  }
+
+  // Clutch / lock 機構（左片內側、給 cab vane 夾住的U形溝）
+  const clutchMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.4 });
+  const clutchL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.025), clutchMat);
+  clutchL.position.set(ldL_close + ldPanelW/2 - 0.005, doorCenterY, SHAFT_D/2 + 0.045);
+  clutchL.userData = { name:`Landing Clutch ${f}F`, kind:"door", desc:"樓層門 clutch（U 形夾鉤）— 只在 cab vane 進入時連動", specs:[["材質","硬化鋼"],["接合條件","cab 對位 ±50mm"]] };
+  ELEV.add(clutchL);
+  const clutchR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.025), clutchMat);
+  clutchR.position.set(ldR_close - ldPanelW/2 + 0.005, doorCenterY, SHAFT_D/2 + 0.045);
+  ELEV.add(clutchR);
+
+  // 樓層 Hall 按鈕（在門框右側牆）+ indicator
+  const hallPanel = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.20, 0.025),
+    new THREE.MeshStandardMaterial({ color: 0x2a2e36, metalness: 0.85 }));
+  hallPanel.position.set(CAB_W/2 + 0.30, y + 1.25, SHAFT_D/2 + 0.04);
+  ELEV.add(hallPanel);
+  // 上下箭頭 LED
+  if (f < 3) {
+    const btnUp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
+      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0x4a3a00 }));
+    btnUp.position.set(CAB_W/2 + 0.30, y + 1.30, SHAFT_D/2 + 0.053);
+    ELEV.add(btnUp);
+  }
+  if (f > 1) {
+    const btnDn = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
+      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0x4a3a00 }));
+    btnDn.position.set(CAB_W/2 + 0.30, y + 1.20, SHAFT_D/2 + 0.053);
+    ELEV.add(btnDn);
+  }
+
+  landingDoors.push({ floor: f, L: ldL, R: ldR, clutchL, clutchR, ldL_close, ldR_close, y });
 });
 
 // ============ 11. Controller Cabinet (旁置控制盤) ============
@@ -545,16 +687,77 @@ let t = 0;
 function animate() {
   requestAnimationFrame(animate);
   t += 0.005;
-  // 轎廂上下動（範圍 1F ~ 3F）
+
+  // === 電梯運行 + 門開合狀態機 ===
+  // 邏輯：cab 在三樓層間循環移動 → 到樓層停 → 開門 hold 2.5s → 關門 → 再移動
+  // doorPhase ∈ [0,1]: 0 = 全關, 1 = 全開
   if (!exploded) {
-    const wave = (Math.sin(t) + 1) / 2; // 0~1
-    const y = wave * FLOOR_H * 2 + 0.3;
-    cabGroup.position.y = y;
-    cwGroup.position.y = (FLOOR_H * 2) - (y - 0.3) + 0.7; // 配重反向
-    // 牽引輪旋轉
-    sheave.rotation.x += Math.cos(t) * 0.08;
-    motor.rotation.x += Math.cos(t) * 0.08;
+    // 全循環時間：移動 4s × 3 段 + 開關門 4s × 3 = 24s
+    const cycle = 24;
+    const phase = (t * 60) % cycle;  // t 累積太慢，乘 60 加速
+    let targetFloor = 0;
+    let doorPhase = 0;
+    if (phase < 4) {              // 0-4: 在 1F 開門 → 開 → 關
+      targetFloor = 0;
+      doorPhase = phase < 1 ? phase : phase < 3 ? 1 : (4 - phase);
+    } else if (phase < 8) {       // 4-8: 1F → 2F 移動
+      targetFloor = (phase - 4) / 4;  // 0 → 1
+    } else if (phase < 12) {      // 8-12: 在 2F 開門
+      targetFloor = 1;
+      const lp = phase - 8;
+      doorPhase = lp < 1 ? lp : lp < 3 ? 1 : (4 - lp);
+    } else if (phase < 16) {      // 12-16: 2F → 3F
+      targetFloor = 1 + (phase - 12) / 4;
+    } else if (phase < 20) {      // 16-20: 3F 開門
+      targetFloor = 2;
+      const lp = phase - 16;
+      doorPhase = lp < 1 ? lp : lp < 3 ? 1 : (4 - lp);
+    } else {                       // 20-24: 3F → 1F 直接降
+      targetFloor = 2 - (phase - 20) / 4 * 2;
+    }
+    const cabY = targetFloor * FLOOR_H + 0.3;
+    cabGroup.position.y = cabY;
+    cwGroup.position.y = (FLOOR_H * 2) - (cabY - 0.3) + 0.7;
+    // 牽引輪轉動：只在移動時轉
+    const moving = phase > 4 && phase < 8 || phase > 12 && phase < 16 || phase > 20;
+    if (moving) {
+      sheave.rotation.x += 0.12;
+      motor.rotation.x += 0.12;
+    }
+
+    // === 門開合（cab + 對應 landing 同步）===
+    const openOffset = doorPhase * (CAB_W/2 - 0.1);  // 最大開啟距離
+    cabDoorL.position.x = cabDoorL_close - openOffset;
+    cabDoorR.position.x = cabDoorR_close + openOffset;
+    hangerL.position.x = cabDoorL_close - openOffset;
+    hangerR.position.x = cabDoorR_close + openOffset;
+    vaneL.position.x = cabDoorL_close - openOffset + doorPanelW/2;
+    vaneR.position.x = cabDoorR_close + openOffset - doorPanelW/2;
+    photocellL.position.x = cabDoorL_close - openOffset + doorPanelW/2 - 0.04;
+    photocellR.position.x = cabDoorR_close + openOffset - doorPanelW/2 + 0.04;
+    armL.position.x = cabDoorL_close - openOffset;
+    armR.position.x = cabDoorR_close + openOffset;
+    // 馬達輸出軸自轉（門開合中）
+    if (doorPhase > 0.02 && doorPhase < 0.98) {
+      doMotor.rotation.x += 0.2;
+      doPulleyL.rotation.x += 0.5;
+      doPulleyR.rotation.x += 0.5;
+    }
+
+    // 找最近的 landing door 同步開合（只有對位中的那層才動）
+    const currentFloor = Math.round(targetFloor);
+    landingDoors.forEach(ld => {
+      const floorIdx = ld.floor - 1;
+      const isAtFloor = Math.abs(targetFloor - floorIdx) < 0.05 && doorPhase > 0;
+      const dpForThis = isAtFloor ? doorPhase : 0;
+      const off = dpForThis * (CAB_W/2 - 0.1);
+      ld.L.position.x = ld.ldL_close - off;
+      ld.R.position.x = ld.ldR_close + off;
+      ld.clutchL.position.x = ld.ldL_close - off + (ldPanelW/2 - 0.005);
+      ld.clutchR.position.x = ld.ldR_close + off - (ldPanelW/2 - 0.005);
+    });
   }
+
   controls.update();
   renderer.render(scene, camera);
 }
