@@ -1402,6 +1402,160 @@ topLimitSwitch.userData = { name:"頂端極限開關 Top Limit Switch", kind:"sa
   specs:[["位置","cab 行程上限 + 100 mm"],["接點","NC 強制斷開"],["復位","手動"],["標準","EN 81-20 §5.12.2.3"]] };
 ELEV.add(topLimitSwitch);
 
+// ============ 井道細部設備（補充）============
+
+// 1. 底端極限開關 Bottom Limit Switch（cab 行程下限 + 100mm，pit 上方）
+const botLimitSwitch = new THREE.Group();
+botLimitSwitch.position.set(SHAFT_W/2 - 0.20, 0.20, CAB_Z + 0.30);
+const botLimitBody = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.06),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.7 }));
+botLimitSwitch.add(botLimitBody);
+const botLimitRoller = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.04, 12),
+  new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.9 }));
+botLimitRoller.rotation.x = Math.PI/2;
+botLimitRoller.position.set(0, -0.08, 0); botLimitSwitch.add(botLimitRoller);
+botLimitSwitch.userData = { name:"底端極限開關 Bottom Limit Switch", kind:"safety",
+  desc:"cab 撞到觸發 → 強制斷主迴路 → 緊急煞車停車（防超下行）",
+  specs:[["位置","cab 行程下限 + 100 mm"],["接點","NC"],["標準","EN 81-20 §5.12.2.3"]] };
+ELEV.add(botLimitSwitch);
+
+// 2. 導軌支架 Rail Brackets — 每 ~2m 一組，固定到 shaft 牆
+const bracketMat2 = new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.75, roughness: 0.45 });
+const railBracketHeights = [0, 2, 4, 6, 8, 10, 12];
+const railXs = [
+  { x: -SHAFT_W/2 + 0.15, side: -1, z: CAB_Z, name: "cab L" },
+  { x: SHAFT_W/2 - 0.15,  side: +1, z: CAB_Z, name: "cab R" },
+  { x: -0.2, side: -1, z: -SHAFT_D/2 + 0.22, name: "cw L" },
+  { x:  0.2, side: +1, z: -SHAFT_D/2 + 0.22, name: "cw R" },
+];
+railXs.forEach(r => {
+  railBracketHeights.forEach(h => {
+    if (h > 12.5) return;
+    // L 型支架 — 從牆延伸到 rail
+    const wallX = r.side > 0 ? SHAFT_W/2 - 0.02 : -SHAFT_W/2 + 0.02;
+    const brWide = Math.abs(r.x - wallX);
+    const br = new THREE.Mesh(new THREE.BoxGeometry(brWide, 0.06, 0.10), bracketMat2);
+    br.position.set((r.x + wallX) / 2, h - 1.5 + 0.3, r.z);
+    ELEV.add(br);
+  });
+});
+
+// 3. 鋼軌接續板 Fishplates — 每 ~5m 一組（cab 兩側）
+[ -SHAFT_W/2 + 0.15, SHAFT_W/2 - 0.15 ].forEach(x => {
+  [3, 8].forEach(h => {
+    const fp = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.30, 0.020),
+      new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.85, roughness: 0.35 }));
+    fp.position.set(x, h, CAB_Z);
+    fp.userData = { name:"魚尾板 Fishplate", kind:"rail",
+      desc:"導軌段接續板 — 螺栓鎖固兩段 5m 鋼軌",
+      specs:[["長度","300 mm"],["螺栓","M16 × 4"],["材質","Q345"]] };
+    ELEV.add(fp);
+  });
+});
+
+// 4. 層門區磁感應條 Door Zone Vanes — 每樓層 cab 導軌上 3 條磁鐵
+ldFloors.forEach(f => {
+  const y = (f - 1) * FLOOR_H;
+  // 3 條 (中央 + 上 + 下)，cab 對位 ±50mm 用
+  [y - 0.05, y + 0.0, y + 0.05].forEach(yi => {
+    const vane = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.5 }));
+    vane.position.set(SHAFT_W/2 - 0.10, yi + 1.10, CAB_Z + 0.10);
+    if (Math.abs(yi - y) < 0.001) vane.userData = { name:`層門區磁感應條 ${f}F`, kind:"sensor",
+      desc:"鋼軌上 3 條磁鐵 — cab 上的 hall sensor 感應到中間磁鐵就是 ±50mm 平層區",
+      specs:[["數量","上中下 3 條"],["精度","±10 mm"],["原理","Hall effect"]] };
+    ELEV.add(vane);
+  });
+});
+
+// 5. 軌道油刷器 Rail Oiler — cab 兩條導軌頂端各一個
+[ -SHAFT_W/2 + 0.15, SHAFT_W/2 - 0.15 ].forEach(x => {
+  const oiler = new THREE.Group();
+  oiler.position.set(x, 11.0, CAB_Z + 0.12);
+  const oilTank = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.12, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.4, roughness: 0.6 }));
+  oiler.add(oilTank);
+  const brush = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x111 }));
+  brush.position.set(0, -0.09, 0); oiler.add(brush);
+  oiler.userData = { name:"鋼軌油刷器 Rail Oiler", kind:"machine",
+    desc:"自動潤滑導軌 — 滴入式油壺 + 毛刷塗布",
+    specs:[["容量","500 cc"],["油種","ISO VG 68"],["補充","每 6 個月"]] };
+  ELEV.add(oiler);
+});
+
+// 6. 補償鏈 Compensation Chain — 從 cab 底部 → pit → cw 底部，吸收長行程鋼索重量
+const compChainMat = new THREE.MeshStandardMaterial({ color: 0x303138, roughness: 0.85, metalness: 0.7 });
+// cab 側下垂段
+const compCab = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 4.5, 8), compChainMat);
+compCab.position.set(0, -0.5, CAB_Z + 0.10);
+compCab.userData = { name:"補償鏈 Compensation Chain", kind:"rope",
+  desc:"cab → pit → CW 三段鏈條 — 補償長行程鋼索重量、平衡牽引機負載",
+  specs:[["材質","錮鐵鏈 + 阻燃皮套"],["重量","與鋼索線密度相當"],["適用","行程 ≥ 30m 才必要"]] };
+ELEV.add(compCab);
+// CW 側下垂段
+const compCw = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 4.5, 8), compChainMat);
+compCw.position.set(0, -0.5, -SHAFT_D/2 + 0.32);
+ELEV.add(compCw);
+// pit 底部彎弧連接（簡化版 — 弧線）
+const compArc = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.015, 6, 16, Math.PI),
+  compChainMat);
+compArc.rotation.y = Math.PI/2;
+compArc.position.set(0, -1.0, (CAB_Z + (-SHAFT_D/2 + 0.32)) / 2);
+ELEV.add(compArc);
+
+// 7. 隨行電纜 Traveling Cable — 從控制盤 → 井道 → cab 底（C 字下垂形）
+const travelCableMat = new THREE.MeshStandardMaterial({ color: 0x1a1a20, roughness: 0.7 });
+// 從控制盤頂出，繞到井道中段，再上到 cab 底
+const travLen1 = 6.0;  // 主下垂段
+const travCable1 = new THREE.Mesh(new THREE.BoxGeometry(0.10, travLen1, 0.012), travelCableMat);
+travCable1.position.set(-SHAFT_W/2 + 0.08, 4.0, CAB_Z - 0.30);
+travCable1.userData = { name:"隨行電纜 Traveling Cable", kind:"controller",
+  desc:"扁形多芯電纜 — 控制盤 ↔ cab — cab 上下時 C 字曲線自然彎曲",
+  specs:[["導體","30 芯（電力 6 + 訊號 24）"],["材質","TPE 阻燃 + 鋼絲承拉"],["走向","控制盤頂 → 井道中段 → cab 底"],["標準","UL 62 / EN 50525-3-11"]] };
+ELEV.add(travCable1);
+// 拐角彎弧
+const travArc = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.020, 6, 12, Math.PI/2),
+  travelCableMat);
+travArc.rotation.y = Math.PI/2;
+travArc.position.set(-SHAFT_W/2 + 0.10, 1.0, CAB_Z - 0.40);
+ELEV.add(travArc);
+
+// 8. 井道照明 Hoistway Lights — 每 2 層樓一盞
+[1.0, 4.5, 8.0, 11.5].forEach(h => {
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 8),
+    new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xfff4d6, emissiveIntensity: 0.5 }));
+  lamp.position.set(-SHAFT_W/2 + 0.06, h, -SHAFT_D/2 + 0.10);
+  lamp.userData = { name:"井道照明 Hoistway Light", kind:"light",
+    desc:"井道內維修照明 — 一般關閉、檢修模式開啟",
+    specs:[["照度","≥ 50 lx 在 cab 頂"],["IP","IP54"],["標準","EN 81-20 §5.9"]] };
+  ELEV.add(lamp);
+});
+
+// 9. 坑底緊急停止 + 工作燈 + 緊急電話
+const pitStop = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.040, 0.025, 24),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x4a0000, emissiveIntensity: 0.5 }));
+pitStop.rotation.x = Math.PI/2;
+pitStop.position.set(-SHAFT_W/2 + 0.10, -1.0, SHAFT_D/2 - 0.40);
+pitStop.userData = { name:"坑底緊急停止 Pit E-Stop", kind:"safety",
+  desc:"維修人員進坑底時的緊急停車鈕 — 切斷所有電梯動力",
+  specs:[["顏色","紅頭黃座"],["接點","NC 強制斷開"],["標準","EN 81-20 §5.2.1.5"]] };
+ELEV.add(pitStop);
+// 坑底工作燈（黃色防水罩）
+const pitLamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8),
+  new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xfff4d6, emissiveIntensity: 0.7 }));
+pitLamp.position.set(SHAFT_W/2 - 0.10, -1.0, -SHAFT_D/2 + 0.20);
+pitLamp.userData = { name:"坑底工作燈", kind:"light", desc:"≥ 50 lx 維修照明", specs:[["IP","IP65 防水"]] };
+ELEV.add(pitLamp);
+// 集水坑 Sump + 排水
+const sump = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.12, 0.10, 16),
+  new THREE.MeshStandardMaterial({ color: 0x2a2e36, metalness: 0.6, roughness: 0.7 }));
+sump.position.set(0.5, -1.4, 0.5);
+sump.userData = { name:"集水坑 Sump Pit", kind:"safety",
+  desc:"坑底排水 — 雨水/清潔水匯流，排水泵自動抽除",
+  specs:[["容量","20 L"],["泵","自動液位開關"],["標準","EN 81-20 §5.2.2.4"]] };
+ELEV.add(sump);
+
 // ===== 機房 LED 主照明 =====
 const mrLight = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.30),
   new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xfff4d6, emissiveIntensity: 0.8 }));
