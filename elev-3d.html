@@ -121,30 +121,52 @@ window.addEventListener('unhandledrejection', function(e) {
   </div>
 </div>
 
-<!-- 門機構步驟指示器（畫面底部置中） -->
-<div id="doorStepBar" style="position:fixed;bottom:200px;left:50%;transform:translateX(-50%);background:rgba(15,15,17,.92);backdrop-filter:blur(20px);border:1px solid rgba(163,230,53,.4);border-radius:8px;padding:10px 18px;font-size:13px;z-index:11;display:none;min-width:360px;text-align:center">
-  <div style="font-size:10px;color:#86868b;letter-spacing:.2em;margin-bottom:4px">CURRENT STEP</div>
-  <div id="doorStepText" style="color:#a3e635;font-weight:600;font-size:14px;line-height:1.4">⏸ 待機</div>
-  <div id="doorStepDesc" style="color:#86868b;font-size:11px;margin-top:4px"></div>
+<!-- 門機構步驟指示器（畫面底部置中、放大）-->
+<div id="doorStepBar" style="position:fixed;bottom:160px;left:50%;transform:translateX(-50%);background:rgba(15,15,17,.95);backdrop-filter:blur(20px);border:2px solid rgba(163,230,53,.55);border-radius:12px;padding:14px 24px;font-size:14px;z-index:11;display:none;min-width:420px;text-align:center;box-shadow:0 8px 30px rgba(163,230,53,.15)">
+  <div style="font-size:10px;color:#86868b;letter-spacing:.3em;margin-bottom:4px">STEP <span id="doorStepNum" style="color:#a3e635;font-weight:700">0</span> / 5</div>
+  <!-- 步驟進度條 -->
+  <div style="display:flex;gap:4px;justify-content:center;margin:8px 0">
+    <div class="step-dot" data-step="1" style="width:36px;height:5px;background:#3a3d44;border-radius:3px;transition:all .3s"></div>
+    <div class="step-dot" data-step="2" style="width:36px;height:5px;background:#3a3d44;border-radius:3px;transition:all .3s"></div>
+    <div class="step-dot" data-step="3" style="width:36px;height:5px;background:#3a3d44;border-radius:3px;transition:all .3s"></div>
+    <div class="step-dot" data-step="4" style="width:36px;height:5px;background:#3a3d44;border-radius:3px;transition:all .3s"></div>
+    <div class="step-dot" data-step="5" style="width:36px;height:5px;background:#3a3d44;border-radius:3px;transition:all .3s"></div>
+  </div>
+  <div id="doorStepText" style="color:#a3e635;font-weight:700;font-size:17px;line-height:1.4;margin-top:6px">⏸ 待機</div>
+  <div id="doorStepDesc" style="color:#c9ccd1;font-size:12px;margin-top:6px;line-height:1.5;max-width:380px"></div>
 </div>
 
-<!-- 門機構特寫面板 -->
+<!-- 門機構特寫面板 (分頁式) -->
 <div id="doorPanel" style="position:fixed;right:16px;bottom:16px;width:340px;background:rgba(15,15,17,.92);backdrop-filter:blur(20px);border:1px solid rgba(163,230,53,.4);border-radius:12px;padding:14px 18px;font-size:12px;z-index:11;display:none;line-height:1.6">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
     <span style="font-weight:600;color:#a3e635;font-size:14px">🚪 門機構運作原理</span>
     <span id="doorPanelClose" style="cursor:pointer;color:#86868b;font-size:18px;line-height:1">×</span>
   </div>
-  <div style="color:#c9ccd1;font-size:11.5px">
-    <p><b style="color:#fb923c">① 馬達 (Motor)</b> — VFD 控速 DC 馬達，雙向轉動驅動開/關門</p>
-    <p><b style="color:#fb923c">② 皮帶 + 滑輪 (Belt + Pulley)</b> — 馬達主動輪 → 封閉式齒型皮帶 → 被動輪，轉動轉成水平直線運動</p>
-    <p><b style="color:#fb923c">③ Crank Arm</b> — 從皮帶下方拉桿接到門吊架，左右兩支同步反向位移</p>
-    <p><b style="color:#fb923c">④ 門吊架 + 上方軌道</b> — 滑塊掛在鋼軌上，門片懸吊滑行 (不接地)</p>
-    <p><b style="color:#a3e635">⑤ Vane 離合葉</b> — 轎門外緣的橘色垂直片，<b>只在 cab 對位 ±50mm 內</b>才能夾入 landing door clutch</p>
-    <p><b style="color:#a3e635">⑥ Clutch 夾鉤</b> — 樓層門上的 U 形機構，被 vane 夾住才會被拉開（中間懸浮樓層門就鎖死）</p>
-    <p><b style="color:#f472b6">⑦ Photocell 光電</b> — 紅外線阻擋偵測，有人擋立即反向開門防夾</p>
+  <!-- 分頁切換 -->
+  <div style="display:flex;gap:4px;padding:3px;background:rgba(0,0,0,.35);border-radius:7px;margin-bottom:10px">
+    <button class="door-tab active" data-doortab="teach" style="flex:1;padding:6px 0;font-size:11px;background:rgba(163,230,53,.18);border:1px solid rgba(163,230,53,.4);color:#a3e635;border-radius:5px;cursor:pointer;font-family:inherit">🎓 教學</button>
+    <button class="door-tab" data-doortab="flow" style="flex:1;padding:6px 0;font-size:11px;background:transparent;border:1px solid transparent;color:#86868b;border-radius:5px;cursor:pointer;font-family:inherit">📊 流程圖</button>
+    <button class="door-tab" data-doortab="control" style="flex:1;padding:6px 0;font-size:11px;background:transparent;border:1px solid transparent;color:#86868b;border-radius:5px;cursor:pointer;font-family:inherit">🔧 控制</button>
+  </div>
+  <!-- 教學內容 -->
+  <div class="door-tab-content" data-content="teach" style="color:#c9ccd1;font-size:11.5px">
+    <p style="color:#a3e635;font-weight:600;margin-bottom:6px">📍 看 cab 跟著動：每個步驟只亮一個元件</p>
+    <p><b style="color:#fb923c">① 馬達</b> 啟動 → <b style="color:#fb923c">② 皮帶</b> 拉動 → <b style="color:#fb923c">③ Crank Arm</b> 推 → <b style="color:#9aa0a8">④ 門吊架</b> 滑 → <b style="color:#a3e635">⑤ Vane</b> 夾 <b style="color:#fb923c">⑥ Clutch</b> → 內外門同時開</p>
     <p style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.1);color:#86868b">
-      <b>同步原理</b>：轎門開合時，vane 機械夾住該樓層 clutch，把兩層門當作一體拉開 — 即使 landing door 自己沒馬達，也能跟著動。其他樓層門因 vane 不在無法被拉，自動鎖住。
+      <b style="color:#a3e635">關鍵原理</b>：landing door 沒馬達。轎門開時 vane 機械夾住 landing clutch，把兩層門當一體拉。其他樓層 vane 不在 → 自動鎖死。
     </p>
+  </div>
+  <!-- 流程圖內容 -->
+  <div class="door-tab-content" data-content="flow" style="display:none;color:#c9ccd1;font-size:11.5px">
+    <p style="color:#a3e635;font-weight:600;margin-bottom:6px">📊 cab 右側 3D 流程板</p>
+    <p>8 個方塊 + 7 段連線：依目前 step 高亮，看動作如何「逐步傳遞」 — 馬達 → 皮帶 → 拉桿 → 吊架 → 轎門 → vane → landing door → photocell 監控</p>
+    <p style="margin-top:8px;color:#86868b">適合理解「動力傳遞鏈」的整體流向。</p>
+  </div>
+  <!-- 控制系統內容 -->
+  <div class="door-tab-content" data-content="control" style="display:none;color:#c9ccd1;font-size:11.5px">
+    <p style="color:#a3e635;font-weight:600;margin-bottom:6px">🔧 控制電路視覺化</p>
+    <p><b style="color:#fbbf24">VFD 變頻驅動</b>（黑盒+LED）+ <b style="color:#9aa0a8">Encoder 編碼器</b>（馬達後端轉盤）+ <b style="color:#ef4444">3 顆限位開關</b>（軌道上）+ <b>4 條信號線</b>（Cmd/Drive/FB/Safety），Pulse 球跟著訊號跑</p>
+    <p style="margin-top:8px;color:#86868b">適合電氣科系 — 看 PLC/VFD 跟機械如何對應。</p>
   </div>
 </div>
 
@@ -1440,22 +1462,44 @@ const doorPanel = document.getElementById('doorPanel');
 const doorStepBar = document.getElementById('doorStepBar');
 const doorStepText = document.getElementById('doorStepText');
 const doorStepDesc = document.getElementById('doorStepDesc');
+const doorStepNum = document.getElementById('doorStepNum');
+let doorViewMode = 'teach';  // 'teach' | 'flow' | 'control'
+function setDoorViewMode(mode) {
+  doorViewMode = mode;
+  document.querySelectorAll('.door-tab').forEach(b => {
+    const active = b.dataset.doortab === mode;
+    b.classList.toggle('active', active);
+    b.style.background = active ? 'rgba(163,230,53,.18)' : 'transparent';
+    b.style.borderColor = active ? 'rgba(163,230,53,.4)' : 'transparent';
+    b.style.color = active ? '#a3e635' : '#86868b';
+  });
+  document.querySelectorAll('.door-tab-content').forEach(c => {
+    c.style.display = c.dataset.content === mode ? 'block' : 'none';
+  });
+  // 依模式切換 3D 物件可見性
+  schematicGroup.visible = doorMode && mode === 'flow';
+  doorControlGroup.visible = doorMode && mode === 'control';
+}
 function setDoorMode(on) {
   doorMode = on;
   document.querySelector('[data-action="door"]').classList.toggle('active', on);
   doorPanel.style.display = on ? 'block' : 'none';
   doorStepBar.style.display = on ? 'block' : 'none';
-  // 顯示/隱藏所有標籤 + 引線 + 端點
+  // 標籤先全開，animate 會依 step 過濾
   labelGroups.forEach(g => {
     g.sprite.visible = on;
     g.line.visible = on;
     g.dot.visible = on;
   });
-  // 顯示箭頭
+  // 顯示箭頭（animate 會依 step 過濾）
   showArrows(on);
-  // 顯示 3D 流程示意板 + 控制系統視覺化（特寫才顯示）
-  schematicGroup.visible = on;
-  doorControlGroup.visible = on;
+  // 進入 door mode 預設「教學」乾淨模式 — 流程圖 + 控制系統都關
+  if (on) {
+    setDoorViewMode('teach');
+  } else {
+    schematicGroup.visible = false;
+    doorControlGroup.visible = false;
+  }
   // 隱藏雜訊
   hideInDoorMode.forEach(o => o.visible = !on);
   if (on) {
@@ -1475,6 +1519,9 @@ function setDoorMode(on) {
   }
 }
 document.getElementById('doorPanelClose').addEventListener('click', () => setDoorMode(false));
+document.querySelectorAll('.door-tab').forEach(b => {
+  b.addEventListener('click', () => setDoorViewMode(b.dataset.doortab));
+});
 
 // ===== 殘障內裝特寫模式 =====
 let cabinMode = false;
@@ -1649,9 +1696,32 @@ function animate() {
       ];
       const info = stepInfo[stepIdx];
       info.k.forEach(k => setArrowOp(k, true));
-      // 更新文字
+      // 更新文字 + 進度條
       doorStepText.textContent = info.text;
       doorStepDesc.textContent = info.desc;
+      if (doorStepNum) doorStepNum.textContent = stepIdx;
+      document.querySelectorAll('.step-dot').forEach(d => {
+        const s = parseInt(d.dataset.step);
+        d.style.background = s <= stepIdx ? '#a3e635' : '#3a3d44';
+        d.style.boxShadow = s === stepIdx ? '0 0 8px rgba(163,230,53,.8)' : 'none';
+      });
+      // === 標籤依 step 過濾（教學模式才顯示，只亮當前 step 元件）===
+      const stepLabelMap = [
+        [],          // 0 idle
+        [0],         // 1 motor
+        [0, 1],      // 2 motor + belt
+        [1, 2, 3],   // 3 belt + arm + hanger
+        [2, 3, 4],   // 4 arm + hanger + vane
+        [4, 5, 6],   // 5 vane + clutch + photocell
+      ];
+      const activeLabels = new Set(stepLabelMap[stepIdx]);
+      const showLabels = doorViewMode === 'teach';
+      labelGroups.forEach((g, i) => {
+        const visible = showLabels && activeLabels.has(i);
+        g.sprite.visible = visible;
+        g.line.visible = visible;
+        g.dot.visible = visible;
+      });
 
       // === 3D 示意板：依 stepIdx 高亮對應元件方塊 + 連線箭頭 ===
       const stepBlockMap = [
