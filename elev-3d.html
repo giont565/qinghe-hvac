@@ -919,6 +919,136 @@ const brake = brakeGroup;
 machGroup.userData = { name:"Hoist Machine 牽引機", kind:"machine", desc:"永磁同步無齒輪曳引機（MRL）", specs:[["型式","PMSM Gearless"],["功率","8.5 kW"],["額定轉速","119 rpm"],["扭矩","580 Nm"],["效率","IE5"]] };
 machGroup.userData.basePos = machGroup.position.clone();
 
+// ============ 機房空間（Machine Room — EN 81-20 § 6 / CNS 12642 § 7）============
+// 分隔樓板（井道頂部 vs 機房地坪）— 4 條混凝土帶圍出維修開口（hatch）
+const mrFloorMat = new THREE.MeshStandardMaterial({ color: 0x8a8e96, roughness: 0.9, metalness: 0.1 });
+const MR_FLOOR_Y = 11.50;       // 機房地坪中心 Y
+const MR_FLOOR_THICK = 0.15;    // 樓板厚 (RC 150 mm)
+const HATCH_X_HALF = 0.80;      // 維修開口 1.6 m 寬
+const HATCH_Z_FRONT = 1.15;     // 開口前緣（讓 cab 頂部 + 鋼索通過）
+const HATCH_Z_BACK  = -0.45;    // 開口後緣
+// 左側板
+const mrFloorL = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W/2 - HATCH_X_HALF, MR_FLOOR_THICK, SHAFT_D), mrFloorMat);
+mrFloorL.position.set(-(SHAFT_W/2 + HATCH_X_HALF) / 2, MR_FLOOR_Y, 0);
+ELEV.add(mrFloorL);
+// 右側板
+const mrFloorR = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W/2 - HATCH_X_HALF, MR_FLOOR_THICK, SHAFT_D), mrFloorMat);
+mrFloorR.position.set((SHAFT_W/2 + HATCH_X_HALF) / 2, MR_FLOOR_Y, 0);
+ELEV.add(mrFloorR);
+// 前緣窄條（開口前緣到 shaft 前牆）
+const mrFloorFront = new THREE.Mesh(new THREE.BoxGeometry(HATCH_X_HALF * 2, MR_FLOOR_THICK, SHAFT_D/2 - HATCH_Z_FRONT), mrFloorMat);
+mrFloorFront.position.set(0, MR_FLOOR_Y, (HATCH_Z_FRONT + SHAFT_D/2) / 2);
+ELEV.add(mrFloorFront);
+// 後緣板（開口後緣到 shaft 後牆）
+const mrFloorBack = new THREE.Mesh(new THREE.BoxGeometry(HATCH_X_HALF * 2, MR_FLOOR_THICK, -SHAFT_D/2 - HATCH_Z_BACK), mrFloorMat);
+mrFloorBack.position.set(0, MR_FLOOR_Y, (HATCH_Z_BACK - SHAFT_D/2) / 2);
+ELEV.add(mrFloorBack);
+mrFloorL.userData = { name:"機房樓板 MR Floor", kind:"machine",
+  desc:"分隔井道與機房 — RC 150mm 樓板含 1.6×1.6 m 維修開口（hatch）",
+  specs:[["材質","RC C30 + Φ12 雙層雙向鋼筋"],["承重","≥ 600 kg/m²"],["防火","2 hr 防火時效"],["開口","1.6 × 1.6 m 給鋼索 + 維修通過"]] };
+
+// 機房地板防滑壓花（在樓板上方薄薄一層）
+[[-(SHAFT_W/2 + HATCH_X_HALF) / 2, 0], [(SHAFT_W/2 + HATCH_X_HALF) / 2, 0]].forEach(([x, z]) => {
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W/2 - HATCH_X_HALF - 0.04, 0.005, SHAFT_D - 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x2a2e36, roughness: 0.95 }));
+  grip.position.set(x, MR_FLOOR_Y + MR_FLOOR_THICK/2 + 0.003, z);
+  ELEV.add(grip);
+});
+
+// 安全欄杆（hatch 四周 1.1 m 高，黃黑 — 防墜落）
+const railTube = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.65, roughness: 0.45 });
+const RAIL_TOP_Y = MR_FLOOR_Y + MR_FLOOR_THICK/2 + 1.10;  // 1.1 m 高
+const RAIL_MID_Y = MR_FLOOR_Y + MR_FLOOR_THICK/2 + 0.55;
+function mrRail(p1, p2, y) {
+  const dx = p2.x - p1.x, dz = p2.z - p1.z;
+  const len = Math.sqrt(dx*dx + dz*dz);
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, len, 12), railTube);
+  tube.position.set((p1.x + p2.x)/2, y, (p1.z + p2.z)/2);
+  tube.rotation.z = Math.PI/2;
+  tube.rotation.y = Math.atan2(dz, dx);
+  ELEV.add(tube);
+  return tube;
+}
+// hatch 4 角（地坪上）柱子
+const corners = [
+  {x: -HATCH_X_HALF, z: HATCH_Z_BACK},
+  {x:  HATCH_X_HALF, z: HATCH_Z_BACK},
+  {x:  HATCH_X_HALF, z: HATCH_Z_FRONT},
+  {x: -HATCH_X_HALF, z: HATCH_Z_FRONT},
+];
+corners.forEach(c => {
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.10, 12), railTube);
+  post.position.set(c.x, MR_FLOOR_Y + MR_FLOOR_THICK/2 + 0.55, c.z);
+  ELEV.add(post);
+});
+// 上欄 + 中欄 — 左/右/後三邊（前緣留出工作面）
+[
+  [corners[0], corners[1]], // 後
+  [corners[1], corners[2]], // 右
+  [corners[3], corners[0]], // 左
+].forEach(([a, b]) => {
+  mrRail(a, b, RAIL_TOP_Y);
+  mrRail(a, b, RAIL_MID_Y);
+});
+// 上欄 + 中欄前緣（也圍起來，使用者標一個 userData 在這條）
+const railFrontTop = mrRail(corners[2], corners[3], RAIL_TOP_Y);
+mrRail(corners[2], corners[3], RAIL_MID_Y);
+railFrontTop.userData = { name:"維修開口安全欄杆", kind:"safety",
+  desc:"機房維修開口（hatch）四周 1.1 m 安全欄杆 — 防墜落",
+  specs:[["高度","1,100 mm"],["材質","SUS304 Ø44 + 黃漆"],["標準","CNS 12642 § 7.4 / EN 81-20 § 6.3.3.2"]] };
+
+// 機房通風百葉（後牆，自然通風）
+const vent = new THREE.Group();
+vent.position.set(0, 13.20, -SHAFT_D/2 - 0.05);
+for (let i = 0; i < 5; i++) {
+  const slat = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.04, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0xd0d3da, metalness: 0.8 }));
+  slat.position.set(0, -0.10 + i * 0.06, 0);
+  slat.rotation.x = -0.25;  // 葉片下傾防雨
+  vent.add(slat);
+}
+vent.userData = { name:"機房通風百葉 Louver", kind:"machine",
+  desc:"自然通風 — 機房溫度 5~40°C，葉片下傾防雨",
+  specs:[["面積","0.30 m²"],["要求","EN 81-20 § 6.3.5 機房溫升 ≤ 40°C"],["材質","鋁合金 + 防蟲網"]] };
+ELEV.add(vent);
+
+// 機房檢修門標示（shaft 前牆上的銘牌，外面看得到）
+const mrDoorSign = (() => {
+  const cv = document.createElement('canvas'); cv.width = 384; cv.height = 96;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#fbbf24'; cx.fillRect(0, 0, 384, 96);
+  cx.strokeStyle = '#000'; cx.lineWidth = 4; cx.strokeRect(4, 4, 376, 88);
+  cx.fillStyle = '#000'; cx.font = 'bold 30px sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText('⚠ 機房 MACHINE ROOM', 192, 32);
+  cx.font = '17px sans-serif';
+  cx.fillText('限授權人員 · Authorized Only', 192, 64);
+  const tex = new THREE.CanvasTexture(cv);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.60, 0.15),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+  mesh.position.set(0, 12.70, SHAFT_D/2 + 0.01);
+  mesh.userData = { name:"機房警示銘牌", kind:"machine",
+    desc:"機房入口警示 — 限授權人員",
+    specs:[["顏色","RAL 1023 黃 + 黑字"],["標準","CNS 12642 § 7.5 / IEC 60204-1"]] };
+  return mesh;
+})();
+ELEV.add(mrDoorSign);
+
+// 維修緊急電話（壁掛）
+const mrPhone = new THREE.Group();
+mrPhone.position.set(-SHAFT_W/2 + 0.05, 12.40, -SHAFT_D/2 + 0.20);
+const phoneBox = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.20),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5 }));
+mrPhone.add(phoneBox);
+const phoneHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.16, 12),
+  new THREE.MeshStandardMaterial({ color: 0x000 }));
+phoneHandle.rotation.z = Math.PI/2;
+phoneHandle.position.set(0.03, 0.05, 0); mrPhone.add(phoneHandle);
+mrPhone.userData = { name:"機房緊急電話", kind:"safety",
+  desc:"機房內維修人員受困 — 24h 連線到保全中心",
+  specs:[["型式","SIP 防爆型"],["連線","24h 保全 + 維修商"],["標準","EN 81-28"]] };
+ELEV.add(mrPhone);
+
 // ===== 機座 Machine Bedplate（曳引機底座 + 4 個避震墊）=====
 const bedplate = new THREE.Mesh(new THREE.BoxGeometry(1.50, 0.10, 1.00),
   new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.7, roughness: 0.5 }));
