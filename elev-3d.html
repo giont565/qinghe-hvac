@@ -539,16 +539,32 @@ ldFloors.forEach(f => {
   const y = (f - 1) * FLOOR_H;
   const doorCenterY = y + ldPanelH/2 + 0.05;
 
-  // 門框（外框 architrave）
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.25, ldPanelH + 0.15, 0.05),
-    new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.8, roughness: 0.4 }));
-  frame.position.set(0, doorCenterY, SHAFT_D/2 + 0.025);
-  ELEV.add(frame);
-  // 框內挖空（用黑面板模擬）
-  const opening = new THREE.Mesh(new THREE.BoxGeometry(CAB_W - 0.02, ldPanelH - 0.04, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x050505 }));
-  opening.position.set(0, doorCenterY, SHAFT_D/2 + 0.025);
-  ELEV.add(opening);
+  // 門框（ㄇ字形 architrave：上樑 + 左右門柱）— 真實邊框，門開後中間通透
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.8, roughness: 0.4 });
+  const frameOuterW = CAB_W + 0.25;
+  const frameOuterH = ldPanelH + 0.15;
+  const openW = CAB_W - 0.02;   // 門洞淨寬
+  const openH = ldPanelH - 0.04; // 門洞淨高
+  const jambW = (frameOuterW - openW) / 2;   // 門柱寬 ~0.135
+  const headerH = (frameOuterH - openH);     // 上樑高 ~0.19（含上下，但底部不裝）
+  const frameZ = SHAFT_D/2 + 0.025;
+  // 上樑（橫跨整個外框寬度）
+  const header = new THREE.Mesh(new THREE.BoxGeometry(frameOuterW, headerH, 0.05), frameMat);
+  header.position.set(0, doorCenterY + openH/2 + headerH/2, frameZ);
+  ELEV.add(header);
+  // 左門柱
+  const jambL = new THREE.Mesh(new THREE.BoxGeometry(jambW, openH, 0.05), frameMat);
+  jambL.position.set(-(openW/2 + jambW/2), doorCenterY, frameZ);
+  ELEV.add(jambL);
+  // 右門柱
+  const jambR = new THREE.Mesh(new THREE.BoxGeometry(jambW, openH, 0.05), frameMat);
+  jambR.position.set(openW/2 + jambW/2, doorCenterY, frameZ);
+  ELEV.add(jambR);
+  // 地檻 sill（薄條，貼地面）
+  const sill = new THREE.Mesh(new THREE.BoxGeometry(frameOuterW, 0.04, 0.10),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.3 }));
+  sill.position.set(0, y + 0.02, frameZ);
+  ELEV.add(sill);
 
   // 門上方水平軌道 (鋼軌)
   const ldTrack = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.15, 0.04, 0.04),
