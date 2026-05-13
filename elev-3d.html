@@ -1454,7 +1454,7 @@ railXs.forEach(r => {
 });
 
 // 4. 層門區磁感應條 Door Zone Vanes — 每樓層 cab 導軌上 3 條磁鐵
-ldFloors.forEach(f => {
+[1, 2, 3].forEach(f => {
   const y = (f - 1) * FLOOR_H;
   // 3 條 (中央 + 上 + 下)，cab 對位 ±50mm 用
   [y - 0.05, y + 0.0, y + 0.05].forEach(yi => {
