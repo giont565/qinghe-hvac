@@ -964,6 +964,17 @@ ELEV.add(govRope);
 
 // ============ 10. Landing Doors (3 層) + 門框 + 軌道 + 吊架 + Clutch ============
 const landingDoors = [];  // [{floor, L, R, clutchL, clutchR, baseL_X, baseR_X, y}]
+const hallDisplays = [];  // [{canvas, tex, floor}] — 每層門框上方 LED 顯示器
+function paintHallDisp(cv, tex, currentFloor, dirCh) {
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#000'; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.fillStyle = '#ff7043'; cx.font = 'bold 70px monospace';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(currentFloor + 'F', 200, 48);
+  cx.font = 'bold 56px sans-serif';
+  cx.fillText(dirCh, 70, 48);
+  tex.needsUpdate = true;
+}
 const ldPanelW = CAB_W/2 - 0.02;
 const ldPanelH = CAB_H - 0.2;
 const ldFloors = [1, 2, 3];
@@ -1034,24 +1045,57 @@ ldFloors.forEach(f => {
   clutchR.position.set(ldR_close - ldPanelW/2 + 0.005, doorCenterY, SHAFT_D/2 + 0.045);
   ELEV.add(clutchR);
 
-  // 樓層 Hall 按鈕（在門框右側牆）+ indicator
-  const hallPanel = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.20, 0.025),
-    new THREE.MeshStandardMaterial({ color: 0x2a2e36, metalness: 0.85 }));
-  hallPanel.position.set(CAB_W/2 + 0.30, y + 1.25, SHAFT_D/2 + 0.04);
-  ELEV.add(hallPanel);
-  // 上下箭頭 LED
+  // ===== 外叫面板 Hall Call Station（門框右側，廳堂可見）=====
+  const hallStation = new THREE.Group();
+  hallStation.position.set(CAB_W/2 + 0.30, y + 1.20, SHAFT_D/2 + 0.04);
+  // 黑色面板背景
+  const hallBg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.32, 0.025),
+    new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.4 }));
+  hallStation.add(hallBg);
+  // 不鏽鋼邊框
+  const hallFrame = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.34, 0.015),
+    new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.95 }));
+  hallFrame.position.z = -0.005; hallStation.add(hallFrame);
+  // 上下按鈕（大圓鈕）
   if (f < 3) {
-    const btnUp = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
-      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0x4a3a00 }));
-    btnUp.position.set(CAB_W/2 + 0.30, y + 1.30, SHAFT_D/2 + 0.053);
-    ELEV.add(btnUp);
+    const btnUp = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.012, 24),
+      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.45 }));
+    btnUp.rotation.x = Math.PI/2;
+    btnUp.position.set(0, 0.08, 0.018); hallStation.add(btnUp);
+    // ▲ 三角符號（簡化版 — 一片小三角）
+    const upArrow = new THREE.Mesh(new THREE.ConeGeometry(0.013, 0.018, 3),
+      new THREE.MeshBasicMaterial({ color: 0x111 }));
+    upArrow.position.set(0, 0.08, 0.025); hallStation.add(upArrow);
   }
   if (f > 1) {
-    const btnDn = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
-      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0x4a3a00 }));
-    btnDn.position.set(CAB_W/2 + 0.30, y + 1.20, SHAFT_D/2 + 0.053);
-    ELEV.add(btnDn);
+    const btnDn = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.012, 24),
+      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.45 }));
+    btnDn.rotation.x = Math.PI/2;
+    btnDn.position.set(0, -0.08, 0.018); hallStation.add(btnDn);
+    const dnArrow = new THREE.Mesh(new THREE.ConeGeometry(0.013, 0.018, 3),
+      new THREE.MeshBasicMaterial({ color: 0x111 }));
+    dnArrow.rotation.z = Math.PI;
+    dnArrow.position.set(0, -0.08, 0.025); hallStation.add(dnArrow);
   }
+  hallStation.userData = { name:`Hall Call ${f}F`, kind:"hall", desc:`${f} 樓外叫面板（廳堂呼梯）`, specs:[["按鈕","Φ50 mm 不鏽鋼"],["凸字","三角符號 + 點字"],["燈","呼叫亮、到達熄"]] };
+  ELEV.add(hallStation);
+
+  // ===== 到樓顯示器 Hall Position Indicator（門框上方，全廳堂可見）=====
+  const hallDispCv = document.createElement('canvas'); hallDispCv.width = 320; hallDispCv.height = 96;
+  const hallDispTex = new THREE.CanvasTexture(hallDispCv);
+  const hallDispMat = new THREE.MeshBasicMaterial({ map: hallDispTex, transparent: true });
+  // 黑色底面板
+  const hallDispBg = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.17, 0.025),
+    new THREE.MeshStandardMaterial({ color: 0x111, metalness: 0.6, roughness: 0.5 }));
+  hallDispBg.position.set(0, y + 2.40, SHAFT_D/2 + 0.04);
+  ELEV.add(hallDispBg);
+  // LED 字幕（畫在面板上）
+  const hallDispScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.14), hallDispMat);
+  hallDispScreen.position.set(0, y + 2.40, SHAFT_D/2 + 0.053);
+  ELEV.add(hallDispScreen);
+  hallDispScreen.userData = { name:`到樓顯示器 ${f}F`, kind:"hall", desc:"廳堂用 LED 顯示器 — 顯示 cab 目前樓層 + 方向", specs:[["尺寸","460×140 mm"],["顯示","7-seg LED 紅"],["方向","↑↓ 箭頭"]] };
+  // 存指標讓 animate 即時更新
+  hallDisplays.push({ canvas: hallDispCv, tex: hallDispTex, floor: f });
 
   landingDoors.push({ floor: f, L: ldL, R: ldR, clutchL, clutchR, ldL_close, ldR_close, y });
 });
@@ -1522,7 +1566,7 @@ function animate() {
     }
     const cabY = targetFloor * FLOOR_H + 1.15;  // 平層基準，對齊 landing door
     cabGroup.position.y = cabY;
-    cwGroup.position.y = (FLOOR_H * 2) - (cabY - 1.15) + 0.7;  // CW 反向同步
+    cwGroup.position.y = (FLOOR_H * 2) - (cabY - 1.15) + 0.85;  // CW 反向同步（+0.85 保 11cm buffer 淨距）
     // 牽引輪轉動：只在移動時轉（門特寫/內裝特寫鎖層 → 不動）
     const movingFrac = targetFloor - Math.round(targetFloor);
     const moving = !doorMode && !cabinDoorForceOpen && Math.abs(movingFrac) > 0.02;
@@ -1530,6 +1574,8 @@ function animate() {
     const dispFloorNo = Math.round(targetFloor) + 1;
     const dispDir = moving ? (movingFrac > 0 ? '↑' : '↓') : '●';
     paintFloorDisp(dispFloorNo, dispDir);
+    // 每層外部到樓顯示器同步刷新
+    hallDisplays.forEach(h => paintHallDisp(h.canvas, h.tex, dispFloorNo, dispDir));
     if (moving) {
       sheave.rotation.x += 0.12;
       motor.rotation.x += 0.12;
