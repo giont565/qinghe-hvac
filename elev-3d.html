@@ -329,14 +329,14 @@ for (let i = 0; i < 8; i++) {
 // ============ 7b. Pit 梯子（緊急逃生用，pit 內壁）============
 const ladderMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.6, roughness: 0.5 });
 [-0.2, 0.2].forEach(zOff => {
-  const railLad = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, PIT_H + 0.2, 8), ladderMat);
-  railLad.position.set(SHAFT_W/2 - 0.12, -PIT_H/2 + 0.1, zOff + 0.7);
+  const railLad = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.5 + 0.2, 8), ladderMat);
+  railLad.position.set(SHAFT_W/2 - 0.12, -1.5/2 + 0.1, zOff + 0.7);
   ELEV.add(railLad);
 });
 for (let i = 0; i < 5; i++) {
   const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.4, 8), ladderMat);
   rung.rotation.x = Math.PI/2;
-  rung.position.set(SHAFT_W/2 - 0.12, -PIT_H + 0.4 + i*0.3, 0.7);
+  rung.position.set(SHAFT_W/2 - 0.12, -1.5 + 0.4 + i*0.3, 0.7);
   ELEV.add(rung);
 }
 
