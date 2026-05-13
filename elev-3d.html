@@ -1106,6 +1106,20 @@ cabGroup.add(doorControlGroup);
 
 cabGroup.userData = { name:"Cab 轎廂", kind:"cab", desc:"乘客車廂 + 雙開門 + COP 操作板", specs:[["容量","13 人 / 900 kg"],["速度","1.0 m/s"],["材質","SUS304 髮絲紋"],["門","中分雙開 2-panel"]] };
 cabGroup.userData.basePos = cabGroup.position.clone();
+// ============ Safety Gear 安全鉗楔塊（cab 兩側、限速器跳脫時往 T 軌方向咬合）============
+const _safetyWedges = [];
+[+1, -1].forEach(side => {
+  const wedge = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.18, 4),
+    new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.85, roughness: 0.3, emissive: 0x000000, emissiveIntensity: 0 }));
+  wedge.rotation.z = side * Math.PI / 2;   // 楔尖朝向 ±X 指向 T 軌
+  wedge.position.set(side * (CAB_W/2 + 0.08), -CAB_H/2 + 0.18, 0);
+  wedge.userData = { name:`Safety Gear ${side > 0 ? 'R' : 'L'} 安全鉗楔塊`, kind:"safety",
+    desc:"限速器跳脫 → 鋼性楔塊往導軌方向衝進、楔形咬入 T 軌使 cab 急停（不可逆、需技師手動 reset）",
+    specs:[["型式","Type A Wedge (instantaneous)"],["夾緊力","≥ 6 × 額定載重"],["重設","技師現場手動"]] };
+  wedge.userData.baseX = wedge.position.x;
+  cabGroup.add(wedge);
+  _safetyWedges.push(wedge);
+});
 ELEV.add(cabGroup);
 
 // ============ 4. Counterweight 配重（推到後牆，避開 cab）============
@@ -1175,15 +1189,21 @@ for (let i = 0; i < 8; i++) {
 }
 // 雙鉗（caliper）— 上下夾住碟
 const caliperMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.7, roughness: 0.35 });
+const _brakeMovingParts = [];   // caliper + pad — brakeReleased 時往外推 35mm
+const _brakeCoils = [];         // 線圈 — 通電釋放時 emissive 變強
 [+1, -1].forEach(side => {
   const cal = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.16), caliperMat);
   cal.position.set(0, side * 0.165, 0);
+  cal.userData.baseY = side * 0.165;
   brakeGroup.add(cal);
+  _brakeMovingParts.push(cal);
   // 鉗内的剎車片（黑色）
   const pad = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.12),
     new THREE.MeshStandardMaterial({ color: 0x222 }));
   pad.position.set(0, side * 0.125, 0);
+  pad.userData.baseY = side * 0.125;
   brakeGroup.add(pad);
+  _brakeMovingParts.push(pad);
 });
 // 電磁線圈（兩邊推鉗用的螺管 — 通電釋放、斷電夾緊）
 [+1, -1].forEach(side => {
@@ -1192,6 +1212,7 @@ const caliperMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 
       emissive: 0x331400, emissiveIntensity: 0.4 }));
   coil.position.set(0, side * 0.27, 0);
   brakeGroup.add(coil);
+  _brakeCoils.push(coil);
 });
 // 軸（穿過碟到 sheave）
 const brakeShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.20, 16),
@@ -1657,6 +1678,19 @@ for (let i = 0; i < 8; i++) {
 // sheave 頂跨繩段（弧形示意 — 多條細線跨過）
 const CW_Z = -SHAFT_D/2 + 0.22;  // -0.98
 const horizLen = CAB_Z - CW_Z;   // 0.35 - (-0.98) = 1.33
+// ============ 鋼絲繩行進標誌（環狀標、跟 cab/cw 同步上下、視覺化「sheave 轉 → 繩走 → cab/cw 動」連動）============
+const cabRopeMarker = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.010, 8, 18),
+  new THREE.MeshStandardMaterial({ color: 0x00d4ff, emissive: 0x004060, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3 }));
+cabRopeMarker.rotation.x = Math.PI / 2;
+cabRopeMarker.position.set(0.35, 5.0, CAB_Z);   // Y 在 animate 內動態跟 cabTopNow 同步
+cabRopeMarker.userData = { name:"鋼絲繩行進標誌 (cab 側)", kind:"rope", desc:"視覺化鋼絲繩跟著轎廂同步上下、距 cab 頂固定 +0.5 m — 看出 sheave 轉動拉著繩走、繩拉著 cab 跑", specs:[["顏色","青 #00d4ff"]] };
+ELEV.add(cabRopeMarker);
+const cwRopeMarker = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.010, 8, 18),
+  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x344515, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3 }));
+cwRopeMarker.rotation.x = Math.PI / 2;
+cwRopeMarker.position.set(0.35, 5.0, CW_Z);
+cwRopeMarker.userData = { name:"鋼絲繩行進標誌 (cw 側)", kind:"rope", desc:"視覺化配重側繩運動 — 與 cab 側永遠反向（因為 sheave 一邊上 = 另一邊下）", specs:[["顏色","綠 #a3e635"]] };
+ELEV.add(cwRopeMarker);
 for (let i = 0; i < 8; i++) {
   const grooveX = 0.35 + (i - 3.5) * 0.022;
   const horiz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, horizLen, 6), ropeMat);
@@ -1837,13 +1871,13 @@ ldFloors.forEach(f => {
     landingFloorGroup.add(hg);
   }
 
-  // Clutch / lock 機構（左片內側、給 cab vane 夾住的U形溝）
-  const clutchMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.4 });
-  const clutchL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.025), clutchMat);
+  // Clutch / lock 機構（左片內側、給 cab vane 夾住的U形溝）— clone material 每個 clutch 才能獨立 emissive
+  const clutchMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.4, emissive: 0x000000, emissiveIntensity: 0 });
+  const clutchL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.025), clutchMat.clone());
   clutchL.position.set(ldL_close + ldPanelW/2 - 0.005, doorCenterY, SHAFT_D/2 + 0.045);
   clutchL.userData = { name:`Landing Clutch ${f}F`, kind:"door", desc:"樓層門 clutch（U 形夾鉤）— 只在 cab vane 進入時連動", specs:[["材質","硬化鋼"],["接合條件","cab 對位 ±50mm"]] };
   landingFloorGroup.add(clutchL);
-  const clutchR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.025), clutchMat);
+  const clutchR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.025), clutchMat.clone());
   clutchR.position.set(ldR_close - ldPanelW/2 + 0.005, doorCenterY, SHAFT_D/2 + 0.045);
   landingFloorGroup.add(clutchR);
 
@@ -2779,6 +2813,25 @@ function animate() {
       r.mesh.position.y = (sheaveCenterY + cwTopNow) / 2;
       r.mesh.scale.y = len / r.baseLen;
     });
+    // === 機構連動視覺 #1：鋼絲繩標誌跟 cab/cw 同步上下（看出「繩在跑」、不只是 cab 在動）===
+    cabRopeMarker.position.y = cabTopNow + 0.5;
+    cwRopeMarker.position.y  = cwTopNow  + 0.5;
+    // === 機構連動視覺 #2：制動器 caliper / pad 釋放（往外推 35mm）vs 抱閘（回原位）+ 線圈 emissive ===
+    const _brakeOffset = elevSim.brakeReleased ? 0.035 : 0;
+    _brakeMovingParts.forEach(m => {
+      const sign = Math.sign(m.userData.baseY);
+      m.position.y = m.userData.baseY + sign * _brakeOffset;
+    });
+    _brakeCoils.forEach(c => {
+      c.material.emissiveIntensity = elevSim.brakeReleased ? (1.3 + Math.sin(t * 18) * 0.2) : 0.4;
+    });
+    // === 機構連動視覺 #3：安全鉗 wedge 楔塊（OSG 跳脫 → 楔塊往 T 軌方向衝 60mm + 紅閃）===
+    _safetyWedges.forEach(w => {
+      const sign = Math.sign(w.userData.baseX);
+      w.position.x = w.userData.baseX + (elevSim.osgTripped ? sign * 0.06 : 0);
+      w.material.emissive.setHex(elevSim.osgTripped ? 0x441010 : 0x000000);
+      w.material.emissiveIntensity = elevSim.osgTripped ? (1.0 + Math.sin(t * 22) * 0.4) : 0;
+    });
     // 牽引輪轉動：只在移動時轉（門特寫/內裝特寫鎖層 → 不動）
     const movingFrac = targetFloor - Math.round(targetFloor);
     const moving = !doorMode && !cabinDoorForceOpen && Math.abs(movingFrac) > 0.02;
@@ -3020,6 +3073,13 @@ function animate() {
       ld.R.position.x = ld.ldR_close + off;
       ld.clutchL.position.x = ld.ldL_close - off + (ldPanelW/2 - 0.005);
       ld.clutchR.position.x = ld.ldR_close + off - (ldPanelW/2 - 0.005);
+      // === 機構連動視覺 #4：vane → clutch 對位 highlight（cab 對位+開門時、clutch 加綠 emissive 看出 cab vane 卡住 landing clutch、拉動 landing door）===
+      const _clutchEngaged = isAtFloor && doorPhase > 0.05;
+      const _clutchPulse = _clutchEngaged ? (0.7 + Math.sin(t * 18) * 0.3) : 0;
+      ld.clutchL.material.emissive.setHex(_clutchEngaged ? 0x004035 : 0x000000);
+      ld.clutchR.material.emissive.setHex(_clutchEngaged ? 0x004035 : 0x000000);
+      ld.clutchL.material.emissiveIntensity = _clutchPulse;
+      ld.clutchR.material.emissiveIntensity = _clutchPulse;
     });
   }
 
