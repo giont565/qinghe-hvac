@@ -1772,7 +1772,6 @@ function setupHideList() {
   hideInDoorMode.push(cwGroup);
   hideInDoorMode.push(machGroup);
   hideInDoorMode.push(ctrlElev);             // 外部控制盤
-  hideInDoorMode.push(cabTopGroup);           // 車頂機構（不是門機構焦點）
   hideInDoorMode.push(topLimitSwitch);
   if (typeof govGroup !== 'undefined') hideInDoorMode.push(govGroup);
   if (typeof govRope !== 'undefined') hideInDoorMode.push(govRope);
@@ -1781,6 +1780,39 @@ function setupHideList() {
   cwRopes.forEach(r => hideInDoorMode.push(r.mesh));
 }
 setupHideList();
+
+// 門機構外的物件 — 進門特寫時 fade 到半透明（保留 context 但讓門機構突出）
+const fadeInDoorMode = [];
+function collectFadeable() {
+  fadeInDoorMode.length = 0;
+  // cab 內裝（handrails/COP/mirror/seat/ceiling 等都 fade）
+  cabInterior.traverse(o => { if (o.isMesh || o.isSprite) fadeInDoorMode.push(o); });
+  // 車頂機構（不是門機構焦點 — 替代原本完全隱藏）
+  cabTopGroup.traverse(o => { if (o.isMesh || o.isSprite) fadeInDoorMode.push(o); });
+  // cab 本體與 sling 也淡化
+  if (typeof cabBody !== 'undefined') fadeInDoorMode.push(cabBody);
+  if (typeof sling !== 'undefined') fadeInDoorMode.push(sling);
+}
+collectFadeable();
+function setFadeMode(faded, targetOpacity = 0.12) {
+  fadeInDoorMode.forEach(o => {
+    if (!o.material) return;
+    if (faded) {
+      if (o.userData._origOp === undefined) {
+        o.userData._origOp = o.material.opacity;
+        o.userData._origTrans = o.material.transparent;
+      }
+      o.material.transparent = true;
+      o.material.opacity = Math.min(o.userData._origOp, targetOpacity);
+    } else {
+      if (o.userData._origOp !== undefined) {
+        o.material.opacity = o.userData._origOp;
+        o.material.transparent = o.userData._origTrans;
+        o.userData._origOp = undefined;
+      }
+    }
+  });
+}
 
 // ============ 門機構：動作箭頭 (motion arrows) + 步驟動畫 ============
 // 為每個 STEP 建立 3D 箭頭，動作中閃爍標示當前進行的步驟
@@ -1998,12 +2030,14 @@ function setDoorMode(on) {
     schematicGroup.visible = false;
     doorControlGroup.visible = false;
   }
-  // 隱藏雜訊
+  // 隱藏雜訊（cw/machine/controller/ropes）
   hideInDoorMode.forEach(o => o.visible = !on);
   // 只顯示 2F 的 landing（門機構特寫鎖 2F），退出全顯
   landingFloorGroups.forEach(lf => {
     lf.group.visible = on ? (lf.floor === 2) : true;
   });
+  // 門機構外的物件 fade 到半透明（cab body / 內裝 / 車頂機構）
+  setFadeMode(on, 0.12);
   if (on) {
     // 鏡頭飛到 2F cab 門前（doorMode 強制把 cab 鎖在 2F，這裡用 2F 預測位置）
     const lockedCabY = 1 * FLOOR_H + 1.15;  // 4.65 (2F)
@@ -2051,6 +2085,8 @@ function setCabinMode(on) {
   });
   // 同步 hideInDoorMode 也用在內裝模式（共用雜訊隱藏）
   hideInDoorMode.forEach(o => o.visible = !on);
+  // 內裝模式也把車頂機構藏掉（焦點在 cab 內部）
+  cabTopGroup.visible = !on;
   if (on) {
     // 鏡頭站 1F 廳堂 1.75m 眼高，看進開門的 cab — 最自然的「確認內裝」視角
     const lockedCabY = 0 * FLOOR_H + 1.15;  // 1F: 1.15
