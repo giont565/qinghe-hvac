@@ -114,6 +114,7 @@ window.addEventListener('unhandledrejection', function(e) {
   <p class="sub">View Controls</p>
   <div class="controls">
     <button class="ctrl-btn" data-action="door"><span>🔍 門機構特寫</span><span class="key">D</span></button>
+    <button class="ctrl-btn" data-action="cabin"><span>🦽 殘障內裝特寫</span><span class="key">C</span></button>
     <button class="ctrl-btn" data-action="explode"><span>系統拆解 Exploded</span><span class="key">E</span></button>
     <button class="ctrl-btn active" data-action="shaft"><span>顯示井道 Shaft</span><span class="key">S</span></button>
     <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
@@ -143,6 +144,28 @@ window.addEventListener('unhandledrejection', function(e) {
     <p><b style="color:#f472b6">⑦ Photocell 光電</b> — 紅外線阻擋偵測，有人擋立即反向開門防夾</p>
     <p style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.1);color:#86868b">
       <b>同步原理</b>：轎門開合時，vane 機械夾住該樓層 clutch，把兩層門當作一體拉開 — 即使 landing door 自己沒馬達，也能跟著動。其他樓層門因 vane 不在無法被拉，自動鎖住。
+    </p>
+  </div>
+</div>
+
+<!-- 殘障內裝特寫面板 -->
+<div id="cabinPanel" style="position:fixed;right:16px;bottom:16px;width:340px;background:rgba(15,15,17,.92);backdrop-filter:blur(20px);border:1px solid rgba(251,191,36,.4);border-radius:12px;padding:14px 18px;font-size:12px;z-index:11;display:none;line-height:1.6">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span style="font-weight:600;color:#fbbf24;font-size:14px">🦽 殘障標準內裝 (CNS 12642)</span>
+    <span id="cabinPanelClose" style="cursor:pointer;color:#86868b;font-size:18px;line-height:1">×</span>
+  </div>
+  <div style="color:#c9ccd1;font-size:11.5px">
+    <p>① <b style="color:#fbbf24">輪椅迴轉圓</b> — 地面黃色提示環 Ø1.1m</p>
+    <p>② <b style="color:#fbbf24">後牆鏡</b> — 輪椅倒退對位用 (900-2,100mm)</p>
+    <p>③ <b style="color:#fbbf24">三面扶手</b> — SUS304 Ø44mm，高 850mm</p>
+    <p>④ <b style="color:#fbbf24">主 COP (高位 1,200mm)</b> — 樓層鈕 + 點字凸點 + 紅色緊急通話 + 麥克風</p>
+    <p>⑤ <b style="color:#fbbf24">低位 COP (850mm)</b> — 輪椅可達高度</p>
+    <p>⑥ <b style="color:#ff7043">樓層顯示器</b> — 大字 LED + 方向箭頭</p>
+    <p>⑦ <b style="color:#fbbf24">摺疊椅</b> — 老人/殘障短暫休息 (左牆)</p>
+    <p>⑧ <b style="color:#fff4d6">LED 主照明</b> — 4,000K + 4 角聚光 + 停電備援</p>
+    <p>⑨ <b style="color:#fbbf24">門檻警示帶</b> — 視障腳感高對比黃條</p>
+    <p style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.1);color:#86868b">
+      <b>點擊元件</b>可查看詳細規格與標準。點 × 關閉退出此模式。
     </p>
   </div>
 </div>
@@ -1397,14 +1420,38 @@ function setDoorMode(on) {
 }
 document.getElementById('doorPanelClose').addEventListener('click', () => setDoorMode(false));
 
+// ===== 殘障內裝特寫模式 =====
+let cabinMode = false;
+const cabinPanel = document.getElementById('cabinPanel');
+let cabinDoorForceOpen = false;
+function setCabinMode(on) {
+  cabinMode = on;
+  document.querySelector('[data-action="cabin"]').classList.toggle('active', on);
+  cabinPanel.style.display = on ? 'block' : 'none';
+  cabinDoorForceOpen = on;
+  if (on && doorMode) setDoorMode(false);  // 兩種特寫互斥
+  if (on) {
+    // 鏡頭飛進 cab 內部偏前（看得到後牆鏡 + 兩側扶手 + COP）
+    const cabPos = cabGroup.position;
+    doorModeTargetCam.set(cabPos.x + 0.3, cabPos.y + 0.6, cabPos.z + 1.6);
+    doorModeTargetTar.set(cabPos.x, cabPos.y, cabPos.z - 0.3);
+  } else {
+    doorModeTargetCam.set(9, 7, 10);
+    doorModeTargetTar.set(0, 6, 0);
+  }
+}
+document.getElementById('cabinPanelClose').addEventListener('click', () => setCabinMode(false));
+
 document.querySelectorAll('.ctrl-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const a = btn.dataset.action;
     if (a === 'door') setDoorMode(!doorMode);
+    else if (a === 'cabin') setCabinMode(!cabinMode);
     else if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
     else if (a === 'shaft') { setShaftVis(!shaftOn); btn.classList.toggle('active', shaftOn); }
     else if (a === 'reset') {
       if (doorMode) setDoorMode(false);
+      if (cabinMode) setCabinMode(false);
       camera.position.set(9, 7, 10); controls.target.set(0, 6, 0);
     }
   });
@@ -1412,9 +1459,14 @@ document.querySelectorAll('.ctrl-btn').forEach(btn => {
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (k === 'd') setDoorMode(!doorMode);
+  else if (k === 'c') setCabinMode(!cabinMode);
   else if (k === 'e') setExplode(!exploded);
   else if (k === 's') setShaftVis(!shaftOn);
-  else if (k === 'r') { if (doorMode) setDoorMode(false); camera.position.set(9, 7, 10); controls.target.set(0, 6, 0); }
+  else if (k === 'r') {
+    if (doorMode) setDoorMode(false);
+    if (cabinMode) setCabinMode(false);
+    camera.position.set(9, 7, 10); controls.target.set(0, 6, 0);
+  }
 });
 
 // 動畫：轎廂上下移動 + sheave 轉
@@ -1453,6 +1505,11 @@ function animate() {
       doorPhase = lp < 1 ? lp : lp < 3 ? 1 : (4 - lp);
     } else {                       // 20-24: 3F → 1F 直接降
       targetFloor = 2 - (phase - 20) / 4 * 2;
+    }
+    // 殘障特寫模式：強制 cab 停 2F + 門全開（方便觀察內裝）
+    if (cabinDoorForceOpen) {
+      targetFloor = 1;
+      doorPhase = 1;
     }
     const cabY = targetFloor * FLOOR_H + 1.15;  // 平層基準，對齊 landing door
     cabGroup.position.y = cabY;
