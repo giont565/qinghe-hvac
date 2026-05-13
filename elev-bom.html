@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elevator BOM · 客梯設備清單</title>
+<script src="tailwind.js"></script>
+<style>
+  :root { --ink:#f5f5f7; --sub:#86868b; --sensor:#A3E635; }
+  html, body { background:#0a0b0e; color:var(--ink); font-family:-apple-system, "SF Pro Display", "Noto Sans TC", sans-serif; }
+
+  .site-nav { position:fixed; top:0; left:0; right:0; z-index:200; height:46px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; background:rgba(10,11,14,.82); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.06); font-size:12px; }
+  .site-brand { display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; font-weight:600; }
+  .brand-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#a3e635,#00d4ff); box-shadow:0 0 8px rgba(163,230,53,.5); }
+  .site-sys { display:flex; align-items:center; gap:6px; padding:4px 10px; margin-left:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:6px; font-size:11px; color:var(--sub); }
+  .site-sys select { background:transparent; border:none; color:var(--ink); font-size:12px; font-family:inherit; cursor:pointer; }
+  .site-tabs { display:flex; gap:4px; padding:3px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:9px; flex-wrap:wrap; }
+  .site-tabs a { padding:6px 12px; border-radius:6px; color:#86868b; text-decoration:none; font-size:12px; display:flex; align-items:center; gap:6px; }
+  .site-tabs a:hover { background:rgba(255,255,255,.06); color:var(--ink); }
+  .site-tabs a.is-active { background:rgba(163,230,53,.14); color:#a3e635; border:1px solid rgba(163,230,53,.3); }
+  @media (max-width: 768px) { .site-nav { padding:0 8px; height:42px; font-size:11px; } .site-brand span:last-child { display:none; } }
+
+  .bom-section { margin-top: 32px; }
+  .bom-section h2 { font-size: 18px; font-weight: 700; letter-spacing: .04em; padding: 12px 16px; background: linear-gradient(90deg, rgba(163,230,53,.08), transparent 60%); border-left: 3px solid var(--sensor); }
+  .bom-section h2 .count { float: right; color: var(--sub); font-weight: 400; font-size: 13px; }
+  table.bom { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.bom thead { background: rgba(255,255,255,.04); }
+  table.bom th { font-weight: 500; color: var(--sub); padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.1); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+  table.bom td { padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: top; }
+  table.bom tr:hover td { background: rgba(255,255,255,.025); }
+  table.bom .tag { font-family: "SF Mono", monospace; font-size: 11.5px; color: var(--sensor); font-weight: 600; }
+  table.bom .qty { font-family: "SF Mono", monospace; font-weight: 600; text-align: right; }
+  table.bom .price { font-family: "SF Mono", monospace; text-align: right; color: var(--sub); }
+  table.bom .desc { color: #c9ccd1; max-width: 380px; line-height: 1.55; }
+  table.bom .model { font-family: "SF Mono", monospace; color: #d4d4d8; font-size: 12px; }
+  .pill { display:inline-block; padding:2px 8px; border:1px solid rgba(255,255,255,.14); border-radius:999px; font-size:10.5px; color:var(--sub); margin-right:4px; }
+  @media (max-width: 768px) { table.bom .hide-mobile { display: none; } }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div style="display:flex;align-items:center">
+    <a class="site-brand" href="index.html">
+      <span class="brand-dot"></span>
+      <span>PUSD辦公室MEP · 機電系統</span>
+    </a>
+    <div class="site-sys">
+      <span>系統</span>
+      <select onchange="if(this.value)location.href=this.value">
+        <option value="index.html">HVAC 空調</option>
+        <option value="elev.html" selected>🛗 客梯</option>
+      </select>
+    </div>
+  </div>
+  <div class="site-tabs">
+    <a href="elev.html"><span>▣</span> P&amp;ID</a>
+    <a href="elev-3d.html"><span>◆</span> 3D 模型</a>
+    <a href="elev-bom.html" class="is-active"><span>≡</span> BOM</a>
+  </div>
+</nav>
+
+<main class="max-w-7xl mx-auto pt-20 px-6 pb-24">
+
+  <header class="mb-10 pb-6 border-b border-white/10">
+    <p class="text-xs tracking-[0.32em] text-zinc-500 uppercase mb-2">B 棟 · 客梯 · ELEV-01</p>
+    <h1 class="text-4xl font-bold tracking-tight">Elevator · BOM 設備清單</h1>
+    <p class="text-zinc-400 mt-3 text-sm">4-stop MRL traction lift · 含主機 / 轎廂 / 井道 / 控制 / 安全 五大類，共 <span class="text-white font-semibold">26 項</span></p>
+    <div class="mt-4 flex gap-3 flex-wrap">
+      <span class="pill">DWG ELEV-BOM</span>
+      <span class="pill">REV 01</span>
+      <span class="pill">2026·05·13</span>
+      <span class="pill" style="border-color: rgba(163,230,53,.3); color: var(--sensor)">設備合計 NT$ ~2.18M</span>
+    </div>
+  </header>
+
+  <!-- A 牽引主機與配重 -->
+  <section class="bom-section">
+    <h2>A · 牽引主機與配重 <span class="count">5 項</span></h2>
+    <table class="bom"><thead><tr>
+      <th style="width:90px">Tag</th><th>元件名稱</th><th class="hide-mobile">廠牌 / 型號</th><th class="hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+    </tr></thead><tbody>
+      <tr><td class="tag">MACH-1</td><td>無齒輪曳引機</td><td class="model hide-mobile">Kone Ecodisc / Otis Gen2</td><td class="desc hide-mobile">PMSM 永磁同步、8.5 kW、額定 119 rpm、扭矩 580 Nm、IE5</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 285,000</td></tr>
+      <tr><td class="tag">SHV-1</td><td>牽引輪 Sheave</td><td class="model hide-mobile">球墨鑄鐵 + V 槽</td><td class="desc hide-mobile">Φ400 mm、8 槽、配合鋼絲繩 Φ10 mm</td><td class="qty">1 SET</td><td class="price hide-mobile">incl.</td></tr>
+      <tr><td class="tag">BRK-1</td><td>主機制動器</td><td class="model hide-mobile">電磁雙片煞車</td><td class="desc hide-mobile">EN81-20 SIL3、雙煞獨立、含 brake-monitoring</td><td class="qty">1 SET</td><td class="price hide-mobile">incl.</td></tr>
+      <tr><td class="tag">ROPE-1</td><td>主曳引鋼絲繩</td><td class="model hide-mobile">Bridon 8x19 Seale</td><td class="desc hide-mobile">8 條 × Φ10 mm、安全係數 ≥ 12:1、含端頭錐套</td><td class="qty">8 條</td><td class="price hide-mobile">$ 32,000</td></tr>
+      <tr><td class="tag">CW-1</td><td>配重 Counterweight</td><td class="model hide-mobile">鑄鐵塊堆疊 + 鋼框</td><td class="desc hide-mobile">2,100 kg（含轎廂 + 50% 額定）、含安全鉗（雙向）</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 58,000</td></tr>
+    </tbody></table>
+  </section>
+
+  <!-- B 轎廂與門 -->
+  <section class="bom-section">
+    <h2>B · 轎廂與門系統 <span class="count">5 項</span></h2>
+    <table class="bom"><thead><tr>
+      <th style="width:90px">Tag</th><th>元件名稱</th><th class="hide-mobile">廠牌 / 型號</th><th class="hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+    </tr></thead><tbody>
+      <tr><td class="tag">CAB-1</td><td>轎廂車體 Cab</td><td class="model hide-mobile">髮絲紋 SUS304</td><td class="desc hide-mobile">1.6×1.6×2.3 m、13 人 / 900 kg、含天花板照明 + 緊急照明</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 380,000</td></tr>
+      <tr><td class="tag">SLG-1</td><td>轎廂吊架 Sling + Yoke</td><td class="model hide-mobile">鋼構焊接</td><td class="desc hide-mobile">含繩頭錐套 + 緊急鉗座 + 載重感應</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 75,000</td></tr>
+      <tr><td class="tag">DOOR-CAB</td><td>轎門</td><td class="model hide-mobile">Wittur / Selcom 中分</td><td class="desc hide-mobile">2-panel 中分開、800mm × 2100mm、VFD 控制門機</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 95,000</td></tr>
+      <tr><td class="tag">DOOR-LDG</td><td>樓層門</td><td class="model hide-mobile">同上 + 機械互鎖</td><td class="desc hide-mobile">3 個樓層 × 2-panel 中分、含互鎖（mechanical + electrical interlock）</td><td class="qty">3 SET</td><td class="price hide-mobile">$ 65,000</td></tr>
+      <tr><td class="tag">COP-1</td><td>轎內操作板 COP</td><td class="model hide-mobile">不鏽鋼面板 + LED 顯示</td><td class="desc hide-mobile">4 樓層按鈕 + 開關門 + 警報 + 緊急呼叫 + 服務鎖</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 28,000</td></tr>
+    </tbody></table>
+  </section>
+
+  <!-- C 井道與導軌 -->
+  <section class="bom-section">
+    <h2>C · 井道、導軌與緩衝 <span class="count">5 項</span></h2>
+    <table class="bom"><thead><tr>
+      <th style="width:90px">Tag</th><th>元件名稱</th><th class="hide-mobile">廠牌 / 型號</th><th class="hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+    </tr></thead><tbody>
+      <tr><td class="tag">RAIL-C</td><td>轎廂導軌</td><td class="model hide-mobile">T90/B 冷拉精軋鋼</td><td class="desc hide-mobile">2 條 × 14 m、含 fishplate 接續 + 軌座、軌距 2,200 mm</td><td class="qty">2 SET</td><td class="price hide-mobile">$ 48,000</td></tr>
+      <tr><td class="tag">RAIL-CW</td><td>配重導軌</td><td class="model hide-mobile">T70/B</td><td class="desc hide-mobile">2 條 × 14 m</td><td class="qty">2 SET</td><td class="price hide-mobile">$ 32,000</td></tr>
+      <tr><td class="tag">BUF-CAB</td><td>轎廂緩衝器</td><td class="model hide-mobile">Oleo 油壓式</td><td class="desc hide-mobile">速度 ≥ 1.0 m/s 須用油壓、EN81-20 認證</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 28,000</td></tr>
+      <tr><td class="tag">BUF-CW</td><td>配重緩衝器</td><td class="model hide-mobile">同上</td><td class="desc hide-mobile">同 BUF-CAB</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 28,000</td></tr>
+      <tr><td class="tag">SHAFT</td><td>井道結構 + 防火</td><td class="model hide-mobile">RC 結構 + 2hr 防火</td><td class="desc hide-mobile">2.2 × 2.4 × 14 m、含進風 / 排氣 + 通信線管</td><td class="qty">1 LOT</td><td class="price hide-mobile">$ 95,000</td></tr>
+    </tbody></table>
+  </section>
+
+  <!-- D 控制與驅動 -->
+  <section class="bom-section">
+    <h2>D · 控制與驅動 <span class="count">6 項</span></h2>
+    <table class="bom"><thead><tr>
+      <th style="width:90px">Tag</th><th>元件名稱</th><th class="hide-mobile">廠牌 / 型號</th><th class="hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+    </tr></thead><tbody>
+      <tr><td class="tag">CTRL-1</td><td>主控制櫃</td><td class="model hide-mobile">客製鋼板 IP54</td><td class="desc hide-mobile">含 VFD + CPU + SAFETY + 接觸器 + 24V PSU + UPS 30 min</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 165,000</td></tr>
+      <tr><td class="tag">VFD-1</td><td>變頻驅動器</td><td class="model hide-mobile">KEB Combivert F6</td><td class="desc hide-mobile">11 kW、再生制動 / 回送電網、含 STO Safe Torque Off</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 68,000</td></tr>
+      <tr><td class="tag">CPU-1</td><td>運動控制器</td><td class="model hide-mobile">Beckhoff / Kollmorgen</td><td class="desc hide-mobile">Motion + sequence + dispatch、CANopen + Modbus、BACnet gateway</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 145,000</td></tr>
+      <tr><td class="tag">ENC-1</td><td>絕對編碼器</td><td class="model hide-mobile">Heidenhain EBI 1135</td><td class="desc hide-mobile">2¹⁹ × 4096、EnDat 2.2、含主機軸耦合</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 32,000</td></tr>
+      <tr><td class="tag">HALL</td><td>樓層呼叫面板 Hall</td><td class="model hide-mobile">不鏽鋼面板 + LED</td><td class="desc hide-mobile">3 樓層 ×（↑↓ 按鈕 + 樓層位置顯示）</td><td class="qty">3 SET</td><td class="price hide-mobile">$ 8,500</td></tr>
+      <tr><td class="tag">PSU-1</td><td>緊急電源 UPS</td><td class="model hide-mobile">APC + 鉛酸電池</td><td class="desc hide-mobile">3 kVA、30 分鐘備援、緊急照明 + 通信維持</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 22,000</td></tr>
+    </tbody></table>
+  </section>
+
+  <!-- E 安全 -->
+  <section class="bom-section">
+    <h2>E · 安全保護系統 <span class="count">5 項</span></h2>
+    <table class="bom"><thead><tr>
+      <th style="width:90px">Tag</th><th>元件名稱</th><th class="hide-mobile">廠牌 / 型號</th><th class="hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+    </tr></thead><tbody>
+      <tr><td class="tag">GOV-1</td><td>限速器 Governor</td><td class="model hide-mobile">PFB / Wittur</td><td class="desc hide-mobile">機械式、動作速度 1.4 × 額定 = 1.4 m/s、NC 切斷主迴路 + 觸發安全鉗</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 38,000</td></tr>
+      <tr><td class="tag">SG-1</td><td>安全鉗 Safety Gear</td><td class="model hide-mobile">瞬時式 / 漸進式</td><td class="desc hide-mobile">轎廂 + 配重各一組、夾緊力 ≥ 1.5 × 重量</td><td class="qty">2 SET</td><td class="price hide-mobile">$ 32,000</td></tr>
+      <tr><td class="tag">SAFETY-PLC</td><td>安全 PLC 模組</td><td class="model hide-mobile">Pilz PNOZ / Siemens</td><td class="desc hide-mobile">SIL-3 認證、STO / SBC / SS1、EN 81-20 合規</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 48,000</td></tr>
+      <tr><td class="tag">LIMIT</td><td>上下限位開關</td><td class="model hide-mobile">磁感應 NC × 2</td><td class="desc hide-mobile">頂端 + 底端 final limit、強制停車</td><td class="qty">2 SET</td><td class="price hide-mobile">$ 6,800</td></tr>
+      <tr><td class="tag">INTERCOM</td><td>緊急通話系統</td><td class="model hide-mobile">CommendPro / 自動撥號</td><td class="desc hide-mobile">轎內 + 管理室 + 機房三點、24/7 監聽、含 SIM 卡備援</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 35,000</td></tr>
+    </tbody></table>
+  </section>
+
+  <!-- F 合計 -->
+  <section class="bom-section">
+    <h2>F · 合計 <span class="count">含設備、安裝、調適</span></h2>
+    <div class="grid md:grid-cols-5 gap-3 mt-3">
+      <div class="border border-white/10 rounded-lg p-3">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">A 主機 + 配重</p>
+        <p class="text-2xl font-bold mt-1 font-mono">$ 375 K</p>
+      </div>
+      <div class="border border-white/10 rounded-lg p-3">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">B 轎廂 + 門</p>
+        <p class="text-2xl font-bold mt-1 font-mono">$ 643 K</p>
+      </div>
+      <div class="border border-white/10 rounded-lg p-3">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">C 井道 + 緩衝</p>
+        <p class="text-2xl font-bold mt-1 font-mono">$ 231 K</p>
+      </div>
+      <div class="border border-white/10 rounded-lg p-3">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">D 控制 + 驅動</p>
+        <p class="text-2xl font-bold mt-1 font-mono">$ 440.5 K</p>
+      </div>
+      <div class="border border-white/10 rounded-lg p-3">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">E 安全保護</p>
+        <p class="text-2xl font-bold mt-1 font-mono">$ 159.8 K</p>
+      </div>
+    </div>
+    <div class="border border-zinc-700 rounded-lg p-4 mt-4 bg-gradient-to-r from-lime-500/10 to-transparent">
+      <div class="flex items-baseline justify-between">
+        <p class="text-sm text-zinc-300">設備、安裝、調適小計（未稅）</p>
+        <p class="font-mono text-3xl font-bold text-lime-400">NT$ 1,849,300</p>
+      </div>
+      <p class="text-xs text-zinc-500 mt-2">不含井道土建（業主自行負擔）、年度檢修合約、保險登記費；參考市場單價、最終以實際採購為準。</p>
+    </div>
+  </section>
+
+  <p class="text-xs text-zinc-600 mt-12 leading-relaxed border-t border-white/5 pt-6">
+    本 BOM 對應 P&amp;ID（<a href="elev.html" class="underline hover:text-lime-400">elev.html</a>）及 3D 模型（<a href="elev-3d.html" class="underline hover:text-lime-400">elev-3d.html</a>）。
+  </p>
+
+</main>
+</body>
+</html>

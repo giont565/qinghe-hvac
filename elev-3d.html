@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elevator 3D · 客梯機械系統</title>
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<style>
+  :root { --ink:#f5f5f7; --sub:#86868b; --sensor:#A3E635; --actuator:#FB923C; --rope:#00D4FF; --safety:#F472B6; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; background:#050505; color:var(--ink); font-family:-apple-system, "SF Pro Display", "Noto Sans TC", sans-serif; }
+  canvas { display:block; }
+  #viewport { position:fixed; inset:0; }
+
+  .hud { position:fixed; z-index:10; background:rgba(15,15,17,.78); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:14px 18px; font-size:13px; }
+  .hud-tl { top:60px; left:16px; }
+  .hud-tr { top:60px; right:16px; min-width:280px; }
+  .hud-bl { bottom:16px; left:16px; }
+  .hud-br { bottom:16px; right:16px; }
+  h1 { font-size:18px; font-weight:600; letter-spacing:-.01em; margin-bottom:4px; }
+  .sub { color:var(--sub); font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
+  .controls { display:grid; gap:6px; margin-top:12px; }
+  .ctrl-btn { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; font-size:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:7px; color:var(--ink); cursor:pointer; transition:background .2s; font-family:inherit; }
+  .ctrl-btn:hover { background:rgba(255,255,255,.09); }
+  .ctrl-btn.active { background:rgba(163,230,53,.12); border-color:rgba(163,230,53,.4); }
+  .key { color:var(--sub); font-family:"SF Mono", monospace; font-size:10px; }
+  .info { font-size:11px; line-height:1.6; color:var(--sub); }
+  .info b { color:var(--ink); }
+  .key-hint kbd { display:inline-block; padding:1px 5px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:3px; color:var(--ink); font-family:inherit; font-size:10px; }
+  #selected { position:fixed; left:16px; top:50%; transform:translateY(-50%); z-index:10; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(163,230,53,.3); border-radius:12px; padding:14px 18px; min-width:240px; max-width:280px; font-size:12px; opacity:0; transition:opacity .25s; pointer-events:none; }
+  #selected.show { opacity:1; }
+  #selected h3 { font-size:14px; font-weight:600; margin-bottom:6px; color:var(--sensor); }
+  #selected .row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed rgba(255,255,255,.08); }
+  #selected .row .k { color:var(--sub); }
+  #selected .row .v { font-family:"SF Mono", monospace; }
+
+  /* 共用導覽 */
+  .site-nav { position:fixed; top:0; left:0; right:0; z-index:200; height:46px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; background:rgba(10,11,14,.82); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.06); font-size:12px; }
+  .site-brand { display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; font-weight:600; }
+  .brand-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#a3e635,#00d4ff); box-shadow:0 0 8px rgba(163,230,53,.5); }
+  .site-sys { display:flex; align-items:center; gap:6px; padding:4px 10px; margin-left:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:6px; font-size:11px; color:var(--sub); }
+  .site-sys select { background:transparent; border:none; color:var(--ink); font-size:12px; font-family:inherit; cursor:pointer; }
+  .site-tabs { display:flex; gap:4px; padding:3px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:9px; flex-wrap:wrap; }
+  .site-tabs a { padding:6px 12px; border-radius:6px; color:#86868b; text-decoration:none; font-size:12px; display:flex; align-items:center; gap:6px; }
+  .site-tabs a:hover { background:rgba(255,255,255,.06); color:var(--ink); }
+  .site-tabs a.is-active { background:rgba(163,230,53,.14); color:#a3e635; border:1px solid rgba(163,230,53,.3); }
+  @media (max-width: 768px) { .site-nav { padding:0 8px; height:42px; font-size:11px; } .site-brand span:last-child { display:none; } }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div style="display:flex;align-items:center">
+    <a class="site-brand" href="index.html">
+      <span class="brand-dot"></span>
+      <span>PUSD辦公室MEP · 機電系統</span>
+    </a>
+    <div class="site-sys">
+      <span>系統</span>
+      <select onchange="if(this.value)location.href=this.value">
+        <option value="index.html">HVAC 空調</option>
+        <option value="elev.html" selected>🛗 客梯</option>
+      </select>
+    </div>
+  </div>
+  <div class="site-tabs">
+    <a href="elev.html"><span>▣</span> P&amp;ID</a>
+    <a href="elev-3d.html" class="is-active"><span>◆</span> 3D 模型</a>
+    <a href="elev-bom.html"><span>≡</span> BOM</a>
+  </div>
+</nav>
+
+<canvas id="viewport"></canvas>
+
+<div id="loader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#050505;color:#f5f5f7;z-index:100;text-align:center;padding:24px">
+  <div>
+    <div style="font-size:24px;font-weight:600;margin-bottom:12px">🛗 載入電梯 3D 模型中</div>
+    <div style="color:#86868b;font-size:13px">正在從 CDN 載入 Three.js…</div>
+  </div>
+</div>
+
+<div class="hud hud-tl">
+  <p class="sub">B 棟 · 客梯 · ELEV-01</p>
+  <h1>Elevator · 客梯機械系統</h1>
+  <p class="info" style="margin-top:6px">4-stop MRL traction lift · 13 人 / 900 kg / 1.0 m/s</p>
+</div>
+
+<div class="hud hud-tr">
+  <p class="sub">View Controls</p>
+  <div class="controls">
+    <button class="ctrl-btn" data-action="explode"><span>系統拆解 Exploded</span><span class="key">E</span></button>
+    <button class="ctrl-btn active" data-action="shaft"><span>顯示井道 Shaft</span><span class="key">S</span></button>
+    <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
+  </div>
+</div>
+
+<div class="hud hud-bl">
+  <p class="key-hint"><kbd>單指/左鍵</kbd> 旋轉　<kbd>滾輪/雙指</kbd> 縮放　<kbd>點擊</kbd> 元件查看</p>
+</div>
+
+<div class="hud hud-br">
+  <p class="sub">Specs</p>
+  <p class="info"><b>900 kg</b> · <b>1.0 m/s</b> · <b>4-stop</b> · <b>13 person</b> · <b>Gearless MRL</b></p>
+</div>
+
+<div id="selected">
+  <h3 id="sel-name">—</h3>
+  <p id="sel-desc" class="info"></p>
+  <div id="sel-specs"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('viewport');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050505);
+scene.fog = new THREE.Fog(0x050505, 25, 60);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(9, 7, 10);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 40;
+controls.target.set(0, 6, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.32));
+const keyL = new THREE.DirectionalLight(0xffffff, 1.0); keyL.position.set(8, 18, 10); keyL.castShadow = true;
+keyL.shadow.mapSize.set(2048, 2048);
+keyL.shadow.camera.left=-12; keyL.shadow.camera.right=12; keyL.shadow.camera.top=16; keyL.shadow.camera.bottom=-2;
+scene.add(keyL);
+scene.add(Object.assign(new THREE.DirectionalLight(0xb0c4de, 0.32), { position: new THREE.Vector3(-8, 6, -4) }));
+scene.add(Object.assign(new THREE.DirectionalLight(0xa3e635, 0.28), { position: new THREE.Vector3(0, 6, -12) }));
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.95 }));
+ground.rotation.x = -Math.PI/2; ground.position.y = -0.5; ground.receiveShadow = true;
+scene.add(ground);
+scene.add(Object.assign(new THREE.GridHelper(50, 50, 0x222, 0x161616), { position: new THREE.Vector3(0, -0.49, 0) }));
+
+// ====== Elevator 尺寸 ======
+const FLOOR_H = 3.5;       // 樓層高
+const FLOORS = 4;          // 4 stops (1F / 2F / 3F / RF)
+const SHAFT_W = 2.2;       // 井道寬 (X)
+const SHAFT_D = 2.4;       // 井道深 (Z)
+const SHAFT_H = FLOOR_H * (FLOORS - 1) + 4.5;  // 14.0
+const CAB_W = 1.6;
+const CAB_D = 1.6;
+const CAB_H = 2.3;
+
+const ELEV = new THREE.Group(); scene.add(ELEV);
+
+// ============ 1. Hoistway 井道 (透明殼) ============
+const matShaft = new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.7, metalness: 0.2, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
+const shaftBox = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W, SHAFT_H, SHAFT_D), matShaft);
+shaftBox.position.set(0, SHAFT_H/2 - 1.5, 0); // 含 1.5m pit
+shaftBox.userData = { name:"Hoistway 井道", kind:"shaft", desc:"電梯井道（含 1.5m 緩衝坑 + 機房上方頂層）", specs:[["截面","2.2×2.4 m"],["總高","14 m"],["樓層","B1（pit）→ 1F → 2F → 3F → RF"],["防火","2 hr fire rating"]] };
+ELEV.add(shaftBox);
+const shaftEdges = new THREE.LineSegments(new THREE.EdgesGeometry(shaftBox.geometry), new THREE.LineBasicMaterial({ color: 0xf5f5f7 }));
+shaftEdges.position.copy(shaftBox.position); ELEV.add(shaftEdges);
+
+// ============ 2. Pit 緩衝坑底 (混凝土) ============
+const pit = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W*0.98, 0.3, SHAFT_D*0.98),
+  new THREE.MeshStandardMaterial({ color: 0x4a5160, roughness: 0.9 }));
+pit.position.set(0, -1.35, 0); ELEV.add(pit);
+pit.userData = { name:"Pit 緩衝坑底", kind:"pit", desc:"井道底部 1.5m 預留空間，含緩衝器與底部限位", specs:[["深度","1.5 m"],["排水","Φ75 落水頭"]] };
+
+// 樓層線 + 號牌
+const floorMat = new THREE.LineBasicMaterial({ color: 0x666 });
+for (let i = 0; i < FLOORS; i++) {
+  const y = i * FLOOR_H;
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-SHAFT_W/2 - 0.2, y, SHAFT_D/2 + 0.05),
+    new THREE.Vector3(SHAFT_W/2 + 0.2, y, SHAFT_D/2 + 0.05)
+  ]), floorMat);
+  ELEV.add(line);
+  // 號牌 sprite
+  const cv = document.createElement('canvas'); cv.width=128; cv.height=64;
+  const cx = cv.getContext('2d');
+  cx.fillStyle='rgba(15,15,17,.9)'; cx.fillRect(0,0,128,64);
+  cx.strokeStyle='#a3e635'; cx.lineWidth=2; cx.strokeRect(2,2,124,60);
+  cx.fillStyle='#a3e635'; cx.font='bold 32px sans-serif'; cx.textAlign='center';
+  const label = i === FLOORS-1 ? 'RF' : `${i+1}F`;
+  cx.fillText(label, 64, 44);
+  const tex = new THREE.CanvasTexture(cv);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex }));
+  sprite.scale.set(0.6, 0.3, 1);
+  sprite.position.set(-SHAFT_W/2 - 0.45, y + 1.0, SHAFT_D/2 + 0.05);
+  ELEV.add(sprite);
+}
+
+// ============ 3. Cab 轎廂 ============
+const cabGroup = new THREE.Group();
+const initialCabY = FLOOR_H + 0.3;  // 停在 2F 附近
+cabGroup.position.set(0, initialCabY, -0.3);
+// 轎體
+const cabBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, CAB_H, CAB_D),
+  new THREE.MeshStandardMaterial({ color: 0xe8eaef, roughness: 0.4, metalness: 0.6, transparent: true, opacity: 0.85 }));
+cabBody.castShadow = true;
+cabGroup.add(cabBody);
+// 轎廂頂部馬達連接點 (sling)
+const sling = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.1, 0.1, CAB_D + 0.1),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.8, roughness: 0.4 }));
+sling.position.y = CAB_H/2 + 0.1; cabGroup.add(sling);
+// COP 控制板（內部右側牆）
+const cop = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, 0.2),
+  new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.7 }));
+cop.position.set(CAB_W/2 - 0.03, 0.3, 0.3);
+cabGroup.add(cop);
+// COP 按鈕燈
+for (let i = 0; i < 4; i++) {
+  const btn = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
+    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.4 }));
+  btn.position.set(CAB_W/2 - 0.005, 0.55 - i*0.12, 0.3);
+  cabGroup.add(btn);
+}
+// 轎門（雙開）
+const doorMat = new THREE.MeshStandardMaterial({ color: 0xb0b4ba, metalness: 0.85, roughness: 0.3 });
+const cabDoorL = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.05, CAB_H - 0.2, 0.04), doorMat);
+cabDoorL.position.set(-CAB_W/4 + 0.025, 0, CAB_D/2 + 0.02);
+cabGroup.add(cabDoorL);
+const cabDoorR = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.05, CAB_H - 0.2, 0.04), doorMat);
+cabDoorR.position.set(CAB_W/4 - 0.025, 0, CAB_D/2 + 0.02);
+cabGroup.add(cabDoorR);
+cabGroup.userData = { name:"Cab 轎廂", kind:"cab", desc:"乘客車廂 + 雙開門 + COP 操作板", specs:[["容量","13 人 / 900 kg"],["速度","1.0 m/s"],["材質","SUS304 髮絲紋"],["門","中分雙開 2-panel"]] };
+cabGroup.userData.basePos = cabGroup.position.clone();
+ELEV.add(cabGroup);
+
+// ============ 4. Counterweight 配重 ============
+const cwGroup = new THREE.Group();
+cwGroup.position.set(0, FLOOR_H*1.8, -SHAFT_D/2 + 0.3);
+const cwFrame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.8, 0.4),
+  new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.8, roughness: 0.5 }));
+cwGroup.add(cwFrame);
+// 配重塊 (堆疊條)
+for (let i = 0; i < 8; i++) {
+  const block = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.18, 0.32),
+    new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.7, roughness: 0.65 }));
+  block.position.y = -0.7 + i * 0.20;
+  cwGroup.add(block);
+}
+cwGroup.userData = { name:"Counterweight 配重", kind:"cw", desc:"配重塊 — 平衡 50% 額定 + 轎廂自重", specs:[["重量","2,100 kg (cab + 50% load)"],["材質","鑄鐵塊堆疊"],["導軌","T70/B"]] };
+cwGroup.userData.basePos = cwGroup.position.clone();
+ELEV.add(cwGroup);
+
+// ============ 5. Guide Rails 導軌 (4 條) ============
+const railMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.85, roughness: 0.3 });
+// 轎廂左右導軌
+[ -SHAFT_W/2 + 0.15, SHAFT_W/2 - 0.15 ].forEach(x => {
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, SHAFT_H, 0.12), railMat);
+  rail.position.set(x, SHAFT_H/2 - 1.5, -0.3);
+  rail.userData = { name:"Cab Guide Rail 轎廂導軌", kind:"rail", desc:"T 型鋼導軌 T90/B", specs:[["截面","T90/B"],["材質","冷拉精軋鋼"],["軌距","2,200 mm"],["接續","每段 5m 含 fishplate"]] };
+  ELEV.add(rail);
+});
+// 配重導軌
+[ -0.2, 0.2 ].forEach(x => {
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, SHAFT_H, 0.1), railMat);
+  rail.position.set(x, SHAFT_H/2 - 1.5, -SHAFT_D/2 + 0.3);
+  rail.userData = { name:"CW Guide Rail 配重導軌", kind:"rail", desc:"配重 T 型導軌 T70/B", specs:[["截面","T70/B"]] };
+  ELEV.add(rail);
+});
+
+// ============ 6. Machine Group (頂部馬達 + 牽引輪) ============
+const machGroup = new THREE.Group();
+machGroup.position.set(0, SHAFT_H - 1.8, -0.3);
+// 馬達 + 永磁齒輪 (gearless)
+const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.55, 24),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.35 }));
+motor.rotation.z = Math.PI/2;
+machGroup.add(motor);
+// 牽引輪 (sheave)
+const sheave = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.12, 32),
+  new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.9, roughness: 0.25 }));
+sheave.rotation.z = Math.PI/2;
+sheave.position.x = 0.35;
+machGroup.add(sheave);
+// 制動器 (brake)
+const brake = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.25),
+  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.6, roughness: 0.4 }));
+brake.position.x = -0.4;
+machGroup.add(brake);
+machGroup.userData = { name:"Hoist Machine 牽引機", kind:"machine", desc:"永磁同步無齒輪曳引機（MRL）", specs:[["型式","PMSM Gearless"],["功率","8.5 kW"],["額定轉速","119 rpm"],["扭矩","580 Nm"],["效率","IE5"]] };
+machGroup.userData.basePos = machGroup.position.clone();
+ELEV.add(machGroup);
+
+// ============ 7. Hoist Ropes 牽引繩 (從 sheave 一側到 cab 頂, 另一側到 cw 頂) ============
+const ropeMat = new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.4 });
+// rope to cab
+const ropeCab = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, SHAFT_H - 4.0, 8), ropeMat);
+ropeCab.position.set(0.35, (SHAFT_H - 1.8 + initialCabY + CAB_H/2 + 0.1) / 2, -0.3);
+ropeCab.scale.y = (SHAFT_H - 1.8 - (initialCabY + CAB_H/2 + 0.1)) / (SHAFT_H - 4.0);
+ropeCab.userData = { name:"Hoist Rope 牽引鋼絲繩 (cab)", kind:"rope", desc:"主曳引鋼絲繩（轎廂側）", specs:[["規格","8 × Φ10 mm"],["材質","8x19 Seale"],["安全係數","≥ 12:1"],["維護","年度檢測"]] };
+ELEV.add(ropeCab);
+// rope to cw
+const ropeCw = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, SHAFT_H - 4.0, 8), ropeMat);
+ropeCw.position.set(0.35, (SHAFT_H - 1.8 + cwGroup.position.y + 0.9) / 2, -SHAFT_D/2 + 0.3);
+ropeCw.scale.y = (SHAFT_H - 1.8 - (cwGroup.position.y + 0.9)) / (SHAFT_H - 4.0);
+ELEV.add(ropeCw);
+// 由 sheave 頂跨過去的水平段（視覺示意）
+const ropeHoriz = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.005, SHAFT_D - 0.6), ropeMat);
+ropeHoriz.position.set(0.35, SHAFT_H - 1.45, -0.3 + (-SHAFT_D/2 + 0.3 - (-0.3))/2);
+ELEV.add(ropeHoriz);
+
+// ============ 8. Buffers 緩衝器 (pit 2 個) ============
+[[0, -SHAFT_D/2 + 0.3], [0, 0]].forEach(([x, z], i) => {
+  const buf = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.5, 16),
+    new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.5, roughness: 0.4 }));
+  buf.position.set(x, -1.0, z);
+  buf.userData = { name: i===0 ? "CW Buffer 配重緩衝器" : "Cab Buffer 轎廂緩衝器", kind:"safety", desc:"油壓式緩衝器（速度 ≥ 1.0m/s 需用）", specs:[["型式","油壓緩衝 oil buffer"],["容量","符合 EN 81-20"],["位置","pit 底部"]] };
+  ELEV.add(buf);
+});
+
+// ============ 9. Governor 限速器 + 安全鉗 ============
+const govGroup = new THREE.Group();
+govGroup.position.set(SHAFT_W/2 - 0.15, SHAFT_H - 2.3, -0.3);
+const govWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 24),
+  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.85, roughness: 0.3 }));
+govWheel.rotation.z = Math.PI/2;
+govGroup.add(govWheel);
+const govBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.25),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.7 }));
+govBase.position.set(-0.1, -0.15, 0); govGroup.add(govBase);
+govGroup.userData = { name:"Governor 限速器", kind:"safety", desc:"超速保護 — 觸發安全鉗夾緊導軌", specs:[["動作速度","1.4 × 額定 = 1.4 m/s"],["重設","手動 reset"],["訊號","NC 切斷主迴路"]] };
+ELEV.add(govGroup);
+// 限速器繩（細鋼絲，貫穿全井道）
+const govRope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, SHAFT_H - 1.5, 6),
+  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.7 }));
+govRope.position.set(SHAFT_W/2 - 0.15, (SHAFT_H - 2.3 - 0.5)/2, -0.3);
+ELEV.add(govRope);
+
+// ============ 10. Door Operator + Landing Doors (3 層) ============
+[1, 2, 3].forEach(f => {
+  const y = (f - 1) * FLOOR_H;
+  const ldL = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.02, CAB_H - 0.2, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.85, roughness: 0.3 }));
+  ldL.position.set(-CAB_W/4 + 0.01, y + (CAB_H - 0.2)/2 + 0.05, SHAFT_D/2 + 0.02);
+  ldL.userData = { name:`Landing Door ${f}F (Left)`, kind:"door", desc:`${f} 樓層門 — 左片`, specs:[["材質","髮絲紋 SUS304"],["互鎖","mechanical + electrical interlock"]] };
+  ELEV.add(ldL);
+  const ldR = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.02, CAB_H - 0.2, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.85, roughness: 0.3 }));
+  ldR.position.set(CAB_W/4 - 0.01, y + (CAB_H - 0.2)/2 + 0.05, SHAFT_D/2 + 0.02);
+  ELEV.add(ldR);
+  // 樓層 hall button (兩按鈕 ↑↓ 或單按鈕)
+  const hall = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.8 }));
+  hall.position.set(CAB_W/2 + 0.35, y + 1.2, SHAFT_D/2 + 0.03);
+  ELEV.add(hall);
+});
+
+// ============ 11. Controller Cabinet (旁置控制盤) ============
+const ctrlElev = new THREE.Group();
+ctrlElev.position.set(-SHAFT_W/2 - 1.2, 0.95, 0);
+const ctrlBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.85, 0.35),
+  new THREE.MeshStandardMaterial({ color: 0xd0d3da, metalness: 0.7, roughness: 0.4 }));
+ctrlElev.add(ctrlBox);
+const ctrlWin = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.1, 0.005),
+  new THREE.MeshStandardMaterial({ color: 0x0a0d12, transparent: true, opacity: 0.25 }));
+ctrlWin.position.z = 0.18; ctrlElev.add(ctrlWin);
+// 內部 VFD + CPU + 安全模組
+const cabVFD = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.15),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.6 }));
+cabVFD.position.set(0, 0.3, 0.08); ctrlElev.add(cabVFD);
+const cabCPU = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.12),
+  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.4 }));
+cabCPU.position.set(0, -0.1, 0.08); ctrlElev.add(cabCPU);
+// 銘版
+{
+  const cv = document.createElement('canvas'); cv.width=512; cv.height=80;
+  const cx = cv.getContext('2d');
+  cx.fillStyle='#1a1d24'; cx.fillRect(0,0,512,80);
+  cx.fillStyle='#a3e635'; cx.font='bold 36px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
+  cx.fillText('ELEV CTRL · 控制盤', 256, 40);
+  const tex = new THREE.CanvasTexture(cv);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.1), new THREE.MeshBasicMaterial({ map: tex }));
+  tag.position.set(0, 0.78, 0.18); ctrlElev.add(tag);
+}
+ctrlElev.userData = { name:"Elevator Controller 控制盤", kind:"controller", desc:"電梯控制櫃 — 含 VFD + CPU + 安全繼電器", specs:[["VFD","KEB Combivert F6"],["CPU","Motion controller"],["安全","SIL-3 STO/SBC/SS1"],["通訊","CANopen + Modbus"]] };
+ELEV.add(ctrlElev);
+
+// ============ 12. Sensors ============
+function addElevSensor(name, pos, desc, specs) {
+  const g = new THREE.Group(); g.position.set(...pos);
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.6 })));
+  g.userData = { name, kind:"sensor", desc, specs };
+  ELEV.add(g);
+}
+// 上下端站 limit switches
+addElevSensor("Top Limit 上限位",     [SHAFT_W/2 - 0.1, SHAFT_H - 2.6, -0.3], "頂端強制停止", [["型式","NC magnetic"]]);
+addElevSensor("Bottom Limit 下限位",  [SHAFT_W/2 - 0.1, -0.4, -0.3], "底端強制停止", [["型式","NC magnetic"]]);
+// 加速 / 減速 / Final limit
+addElevSensor("Encoder 編碼器",       [-0.4, SHAFT_H - 1.8, -0.3], "馬達絕對位置回授", [["型式","Heidenhain EBI 1135"],["分辨率","2¹⁹ × 4096"]]);
+addElevSensor("Load Cell 載重",       [0, initialCabY + 1.3, -0.3], "轎廂底架載重監測", [["範圍","0-1200 kg"],["110% 過載警報"]]);
+addElevSensor("Door Zone 樓層感應",   [-0.85, FLOOR_H + 1.5, -0.3], "磁感應 / 光電 — 樓層平層精確停車", [["精度","±3 mm"]]);
+
+// ============ Click-to-Select ==============
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const selectedEl = document.getElementById('selected');
+function findRoot(o) { while (o && !o.userData?.name) o = o.parent; return o; }
+
+canvas.addEventListener('click', e => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(scene.children, true);
+  if (hits.length) {
+    const root = findRoot(hits[0].object);
+    if (root?.userData?.name) {
+      document.getElementById('sel-name').textContent = root.userData.name;
+      document.getElementById('sel-desc').textContent = root.userData.desc || '';
+      const specs = document.getElementById('sel-specs');
+      while (specs.firstChild) specs.removeChild(specs.firstChild);
+      (root.userData.specs || []).forEach(([k, v]) => {
+        const r = document.createElement('div'); r.className = 'row';
+        const sk = document.createElement('span'); sk.className = 'k'; sk.textContent = k;
+        const sv = document.createElement('span'); sv.className = 'v'; sv.textContent = v;
+        r.appendChild(sk); r.appendChild(sv); specs.appendChild(r);
+      });
+      selectedEl.classList.add('show'); return;
+    }
+  }
+  selectedEl.classList.remove('show');
+});
+
+// HUD Controls
+let exploded = false;
+function setExplode(on) {
+  exploded = on;
+  const f = on ? 1 : 0;
+  cabGroup.position.set(cabGroup.userData.basePos.x + f*3, cabGroup.userData.basePos.y, cabGroup.userData.basePos.z + f*2);
+  cwGroup.position.set(cwGroup.userData.basePos.x - f*2, cwGroup.userData.basePos.y, cwGroup.userData.basePos.z - f*2);
+  machGroup.position.set(machGroup.userData.basePos.x, machGroup.userData.basePos.y + f*2, machGroup.userData.basePos.z);
+}
+let shaftOn = true;
+function setShaftVis(on) { shaftOn = on; shaftBox.visible = on; shaftEdges.visible = on; }
+
+document.querySelectorAll('.ctrl-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const a = btn.dataset.action;
+    if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
+    else if (a === 'shaft') { setShaftVis(!shaftOn); btn.classList.toggle('active', shaftOn); }
+    else if (a === 'reset') { camera.position.set(9, 7, 10); controls.target.set(0, 6, 0); }
+  });
+});
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'e') setExplode(!exploded);
+  else if (k === 's') setShaftVis(!shaftOn);
+  else if (k === 'r') { camera.position.set(9, 7, 10); controls.target.set(0, 6, 0); }
+});
+
+// 動畫：轎廂上下移動 + sheave 轉
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.005;
+  // 轎廂上下動（範圍 1F ~ 3F）
+  if (!exploded) {
+    const wave = (Math.sin(t) + 1) / 2; // 0~1
+    const y = wave * FLOOR_H * 2 + 0.3;
+    cabGroup.position.y = y;
+    cwGroup.position.y = (FLOOR_H * 2) - (y - 0.3) + 0.7; // 配重反向
+    // 牽引輪旋轉
+    sheave.rotation.x += Math.cos(t) * 0.08;
+    motor.rotation.x += Math.cos(t) * 0.08;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+const loader = document.getElementById('loader');
+if (loader) loader.style.display = 'none';
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
