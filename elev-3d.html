@@ -270,27 +270,183 @@ const cabGroup = new THREE.Group();
 //   → 與 landing door 中心 (y + ldPanelH/2 + 0.05 = (樓 idx)*FLOOR_H + 1.10) 完全對齊
 const initialCabY = FLOOR_H + 1.15;  // 停在 2F 平層
 cabGroup.position.set(0, initialCabY, 0.5);  // 推到 shaft 前方（門側）— 騰出後方給 CW
-// 轎體
+// 轎體（透明殼讓外人可窺視內部殘障設施）
 const cabBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, CAB_H, CAB_D),
-  new THREE.MeshStandardMaterial({ color: 0xe8eaef, roughness: 0.4, metalness: 0.6, transparent: true, opacity: 0.85 }));
+  new THREE.MeshStandardMaterial({ color: 0xe8eaef, roughness: 0.4, metalness: 0.5,
+    transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
 cabBody.castShadow = true;
 cabGroup.add(cabBody);
 // 轎廂頂部馬達連接點 (sling)
 const sling = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.1, 0.1, CAB_D + 0.1),
   new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.8, roughness: 0.4 }));
 sling.position.y = CAB_H/2 + 0.1; cabGroup.add(sling);
-// COP 控制板（內部右側牆）
-const cop = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.7 }));
-cop.position.set(CAB_W/2 - 0.03, 0.3, 0.3);
-cabGroup.add(cop);
-// COP 按鈕燈
+
+// ============ 殘障標準內裝（CNS 12642 / IBC accessibility）============
+const cabInterior = new THREE.Group();
+const floorY = -CAB_H/2 + 0.02;
+const ceilY  =  CAB_H/2 - 0.02;
+const backZ  = -CAB_D/2 + 0.02;
+
+// 1. 防滑地板 (深灰) + 中央輪椅迴轉圓 (黃色提示環)
+const floorPlate = new THREE.Mesh(
+  new THREE.BoxGeometry(CAB_W - 0.06, 0.02, CAB_D - 0.06),
+  new THREE.MeshStandardMaterial({ color: 0x4a5160, roughness: 0.95, metalness: 0.1 }));
+floorPlate.position.set(0, floorY + 0.01, 0);
+cabInterior.add(floorPlate);
+const turnRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.55, 0.585, 48),
+  new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
+turnRing.rotation.x = -Math.PI/2;
+turnRing.position.set(0, floorY + 0.022, 0);
+turnRing.userData = { name:"輪椅迴轉區 Wheelchair Turn Zone", kind:"ada", desc:"地面黃色提示環 — Ø1.1m 迴轉空間", specs:[["直徑","1,100 mm"],["顏色","高對比黃色 RAL 1023"],["材質","防滑壓花"]] };
+cabInterior.add(turnRing);
+
+// 2. 後牆鏡子（供輪椅倒退使用，900mm 起到天花）
+const mirrorFrame = new THREE.Mesh(
+  new THREE.PlaneGeometry(CAB_W - 0.30, 1.30),
+  new THREE.MeshStandardMaterial({ color: 0x5b6068, metalness: 0.7 }));
+mirrorFrame.position.set(0, 0.30, backZ + 0.002);
+cabInterior.add(mirrorFrame);
+const mirror = new THREE.Mesh(
+  new THREE.PlaneGeometry(CAB_W - 0.36, 1.24),
+  new THREE.MeshStandardMaterial({ color: 0xb8c8dc, metalness: 0.98, roughness: 0.04,
+    emissive: 0x2a3340, emissiveIntensity: 0.25 }));
+mirror.position.set(0, 0.30, backZ + 0.004);
+mirror.userData = { name:"後牆鏡 Rear Mirror", kind:"ada", desc:"供輪椅使用者倒退進出對位", specs:[["高度","900-2,100 mm"],["材質","防爆安全鏡面"]] };
+cabInterior.add(mirror);
+
+// 3. 三面扶手 Handrail (800-850mm 高)
+const railY = floorY + 0.85;
+const handrailMat = new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.95, roughness: 0.25 });
+const railBack = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, CAB_W - 0.25, 16), handrailMat);
+railBack.rotation.z = Math.PI/2;
+railBack.position.set(0, railY, backZ + 0.05);
+railBack.userData = { name:"後牆扶手 Handrail (Back)", kind:"ada", desc:"圓形不鏽鋼扶手 Ø44mm", specs:[["高度","850 mm"],["材質","SUS304 拉絲"]] };
+cabInterior.add(railBack);
+const railL = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, CAB_D - 0.30, 16), handrailMat);
+railL.rotation.x = Math.PI/2;
+railL.position.set(-CAB_W/2 + 0.05, railY, 0);
+cabInterior.add(railL);
+const railR = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, CAB_D - 0.55, 16), handrailMat);
+railR.rotation.x = Math.PI/2;
+railR.position.set(CAB_W/2 - 0.05, railY, -0.15);
+cabInterior.add(railR);
+// 扶手支架 (5 個 L 型托)
+const brkMat = new THREE.MeshStandardMaterial({ color: 0x8e9098, metalness: 0.8 });
+[[-0.45, backZ + 0.06], [0.45, backZ + 0.06],
+ [-CAB_W/2 + 0.06, -0.35], [-CAB_W/2 + 0.06, 0.35],
+ [CAB_W/2 - 0.06, -0.30]].forEach(([x, z]) => {
+  const br = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 0.04), brkMat);
+  br.position.set(x, railY, z); cabInterior.add(br);
+});
+
+// 4. 主 COP (高位 1,200mm — 健常人/站立) — 取代原本只是 box 的 COP
+const copMain = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.95, 0.22),
+  new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.8, roughness: 0.4 }));
+copMain.position.set(CAB_W/2 - 0.02, floorY + 1.40, 0.30);
+copMain.userData = { name:"主 COP 操作盤 (高位)", kind:"cop", desc:"站立使用 — 安裝高度 1,000-1,200 mm", specs:[["按鈕","樓層 + 開關門 + 緊急"],["凸字","符合 CNS 17585"]] };
+cabInterior.add(copMain);
+// 樓層按鈕（圓形 + 凸字 + 點字小凸點）
+const floorBtns = [];
 for (let i = 0; i < 4; i++) {
-  const btn = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
-    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.4 }));
-  btn.position.set(CAB_W/2 - 0.005, 0.55 - i*0.12, 0.3);
-  cabGroup.add(btn);
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.005, 18),
+    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.25 }));
+  btn.rotation.z = Math.PI/2;
+  btn.position.set(CAB_W/2 - 0.013, floorY + 1.20 + i*0.10, 0.30);
+  cabInterior.add(btn); floorBtns.push(btn);
+  // 該按鈕對應點字凸點 (簡化：3 顆小圓點)
+  for (let j = 0; j < 3; j++) {
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.0025, 6, 4),
+      new THREE.MeshStandardMaterial({ color: 0xeee, emissive: 0xaaa, emissiveIntensity: 0.4 }));
+    dot.position.set(CAB_W/2 - 0.013, floorY + 1.205 + i*0.10, 0.265 + j*0.010);
+    cabInterior.add(dot);
+  }
 }
+// 緊急通話按鈕 (紅) + 麥克風柵
+const emCall = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.006, 18),
+  new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.55 }));
+emCall.rotation.z = Math.PI/2;
+emCall.position.set(CAB_W/2 - 0.014, floorY + 1.75, 0.30);
+emCall.userData = { name:"緊急通話 Emergency Call", kind:"ada", desc:"24h 對講機 + 視覺 + 聽覺雙重警示", specs:[["顏色","國際紅 RAL 3020"],["凸字","SOS"],["連線","保全中心"]] };
+cabInterior.add(emCall);
+const micGrille = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.05, 0.045),
+  new THREE.MeshStandardMaterial({ color: 0x222 }));
+micGrille.position.set(CAB_W/2 - 0.014, floorY + 1.84, 0.30);
+cabInterior.add(micGrille);
+
+// 5. 低位 COP (殘障 850mm — 輪椅可達) — 同樣是右牆但低處
+const copLow = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.42, 0.22),
+  new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.8, roughness: 0.4 }));
+copLow.position.set(CAB_W/2 - 0.02, floorY + 0.70, 0.30);
+copLow.userData = { name:"低位 COP 操作盤", kind:"ada", desc:"輪椅可達 — 安裝高度 850-1,000 mm", specs:[["按鈕高","850-900 mm"],["凸字","必備"]] };
+cabInterior.add(copLow);
+// 低位 4 顆樓層按鈕
+for (let i = 0; i < 4; i++) {
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.005, 18),
+    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.25 }));
+  btn.rotation.z = Math.PI/2;
+  btn.position.set(CAB_W/2 - 0.013, floorY + 0.55 + i*0.08, 0.30);
+  cabInterior.add(btn);
+}
+
+// 6. 樓層顯示器 (門上方大字 LED — 含到達語音/方向箭頭)
+const dispBezel = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.01),
+  new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.7 }));
+dispBezel.position.set(0, doorBaseY + doorPanelH/2 + 0.20, CAB_D/2 - 0.10);
+cabInterior.add(dispBezel);
+const dispCv = document.createElement('canvas'); dispCv.width = 320; dispCv.height = 128;
+const dispTex = new THREE.CanvasTexture(dispCv);
+const dispMat = new THREE.MeshBasicMaterial({ map: dispTex, transparent: true });
+const dispScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.11), dispMat);
+dispScreen.position.set(0, doorBaseY + doorPanelH/2 + 0.20, CAB_D/2 - 0.094);
+cabInterior.add(dispScreen);
+function paintFloorDisp(floor, dirCh) {
+  const cx = dispCv.getContext('2d');
+  cx.fillStyle = '#000'; cx.fillRect(0, 0, 320, 128);
+  cx.fillStyle = '#ff7043'; cx.font = 'bold 70px monospace';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(floor + 'F', 200, 64);
+  cx.fillStyle = '#ff7043'; cx.font = 'bold 56px sans-serif';
+  cx.fillText(dirCh, 60, 64);
+  dispTex.needsUpdate = true;
+}
+paintFloorDisp(1, '↑');
+
+// 7. 摺疊椅 (左牆後段 — 老人/殘障短暫休息)
+const seatBracket = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.35),
+  new THREE.MeshStandardMaterial({ color: 0x5b6068, metalness: 0.8 }));
+seatBracket.position.set(-CAB_W/2 + 0.04, floorY + 0.46, -0.25);
+cabInterior.add(seatBracket);
+const seatPad = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.03, 0.30),
+  new THREE.MeshStandardMaterial({ color: 0x2a2e36 }));
+seatPad.position.set(-CAB_W/2 + 0.10, floorY + 0.47, -0.25);
+seatPad.userData = { name:"摺疊椅 Folding Seat", kind:"ada", desc:"老人/殘障短暫休息用", specs:[["座面高","450 mm"],["承重","120 kg"]] };
+cabInterior.add(seatPad);
+
+// 8. LED 天花板 (主照明 暖白 4000K + 緊急照明備援)
+const ceilPanel = new THREE.Mesh(
+  new THREE.BoxGeometry(CAB_W - 0.20, 0.025, CAB_D - 0.20),
+  new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xfff4d6, emissiveIntensity: 0.6 }));
+ceilPanel.position.set(0, ceilY - 0.012, 0);
+ceilPanel.userData = { name:"LED 主照明 + 緊急照明", kind:"light", desc:"4,000K 暖白 + 停電自動切備援電池", specs:[["照度","≥ 200 lx"],["備援","1.5 hr"]] };
+cabInterior.add(ceilPanel);
+// 4 個小聚光燈 (角落)
+[[-0.55, -0.55], [0.55, -0.55], [-0.55, 0.55], [0.55, 0.55]].forEach(([x, z]) => {
+  const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.015, 16),
+    new THREE.MeshStandardMaterial({ color: 0xfff8e0, emissive: 0xfff8e0, emissiveIntensity: 0.9 }));
+  sp.position.set(x, ceilY - 0.01, z);
+  cabInterior.add(sp);
+});
+
+// 9. 門邊地面樓層點字標 (landing edge — 視障使用者腳感)
+const dotStrip = new THREE.Mesh(
+  new THREE.BoxGeometry(CAB_W - 0.30, 0.005, 0.04),
+  new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.3 }));
+dotStrip.position.set(0, floorY + 0.025, CAB_D/2 - 0.08);
+dotStrip.userData = { name:"門檻警示帶", kind:"ada", desc:"高對比黃色提示帶 — 視障 + 弱視使用者腳感", specs:[["寬度","40 mm"],["顏色","RAL 1023"]] };
+cabInterior.add(dotStrip);
+
+cabGroup.add(cabInterior);
 // ===== 轎門 + 門機構 (雙開、含 operator + vane) =====
 const doorMat = new THREE.MeshStandardMaterial({ color: 0xb0b4ba, metalness: 0.85, roughness: 0.3 });
 const doorPanelW = CAB_W/2 - 0.05;
@@ -1226,6 +1382,10 @@ function animate() {
     cwGroup.position.y = (FLOOR_H * 2) - (cabY - 1.15) + 0.7;  // CW 反向同步
     // 牽引輪轉動：只在移動時轉
     const moving = phase > 4 && phase < 8 || phase > 12 && phase < 16 || phase > 20;
+    // 樓層顯示器：依目前 targetFloor 即時刷新
+    const dispFloorNo = Math.round(targetFloor) + 1;
+    const dispDir = moving ? (phase < 16 ? '↑' : '↓') : '●';
+    paintFloorDisp(dispFloorNo, dispDir);
     if (moving) {
       sheave.rotation.x += 0.12;
       motor.rotation.x += 0.12;
