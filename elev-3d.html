@@ -296,6 +296,10 @@ const initialCabY = FLOOR_H + 1.15;  // 停在 2F 平層
 // → landing door z=1.27 在 cab door z=1.175 外側 95mm，順序正確、不重疊
 const CAB_Z = 0.35;
 cabGroup.position.set(0, initialCabY, CAB_Z);
+// 門尺寸 — 提前宣告，給內裝中的樓層顯示器用
+const doorPanelW = CAB_W/2 - 0.05;
+const doorPanelH = CAB_H - 0.2;
+const doorBaseY = -0.05;  // 門中心 Y（cab local）
 // 轎體（透明殼讓外人可窺視內部殘障設施）
 const cabBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, CAB_H, CAB_D),
   new THREE.MeshStandardMaterial({ color: 0xe8eaef, roughness: 0.4, metalness: 0.5,
@@ -475,9 +479,7 @@ cabInterior.add(dotStrip);
 cabGroup.add(cabInterior);
 // ===== 轎門 + 門機構 (雙開、含 operator + vane) =====
 const doorMat = new THREE.MeshStandardMaterial({ color: 0xb0b4ba, metalness: 0.85, roughness: 0.3 });
-const doorPanelW = CAB_W/2 - 0.05;
-const doorPanelH = CAB_H - 0.2;
-const doorBaseY = -0.05;  // 門中心 Y
+// doorPanelW / doorPanelH / doorBaseY 已在前面提前宣告
 
 // 內門（轎門）左右兩片
 const cabDoorL = new THREE.Mesh(new THREE.BoxGeometry(doorPanelW, doorPanelH, 0.04), doorMat);
