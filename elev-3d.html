@@ -265,7 +265,10 @@ for (let i = 0; i < FLOORS; i++) {
 
 // ============ 3. Cab 轎廂 ============
 const cabGroup = new THREE.Group();
-const initialCabY = FLOOR_H + 0.3;  // 停在 2F 附近
+// 平層公式：cabGroup 中心 Y = (樓 idx)*FLOOR_H + 1.15
+//   → cab door 中心 = cabY + doorBaseY(-0.05) = (樓 idx)*FLOOR_H + 1.10
+//   → 與 landing door 中心 (y + ldPanelH/2 + 0.05 = (樓 idx)*FLOOR_H + 1.10) 完全對齊
+const initialCabY = FLOOR_H + 1.15;  // 停在 2F 平層
 cabGroup.position.set(0, initialCabY, 0.5);  // 推到 shaft 前方（門側）— 騰出後方給 CW
 // 轎體
 const cabBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, CAB_H, CAB_D),
@@ -1044,9 +1047,9 @@ function animate() {
     } else {                       // 20-24: 3F → 1F 直接降
       targetFloor = 2 - (phase - 20) / 4 * 2;
     }
-    const cabY = targetFloor * FLOOR_H + 0.3;
+    const cabY = targetFloor * FLOOR_H + 1.15;  // 平層基準，對齊 landing door
     cabGroup.position.y = cabY;
-    cwGroup.position.y = (FLOOR_H * 2) - (cabY - 0.3) + 0.7;
+    cwGroup.position.y = (FLOOR_H * 2) - (cabY - 1.15) + 0.7;  // CW 反向同步
     // 牽引輪轉動：只在移動時轉
     const moving = phase > 4 && phase < 8 || phase > 12 && phase < 16 || phase > 20;
     if (moving) {
