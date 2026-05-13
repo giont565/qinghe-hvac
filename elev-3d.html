@@ -145,13 +145,13 @@ const keyL = new THREE.DirectionalLight(0xffffff, 1.0); keyL.position.set(8, 18,
 keyL.shadow.mapSize.set(2048, 2048);
 keyL.shadow.camera.left=-12; keyL.shadow.camera.right=12; keyL.shadow.camera.top=16; keyL.shadow.camera.bottom=-2;
 scene.add(keyL);
-scene.add(Object.assign(new THREE.DirectionalLight(0xb0c4de, 0.32), { position: new THREE.Vector3(-8, 6, -4) }));
-scene.add(Object.assign(new THREE.DirectionalLight(0xa3e635, 0.28), { position: new THREE.Vector3(0, 6, -12) }));
+const fillL = new THREE.DirectionalLight(0xb0c4de, 0.32); fillL.position.set(-8, 6, -4); scene.add(fillL);
+const rimL = new THREE.DirectionalLight(0xa3e635, 0.28); rimL.position.set(0, 6, -12); scene.add(rimL);
 
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.95 }));
 ground.rotation.x = -Math.PI/2; ground.position.y = -0.5; ground.receiveShadow = true;
 scene.add(ground);
-scene.add(Object.assign(new THREE.GridHelper(50, 50, 0x222, 0x161616), { position: new THREE.Vector3(0, -0.49, 0) }));
+const grid = new THREE.GridHelper(50, 50, 0x222222, 0x161616); grid.position.y = -0.49; scene.add(grid);
 
 // ====== Elevator 尺寸 ======
 const FLOOR_H = 3.5;       // 樓層高
