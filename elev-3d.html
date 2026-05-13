@@ -846,21 +846,25 @@ ELEV.add(machGroup);
 // ============ 7. Hoist Ropes 牽引繩 (8 條，分佈 sheave 8 個槽) ============
 const ropeMat = new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.4 });
 const sheaveCenterY = SHAFT_H - 1.8;
-const cabTopY = initialCabY + CAB_H/2 + 0.1;
-const cwTopY = cwGroup.position.y + 0.9;
+const initialCabTopY = initialCabY + CAB_H/2 + 0.1;
+const initialCwTopY = cwGroup.position.y + 0.9;
+const cabRopes = [];  // [{mesh, baseLen}]
+const cwRopes  = [];
 for (let i = 0; i < 8; i++) {
   const grooveX = 0.35 + (i - 3.5) * 0.022;
   // cab 側 (從 sheave 下到 cab 頂)
-  const ropeLenCab = sheaveCenterY - cabTopY;
+  const ropeLenCab = sheaveCenterY - initialCabTopY;
   const rCab = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, ropeLenCab, 6), ropeMat);
-  rCab.position.set(grooveX, (sheaveCenterY + cabTopY)/2, CAB_Z);  // cab 側繩，z 跟 cab
+  rCab.position.set(grooveX, (sheaveCenterY + initialCabTopY)/2, CAB_Z);
   rCab.userData = { name:`Hoist Rope #${i+1} (cab)`, kind:"rope", desc:"主曳引鋼絲繩 — 轎廂側 8 條中第 "+(i+1)+" 條", specs:[["規格","Φ10 mm × 8 條"],["材質","8×19 Seale 鋼絲繩"],["安全係數","≥ 12:1"]] };
   ELEV.add(rCab);
+  cabRopes.push({ mesh: rCab, baseLen: ropeLenCab });
   // cw 側 (sheave 下到 cw 頂)
-  const ropeLenCw = sheaveCenterY - cwTopY;
+  const ropeLenCw = sheaveCenterY - initialCwTopY;
   const rCw = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, ropeLenCw, 6), ropeMat);
-  rCw.position.set(grooveX, (sheaveCenterY + cwTopY)/2, -SHAFT_D/2 + 0.22);  // CW 側繩
+  rCw.position.set(grooveX, (sheaveCenterY + initialCwTopY)/2, -SHAFT_D/2 + 0.22);
   ELEV.add(rCw);
+  cwRopes.push({ mesh: rCw, baseLen: ropeLenCw });
 }
 // sheave 頂跨繩段（弧形示意 — 多條細線跨過）
 const CW_Z = -SHAFT_D/2 + 0.22;  // -0.98
@@ -1569,6 +1573,19 @@ function animate() {
     const cabY = targetFloor * FLOOR_H + 1.15;  // 平層基準，對齊 landing door
     cabGroup.position.y = cabY;
     cwGroup.position.y = (FLOOR_H * 2) - (cabY - 1.15) + 0.85;  // CW 反向同步（+0.85 保 11cm buffer 淨距）
+    // 鋼索動態跟隨 cab/CW（避免 cab 移動時繩穿過轎廂）
+    const cabTopNow = cabY + CAB_H/2 + 0.1;
+    const cwTopNow  = cwGroup.position.y + 0.9;
+    cabRopes.forEach(r => {
+      const len = Math.max(0.05, sheaveCenterY - cabTopNow);
+      r.mesh.position.y = (sheaveCenterY + cabTopNow) / 2;
+      r.mesh.scale.y = len / r.baseLen;
+    });
+    cwRopes.forEach(r => {
+      const len = Math.max(0.05, sheaveCenterY - cwTopNow);
+      r.mesh.position.y = (sheaveCenterY + cwTopNow) / 2;
+      r.mesh.scale.y = len / r.baseLen;
+    });
     // 牽引輪轉動：只在移動時轉（門特寫/內裝特寫鎖層 → 不動）
     const movingFrac = targetFloor - Math.round(targetFloor);
     const moving = !doorMode && !cabinDoorForceOpen && Math.abs(movingFrac) > 0.02;
