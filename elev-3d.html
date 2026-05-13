@@ -904,11 +904,27 @@ cabGroup.add(doorOpGroup);
 const vaneMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.35, emissive: 0x441f00, emissiveIntensity: 0.15 });
 const vaneL = new THREE.Mesh(new THREE.BoxGeometry(0.025, doorPanelH - 0.4, 0.05), vaneMat);
 vaneL.position.set(cabDoorL_close + doorPanelW/2, doorBaseY, CAB_D/2 + 0.06);
-vaneL.userData = { name:"Door Vane 離合葉", kind:"door", desc:"轎門 vane (skate)：到樓層才夾住 landing door 的 clutch 一起拉開", specs:[["位置","轎門左片外緣"],["原理","只有在樓層水平誤差 ±50mm 內才接合"]] };
+vaneL.userData = { name:"Door Vane 離合葉 (門刀)", kind:"door", desc:"轎門 vane (skate / 門刀)：到樓層才夾住 landing door 的 clutch 一起拉開", specs:[["位置","轎門左片外緣"],["原理","只有在樓層水平誤差 ±50mm 內才接合"]] };
 cabGroup.add(vaneL);
 const vaneR = new THREE.Mesh(new THREE.BoxGeometry(0.025, doorPanelH - 0.4, 0.05), vaneMat);
 vaneR.position.set(cabDoorR_close - doorPanelW/2, doorBaseY, CAB_D/2 + 0.06);
 cabGroup.add(vaneR);
+
+// Skate Rollers (門刀輪) — 每片 vane 上下端各一個小滾輪、cab 對位時頂開 landing door lock roller、推進機械解鎖
+const skateRollerMat = new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.92, roughness: 0.2, emissive: 0x000000, emissiveIntensity: 0 });
+const _skateRollers = [];   // 用於 cab 對位時 emissive pulse
+[vaneL, vaneR].forEach((vane, vIdx) => {
+  [+1, -1].forEach(side => {
+    const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.045, 18), skateRollerMat.clone());
+    roller.rotation.x = Math.PI/2;   // 軸沿 Z（朝井道）— roller 在 X-Y 平面上滾動
+    roller.position.set(0, side * ((doorPanelH - 0.4)/2 - 0.10), 0.035);  // 相對 vane local：上端/下端、稍微突出 vane 表面 35mm
+    roller.userData = { name:`Skate Roller ${vIdx === 0 ? 'L' : 'R'}-${side > 0 ? 'Top' : 'Bot'} 門刀輪`, kind:"door",
+      desc:"vane (門刀) 末端滾輪 — cab 對位時跟 landing door 的 lock roller 接觸並推開、實現「機械解鎖 → 帶動 landing door」二段動作",
+      specs:[["材質","硬化鋼 + Delrin 外圈"],["直徑","Φ40 mm"],["軸承","precision deep groove"]] };
+    vane.add(roller);
+    _skateRollers.push(roller);
+  });
+});
 
 // Photocell 光電（門邊感應，紅外線阻擋偵測）
 const photocellMat = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.7 });
@@ -1881,6 +1897,47 @@ ldFloors.forEach(f => {
   clutchR.position.set(ldR_close - ldPanelW/2 + 0.005, doorCenterY, SHAFT_D/2 + 0.045);
   landingFloorGroup.add(clutchR);
 
+  // ===== 門鎖機構 Door Interlock（cab vane 必須推開鎖鉤、電氣接點才閉合允許運轉）=====
+  // Lock Hook 鎖鉤 — 用 group 把 pivot 移到頂端、cab 對位 vane 推開時翻起釋放
+  const lockHookGroup = new THREE.Group();
+  lockHookGroup.position.set(ldL_close + ldPanelW/2 - 0.030, doorCenterY + 0.22, SHAFT_D/2 + 0.075);
+  const lockHook = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.07, 0.025),
+    new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.25 }));
+  lockHook.position.y = -0.035;   // 相對 group origin（軸）下垂 35mm 形成「鉤住」姿勢
+  lockHookGroup.add(lockHook);
+  // 鉤端的彎勾（小斜塊）
+  const lockHookTip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.018, 0.025),
+    new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.25 }));
+  lockHookTip.position.set(0.012, -0.060, 0);
+  lockHookGroup.add(lockHookTip);
+  lockHookGroup.userData = { name:`Door Lock Hook ${f}F 門鎖鉤`, kind:"safety",
+    desc:"層門機械鎖鉤 — 平常勾住鎖體確保門無法被外力扳開、cab 對位 vane 推開鎖體 → 鉤翻起釋放、解鎖後電氣接點才 NC 閉合允許運轉",
+    specs:[["型式","Mechanical Hook + counterweight"],["釋放方式","cab vane skate roller 推 lock roller"],["安規","符合 EN 81-20 / CNS 17436"]] };
+  landingFloorGroup.add(lockHookGroup);
+
+  // Lock Body 鎖體（被鉤住的長條）
+  const lockBody = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.025, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0x9aa1ad, metalness: 0.9, roughness: 0.25 }));
+  lockBody.position.set(ldL_close + ldPanelW/2 - 0.045, doorCenterY + 0.135, SHAFT_D/2 + 0.075);
+  lockBody.userData = { name:`Door Lock Body ${f}F 鎖體承壓塊`, kind:"safety", desc:"承壓塊 — 跟 hook 配合、平常被鉤住" };
+  landingFloorGroup.add(lockBody);
+
+  // Door Interlock Contact Box 電氣接點箱（NC contact、鎖緊時通電）
+  const interlockBox = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.030),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.85, roughness: 0.3 }));
+  interlockBox.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 + 0.075);
+  interlockBox.userData = { name:`Door Interlock Contact ${f}F 門電氣接點`, kind:"safety",
+    desc:"門電氣聯鎖接點 — 機械鎖鉤勾緊時 NC 閉合、給主迴路通電；門開瞬斷使電梯立刻停止（雙重保護：機械鎖 + 電氣 contact）",
+    specs:[["型式","NC contact, force-guided"],["雙路","主+備兩組獨立"],["反饋","控制盤 I/O"],["失效模式","fail-safe（斷路即停）"]] };
+  landingFloorGroup.add(interlockBox);
+
+  // Interlock Status LED 狀態指示燈（綠=鎖緊通電 / 紅閃=門開斷電）
+  const interlockLED = new THREE.Mesh(new THREE.SphereGeometry(0.013, 14, 10),
+    new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.2 }));
+  interlockLED.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 + 0.092);
+  interlockLED.userData = { name:`Interlock LED ${f}F`, kind:"light", desc:"狀態指示 — 綠=鎖緊允許運轉 / 紅閃=門開禁止運轉" };
+  landingFloorGroup.add(interlockLED);
+
   // ===== 外叫面板 Hall Call Station（門框右側，廳堂可見）=====
   const hallStation = new THREE.Group();
   hallStation.position.set(CAB_W/2 + 0.30, y + 1.20, SHAFT_D/2 + 0.04);
@@ -1937,7 +1994,7 @@ ldFloors.forEach(f => {
   // 存指標讓 animate 即時更新
   hallDisplays.push({ canvas: hallDispCv, tex: hallDispTex, floor: f });
 
-  landingDoors.push({ floor: f, L: ldL, R: ldR, clutchL, clutchR, ldL_close, ldR_close, y });
+  landingDoors.push({ floor: f, L: ldL, R: ldR, clutchL, clutchR, ldL_close, ldR_close, y, lockHookGroup, interlockLED });
   ELEV.add(landingFloorGroup);
   landingFloorGroups.push({ floor: f, group: landingFloorGroup });
 });
@@ -3080,6 +3137,25 @@ function animate() {
       ld.clutchR.material.emissive.setHex(_clutchEngaged ? 0x004035 : 0x000000);
       ld.clutchL.material.emissiveIntensity = _clutchPulse;
       ld.clutchR.material.emissiveIntensity = _clutchPulse;
+      // === 機構連動視覺 #5：門鎖鉤翻起 + 接點 LED 顏色（看出「門關鎖緊→接點通電→電梯允許運轉」雙重保護鏈）===
+      if (ld.lockHookGroup) {
+        // 平常 rotation.z = 0 勾住鎖體；cab 對位+開門 → 鉤翻起 -π/4（pivot 在頂端）
+        ld.lockHookGroup.rotation.z = _clutchEngaged ? -Math.PI/4 : 0;
+      }
+      if (ld.interlockLED) {
+        // 門關鎖緊（NC contact 閉合）= 綠常亮；門開（接點斷）= 紅閃
+        const _locked = !_clutchEngaged;
+        const _green = 0x22c55e, _red = 0xf43f5e;
+        ld.interlockLED.material.color.setHex(_locked ? _green : _red);
+        ld.interlockLED.material.emissive.setHex(_locked ? _green : _red);
+        ld.interlockLED.material.emissiveIntensity = _locked ? 1.2 : (0.8 + Math.sin(t * 25) * 0.5);
+      }
+    });
+    // === 機構連動視覺 #6：cab vane skate roller (門刀輪) 對位時微亮（看出 vane 是用滾輪接觸 landing door 的 lock roller、不是死碰）===
+    const _skateGlow = (vaneL.material.emissiveIntensity > 0.4);
+    _skateRollers.forEach(r => {
+      r.material.emissive.setHex(_skateGlow ? 0x223040 : 0x000000);
+      r.material.emissiveIntensity = _skateGlow ? 0.6 : 0;
     });
   }
 
