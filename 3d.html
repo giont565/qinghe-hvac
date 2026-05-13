@@ -2205,9 +2205,8 @@ const elecPanel = makeCabinet(
   [["容量","11 kW"],["輸入","380V 3φ"],["保護等級","IP54"],["散熱","下進上排自然對流"]],
   vfdGroup
 );
-// 旋轉 90° 與 AHU 垂直 + 移到 OA 風管「斜後方」避免共線
-elecPanel.rotation.y = Math.PI/2;  // cabinet 長軸朝 Z、face 朝 +X 對著 AHU
-elecPanel.position.set(-4.0, 0.95, -1.85);  // 偏離 OA 中心線 z=0
+// 不旋轉 → cabinet 正面（雙開門）朝 +Z（朝 AHU 那側），維護人員可正面開門
+elecPanel.position.set(-4.0, 0.95, -1.85);  // X 軸左右並排第 1 櫃
 panelsGroup.add(elecPanel);
 
 // CTRL PANEL (控制盤櫃) — 內裝 BA Controller
@@ -2218,8 +2217,8 @@ const ctrlPanel = makeCabinet(
   [["控制器","Honeywell Niagara 4"],["通訊","BACnet/IP"],["I/O","11 in / 6 out"],["備援","UPS 30 min"]],
   baGroup
 );
-ctrlPanel.rotation.y = Math.PI/2;
-ctrlPanel.position.set(-3.4, 0.95, -1.85);  // 第二櫃並排在 ELEC 右側（緊鄰 ELEC、留 10cm gap）
+// 不旋轉 → 與 ELEC 同方向（face 朝 +Z）；X 軸左右並排（cabinet W=0.85，相距 0.95 留 10cm gap）
+ctrlPanel.position.set(-3.05, 0.95, -1.85);  // ELEC X=-4.0 → CTRL X=-3.05
 panelsGroup.add(ctrlPanel);
 
 // ====== 上進線：天花板 cable tray + 兩櫃頂進線 ======
@@ -2248,10 +2247,10 @@ panelsGroup.add(glandElec);
 
 // CTRL 上進線（細綠、控制訊號）：tray 往下進入 CTRL 櫃頂
 const downCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.85, 8), matCtrlCable);
-downCtrl.position.set(-3.4, 2.25, -1.85);
+downCtrl.position.set(-3.05, 2.25, -1.85);
 panelsGroup.add(downCtrl);
 const glandCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.04, 12), matConduit);
-glandCtrl.position.set(-3.4, 1.86, -1.85);
+glandCtrl.position.set(-3.05, 1.86, -1.85);
 panelsGroup.add(glandCtrl);
 
 // tray 往 AHU 端的 trunk + 下行 + 90° 彎頭 + 水平接到 AHU 殼頂（控制 + 動力總線）
