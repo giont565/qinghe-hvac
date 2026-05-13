@@ -820,6 +820,124 @@ function showArrows(visible) {
   for (const k in motionArrows) motionArrows[k].visible = visible;
 }
 
+// ============ 門機構 3D 示意板（浮在 cab 右側、特寫模式才顯示）============
+// 把整套運作流程做成 3D「畫布」：7 個元件方塊 + 6 段連線箭頭，依 doorPhase 高亮
+const schematicGroup = new THREE.Group();
+schematicGroup.position.set(2.6, 1.0, 0.3);  // cab 右側 0.5m，跟 cab 一起動
+schematicGroup.scale.set(0.85, 0.85, 0.85);
+schematicGroup.visible = false;
+
+// 背板
+const schPanel = new THREE.Mesh(
+  new THREE.PlaneGeometry(2.2, 2.8),
+  new THREE.MeshBasicMaterial({ color: 0x0f1014, transparent: true, opacity: 0.92, side: THREE.DoubleSide })
+);
+schPanel.renderOrder = 990;
+schematicGroup.add(schPanel);
+// 邊框（綠色 wireframe）
+const schEdge = new THREE.LineSegments(
+  new THREE.EdgesGeometry(schPanel.geometry),
+  new THREE.LineBasicMaterial({ color: 0xa3e635 })
+);
+schEdge.renderOrder = 991;
+schematicGroup.add(schEdge);
+
+// 標題
+function makeSchTitle(text) {
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#0f1014'; cx.fillRect(0, 0, 512, 64);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 28px sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(text, 256, 32);
+  const tex = new THREE.CanvasTexture(cv);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.22), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false }));
+  mesh.position.set(0, 1.25, 0.005);
+  mesh.renderOrder = 992;
+  return mesh;
+}
+schematicGroup.add(makeSchTitle('🚪 開門機構流程'));
+
+// 製作每個流程方塊
+function makeSchBlock(label, x, y, color) {
+  const cv = document.createElement('canvas'); cv.width = 384; cv.height = 96;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#0f1014'; cx.fillRect(0, 0, 384, 96);
+  cx.strokeStyle = color; cx.lineWidth = 3; cx.strokeRect(2, 2, 380, 92);
+  cx.fillStyle = color; cx.font = 'bold 28px sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(label, 192, 48);
+  const tex = new THREE.CanvasTexture(cv);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.21), mat);
+  mesh.position.set(x, y, 0.01);
+  mesh.renderOrder = 993;
+  mesh.userData.color = color;
+  mesh.userData.material = mat;
+  mesh.userData.baseOpacity = 0.55;
+  return mesh;
+}
+// 流程 8 個方塊（垂直堆疊 + 微縮排，仿 flow chart）
+const schBlocks = {
+  motor:   makeSchBlock('① 馬達 Motor',         -0.50,  1.00, '#fb923c'),
+  belt:    makeSchBlock('② 皮帶 + 滑輪',         0.50,  0.72, '#fb923c'),
+  arm:     makeSchBlock('③ Crank Arm 拉桿',     -0.50,  0.44, '#fb923c'),
+  hanger:  makeSchBlock('④ 門吊架 Hanger',       0.50,  0.16, '#9aa0a8'),
+  door:    makeSchBlock('⑤ 轎門滑開',           -0.50, -0.12, '#9aa0a8'),
+  vane:    makeSchBlock('⑥ Vane 夾入 Clutch',    0.50, -0.40, '#a3e635'),
+  landing: makeSchBlock('⑦ Landing Door 跟隨',  -0.50, -0.68, '#fb923c'),
+  photo:   makeSchBlock('⓼ Photocell 監控',      0.50, -0.96, '#f472b6'),
+};
+Object.values(schBlocks).forEach(b => {
+  b.userData.material.opacity = b.userData.baseOpacity;
+  schematicGroup.add(b);
+});
+
+// 連線箭頭（Z 字型流向，依 doorPhase 高亮）
+function makeFlowArrow(from, to, color) {
+  const points = [from, to];
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.4, depthTest: false });
+  const line = new THREE.Line(geo, mat);
+  line.renderOrder = 992;
+  // 箭頭頭：用小錐
+  const dir = new THREE.Vector3().subVectors(to, from).normalize();
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.04, 0.10, 8),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, depthTest: false })
+  );
+  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  cone.quaternion.copy(quat);
+  cone.position.copy(to).addScaledVector(dir, -0.05);
+  cone.renderOrder = 993;
+  return { line, cone, mat, coneMat: cone.material };
+}
+// 7 段連線
+const schArrows = [
+  ['motor','belt'],
+  ['belt','arm'],
+  ['arm','hanger'],
+  ['hanger','door'],
+  ['door','vane'],
+  ['vane','landing'],
+  ['landing','photo'],
+];
+const flowArrowObjs = [];
+schArrows.forEach(([f, t]) => {
+  const fp = schBlocks[f].position; const tp = schBlocks[t].position;
+  // 從方塊邊緣到下一方塊邊緣
+  const fromV = new THREE.Vector3(fp.x, fp.y - 0.115, 0.01);
+  const toV = new THREE.Vector3(tp.x, tp.y + 0.115, 0.01);
+  const obj = makeFlowArrow(fromV, toV, 0x86868b);
+  schematicGroup.add(obj.line);
+  schematicGroup.add(obj.cone);
+  flowArrowObjs.push(obj);
+});
+
+cabGroup.add(schematicGroup);
+// 注意：schematicGroup 是「特寫才顯示」，邏輯跟 hideInDoorMode 相反，
+// 所以在 setDoorMode() 裡單獨切換，不要丟進 hideInDoorMode。
+
 const doorPanel = document.getElementById('doorPanel');
 const doorStepBar = document.getElementById('doorStepBar');
 const doorStepText = document.getElementById('doorStepText');
@@ -837,6 +955,8 @@ function setDoorMode(on) {
   });
   // 顯示箭頭
   showArrows(on);
+  // 顯示 3D 流程示意板（特寫才顯示）
+  schematicGroup.visible = on;
   // 隱藏雜訊
   hideInDoorMode.forEach(o => o.visible = !on);
   if (on) {
@@ -960,6 +1080,41 @@ function animate() {
       // 更新文字
       doorStepText.textContent = info.text;
       doorStepDesc.textContent = info.desc;
+
+      // === 3D 示意板：依 stepIdx 高亮對應元件方塊 + 連線箭頭 ===
+      const stepBlockMap = [
+        [],                                  // 0 idle
+        ['motor'],                           // 1
+        ['motor','belt'],                    // 2
+        ['belt','arm','hanger'],             // 3
+        ['hanger','door','vane'],            // 4
+        ['door','vane','landing','photo'],   // 5
+      ];
+      const stepArrowMap = [
+        [],          // 0
+        [],          // 1
+        [0],         // 2 motor→belt
+        [1,2],       // 3 belt→arm, arm→hanger
+        [3,4],       // 4 hanger→door, door→vane
+        [5,6],       // 5 vane→landing, landing→photo
+      ];
+      const activeBlocks = new Set(stepBlockMap[stepIdx]);
+      const activeArrows = new Set(stepArrowMap[stepIdx]);
+      const pulse = (Math.sin(t * 4) + 1) / 2 * 0.4 + 0.6;  // 0.6~1.0 慢呼吸
+      for (const [key, block] of Object.entries(schBlocks)) {
+        const isActive = activeBlocks.has(key);
+        block.userData.material.opacity = isActive ? pulse : block.userData.baseOpacity;
+        const s = isActive ? 1.08 : 1.0;
+        block.scale.set(s, s, 1);
+      }
+      flowArrowObjs.forEach((obj, i) => {
+        const isActive = activeArrows.has(i);
+        const op = isActive ? pulse : 0.25;
+        obj.mat.opacity = op;
+        obj.coneMat.opacity = op;
+        obj.mat.color.setHex(isActive ? 0xa3e635 : 0x86868b);
+        obj.coneMat.color.setHex(isActive ? 0xa3e635 : 0x86868b);
+      });
     }
 
     // === 門開合（cab + 對應 landing 同步）===
