@@ -1451,29 +1451,104 @@ chwPipes.add(makePipe([
 ], matChwrTube, 0.065));
 ahuGroup.add(chwPipes);
 
-// ============ Drain Pan + P-trap 排水（負壓密封）============
+// ============ Drain Pan + 負壓排水器 P-trap（凝結水排出 + 水封防回吸）============
 const drainGroup = new THREE.Group();
 const matDrainPan = new THREE.MeshStandardMaterial({ color: 0xa8acb4, roughness: 0.45, metalness: 0.75 });
-const matDrainPipe = new THREE.MeshStandardMaterial({ color: 0xd8dce0, roughness: 0.7, metalness: 0.1 });
-// 排水盤 (盤管下方淺盤，向 +Z 後方排出)
+const matPVC = new THREE.MeshStandardMaterial({ color: 0xeae8e2, roughness: 0.8, metalness: 0.05 });
+const matWater = new THREE.MeshStandardMaterial({ color: 0x40b8e0, transparent: true, opacity: 0.55, roughness: 0.1, metalness: 0.2 });
+
+// 排水盤 (盤管下方)
 const drainPan = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.05, AHU_D*0.82), matDrainPan);
 drainPan.position.set(-1.0, AHU_H*0.075 - 0.05, 0);
 drainGroup.add(drainPan);
-// 排水管 + P-trap（U 形水封，抵擋 AHU 內負壓回吸空氣）
-const matPVC = new THREE.MeshStandardMaterial({ color: 0xeae8e2, roughness: 0.8, metalness: 0.05 });
+
+// 排水盤落水口（從盤底接管出來）
+const drainOutlet = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.12, 12), matPVC);
+drainOutlet.position.set(-1.0, AHU_H*0.075 - 0.12, AHU_D*0.32);
+drainGroup.add(drainOutlet);
+
+// === 負壓排水器（P-trap）— 放大、提升可見度，置於 AHU 外側地面上 ===
+const pTrapGroup = new THREE.Group();
+pTrapGroup.position.set(-1.0, 0.08, 1.4);  // 在 AHU 殼外、地面上、靠近 drain pan
+
+// 1. 下降直管（從排水盤出口下來）
+const trapVertIn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 12), matPVC);
+trapVertIn.position.set(0, 0.18, -0.15);
+pTrapGroup.add(trapVertIn);
+
+// 2. 第 1 個彎頭（90° elbow）
+const elbow1 = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), matPVC);
+elbow1.position.set(0, -0.13, -0.15);
+pTrapGroup.add(elbow1);
+
+// 3. U 形底管（水平）— 水封水池在這裡
+const trapBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.32, 12), matPVC);
+trapBottom.rotation.z = Math.PI/2;
+trapBottom.position.set(0.16, -0.13, -0.15);
+pTrapGroup.add(trapBottom);
+
+// 4. 第 2 個彎頭
+const elbow2 = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), matPVC);
+elbow2.position.set(0.32, -0.13, -0.15);
+pTrapGroup.add(elbow2);
+
+// 5. 上升直管（高度 = 水封深度 = 75mm 約 0.32 顯示）
+const trapVertOut = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.40, 12), matPVC);
+trapVertOut.position.set(0.32, 0.07, -0.15);
+pTrapGroup.add(trapVertOut);
+
+// 6. 出水彎（往側邊排）
+const elbow3 = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), matPVC);
+elbow3.position.set(0.32, 0.30, -0.15);
+pTrapGroup.add(elbow3);
+
+// 7. 出水段（向 +Z 後方排出）
+const drainOut = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.45, 12), matPVC);
+drainOut.rotation.x = Math.PI/2;
+drainOut.position.set(0.32, 0.30, 0.08);
+pTrapGroup.add(drainOut);
+
+// 透視水封水體（半透明藍水）— 視覺強調這是「水封」
+const waterSeal = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.30, 12), matWater);
+waterSeal.rotation.z = Math.PI/2;
+waterSeal.position.set(0.16, -0.13, -0.15);
+pTrapGroup.add(waterSeal);
+// 兩端水柱（U 內水位上升）
+const waterL = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.16, 12), matWater);
+waterL.position.set(0, -0.05, -0.15); pTrapGroup.add(waterL);
+const waterR = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, 0.16, 12), matWater);
+waterR.position.set(0.32, -0.05, -0.15); pTrapGroup.add(waterR);
+
+// 水封深度標註板（靠近 P-trap 旁邊）
+{
+  const cv = document.createElement('canvas'); cv.width=256; cv.height=128;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(15,15,17,.9)'; cx.fillRect(0,0,256,128);
+  cx.strokeStyle = '#a3e635'; cx.lineWidth = 2; cx.strokeRect(2,2,252,124);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 22px -apple-system, sans-serif';
+  cx.textAlign = 'center';
+  cx.fillText('負壓排水器', 128, 38);
+  cx.fillStyle = '#f5f5f7'; cx.font = '16px -apple-system, sans-serif';
+  cx.fillText('P-Trap · 水封 75mm', 128, 66);
+  cx.fillStyle = '#86868b'; cx.font = '13px -apple-system, sans-serif';
+  cx.fillText('防 AHU 負壓回吸 + 阻氣', 128, 92);
+  cx.fillText('DN50 PVC', 128, 110);
+  const tex = new THREE.CanvasTexture(cv);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.24), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  plate.position.set(0.7, 0.05, -0.05);
+  plate.rotation.y = -Math.PI/2;
+  pTrapGroup.add(plate);
+}
+drainGroup.add(pTrapGroup);
+
+// 從 drainPan 出口 → P-trap 進口 的連接管（短，斜下）
 drainGroup.add(makePipe([
-  [-1.0, AHU_H*0.07 - 0.05, AHU_D*0.4],    // 排水盤出口
-  [-1.0, -0.05, AHU_D*0.43],
-  [-1.0, -0.18, AHU_D*0.48],               // 下降
-  [-1.0, -0.32, AHU_D*0.55],               // U 形最低點 (water seal)
-  [-0.90, -0.38, AHU_D*0.60],              // U 底
-  [-0.80, -0.32, AHU_D*0.60],              // U 形上升
-  [-0.80, -0.20, AHU_D*0.58],              // 出 P-trap
-  [-0.80, -0.12, AHU_D*0.60],
-  [-0.80, -0.12, AHU_D*0.75],              // 接到外部排水
-  [-0.80, -0.12, AHU_D*0.95],
-], matPVC, 0.035));
-drainGroup.userData = { name:"Drain Pan + P-trap", kind:"drain", desc:"盤管凝結水排出 + U 形水封（負壓密封）", specs:[["材質","SUS304 排水盤 / PVC 排水管"],["水封深度","75 mm"],["管徑","DN32"],["作用","防止負壓回吸 + 阻止異味"]] };
+  [-1.0, AHU_H*0.075 - 0.18, AHU_D*0.4],
+  [-1.0, 0.20, AHU_D*0.55],
+  [-1.0, 0.26, 1.25],   // 接到 pTrap 入口 (pTrapGroup origin -1.0, 0.08, 1.4)
+], matPVC, 0.045));
+
+drainGroup.userData = { name:"負壓排水器 P-Trap", kind:"drain", desc:"凝結水排出 + U 形水封，防止 AHU 負壓回吸空氣 + 阻擋異味", specs:[["材質","SUS304 排水盤 / PVC DN50"],["水封深度","75 mm（≥ AHU 負壓靜壓）"],["位置","殼外、地面、可清通"],["落水","間接排水至地排"]] };
 ahuGroup.add(drainGroup);
 
 // ============ MV Globe Valve — 裝在 CHWR 線上 ============
@@ -1758,9 +1833,9 @@ const elecPanel = makeCabinet(
   [["容量","11 kW"],["輸入","380V 3φ"],["保護等級","IP54"],["散熱","下進上排自然對流"]],
   vfdGroup
 );
-// 旋轉 90° 與 AHU 垂直 + 靠 OA 端的左側邊（z 軸排列）
-elecPanel.rotation.y = Math.PI/2;  // cabinet 長軸朝 Z，face 朝 +X 對著 AHU
-elecPanel.position.set(-4.6, 0.95, -0.55);
+// 旋轉 90° 與 AHU 垂直 + 移到 OA 風管「斜後方」避免共線
+elecPanel.rotation.y = Math.PI/2;  // cabinet 長軸朝 Z、face 朝 +X 對著 AHU
+elecPanel.position.set(-4.0, 0.95, -1.85);  // 偏離 OA 中心線 z=0
 panelsGroup.add(elecPanel);
 
 // CTRL PANEL (控制盤櫃) — 內裝 BA Controller
@@ -1772,26 +1847,45 @@ const ctrlPanel = makeCabinet(
   baGroup
 );
 ctrlPanel.rotation.y = Math.PI/2;
-ctrlPanel.position.set(-4.6, 0.95, 0.55);
+ctrlPanel.position.set(-3.0, 0.95, -1.85);  // 第二櫃並排在 ELEC 右側、同樣偏離 OA
 panelsGroup.add(ctrlPanel);
 
-// Cable tray + conduit（在 AHU 左側 OA 端往櫃外連接）
+// ====== 上進線：天花板 cable tray + 兩櫃頂進線 ======
 const matConduit = new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.6, metalness: 0.6 });
-// 兩櫃中間連通 tray（垂直 Z 軸）
-const tray = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 1.2), matConduit);
-tray.position.set(-4.6, 0.3, 0);
-panelsGroup.add(tray);
-// 從 ELEC 出來 → AHU 殼底（動力線，粗灰）
-const conduitElec = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.1, 8), matConduit);
-conduitElec.rotation.z = Math.PI/2;
-conduitElec.position.set(-3.4, 0.18, -0.55);
-panelsGroup.add(conduitElec);
-// 從 CTRL 出來 → AHU（控制線，細綠）
-const conduitCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 2.1, 8),
-  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.3, roughness: 0.5 }));
-conduitCtrl.rotation.z = Math.PI/2;
-conduitCtrl.position.set(-3.4, 0.18, 0.55);
-panelsGroup.add(conduitCtrl);
+const matCtrlCable = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.3, roughness: 0.5 });
+
+// 天花板 cable tray (橫向沿 X，跨 AHU 與兩櫃上方)
+const cableTray = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.08, 0.2), matConduit);
+cableTray.position.set(-2.5, 2.7, -1.85);
+panelsGroup.add(cableTray);
+// tray 吊架 (3 支)
+[-1.0, -2.5, -4.0].forEach(x => {
+  const hanger = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.35, 6), matConduit);
+  hanger.position.set(x, 2.88, -1.85);
+  panelsGroup.add(hanger);
+});
+
+// ELEC 上進線（粗灰、動力）：tray 往下進入 ELEC 櫃頂
+const downElec = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.85, 8), matConduit);
+downElec.position.set(-4.0, 2.25, -1.85);
+panelsGroup.add(downElec);
+// elbow 進口蓋 (cable gland)
+const glandElec = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.04, 12), matConduit);
+glandElec.position.set(-4.0, 1.86, -1.85);
+panelsGroup.add(glandElec);
+
+// CTRL 上進線（細綠、控制訊號）：tray 往下進入 CTRL 櫃頂
+const downCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.85, 8), matCtrlCable);
+downCtrl.position.set(-3.0, 2.25, -1.85);
+panelsGroup.add(downCtrl);
+const glandCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.04, 12), matConduit);
+glandCtrl.position.set(-3.0, 1.86, -1.85);
+panelsGroup.add(glandCtrl);
+
+// tray 往 AHU 端的 trunk + 下行進 AHU 殼頂（控制 + 動力總線）
+const trunkDown = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.65, 8), matConduit);
+trunkDown.position.set(-1.0, 2.35, -1.85);
+panelsGroup.add(trunkDown);
 
 // ============== Click-to-Select ==============
 const raycaster = new THREE.Raycaster();
