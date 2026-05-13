@@ -144,7 +144,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <span id="doorPanelClose" style="cursor:pointer;color:#86868b;font-size:18px;line-height:1">×</span>
   </div>
   <!-- 顯示選項 -->
-  <div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;color:#9aa0a8">
+  <div style="display:flex;flex-wrap:wrap;gap:6px 12px;margin-bottom:8px;font-size:11px;color:#9aa0a8">
     <label style="cursor:pointer;display:flex;align-items:center;gap:4px">
       <input type="checkbox" id="toggleCabTop" style="cursor:pointer">
       <span>顯示車頂機構</span>
@@ -152,6 +152,10 @@ window.addEventListener('unhandledrejection', function(e) {
     <label style="cursor:pointer;display:flex;align-items:center;gap:4px">
       <input type="checkbox" id="toggleCabBody" checked style="cursor:pointer">
       <span>顯示 cab 外殼（透視）</span>
+    </label>
+    <label style="cursor:pointer;display:flex;align-items:center;gap:4px">
+      <input type="checkbox" id="toggleFloorDisp" style="cursor:pointer">
+      <span>顯示樓層顯示器</span>
     </label>
   </div>
   <!-- 分頁切換 -->
@@ -631,12 +635,14 @@ const dispBezel = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.01),
   new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.7 }));
 dispBezel.position.set(0, doorBaseY + doorPanelH/2 + 0.20, CAB_D/2 - 0.10);
 cabInterior.add(dispBezel);
+dispBezel.userData.isFloorDisplay = true;
 const dispCv = document.createElement('canvas'); dispCv.width = 320; dispCv.height = 128;
 const dispTex = new THREE.CanvasTexture(dispCv);
 const dispMat = new THREE.MeshBasicMaterial({ map: dispTex, transparent: true });
 const dispScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.11), dispMat);
 dispScreen.position.set(0, doorBaseY + doorPanelH/2 + 0.20, CAB_D/2 - 0.094);
 cabInterior.add(dispScreen);
+dispScreen.userData.isFloorDisplay = true;
 function paintFloorDisp(floor, dirCh) {
   const cx = dispCv.getContext('2d');
   cx.fillStyle = '#000'; cx.fillRect(0, 0, 320, 128);
@@ -1636,10 +1642,12 @@ ldFloors.forEach(f => {
   hallDispBg.position.set(0, y + 2.40, SHAFT_D/2 + 0.04);
   landingFloorGroup.add(hallDispBg);
   hallDispBg.userData.fadeInDoor = true;
+  hallDispBg.userData.isFloorDisplay = true;
   // LED 字幕（畫在面板上）
   const hallDispScreen = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.14), hallDispMat);
   hallDispScreen.position.set(0, y + 2.40, SHAFT_D/2 + 0.053);
   landingFloorGroup.add(hallDispScreen);
+  hallDispScreen.userData.isFloorDisplay = true;
   hallDispScreen.userData = { name:`到樓顯示器 ${f}F`, kind:"hall", desc:"廳堂用 LED 顯示器 — 顯示 cab 目前樓層 + 方向", specs:[["尺寸","460×140 mm"],["顯示","7-seg LED 紅"],["方向","↑↓ 箭頭"]] };
   // 存指標讓 animate 即時更新
   hallDisplays.push({ canvas: hallDispCv, tex: hallDispTex, floor: f });
@@ -2086,15 +2094,18 @@ function setDoorMode(on) {
   // 門機構外的物件 fade 到接近全透明（cab body / 內裝 / 車頂 / 導靴 / 門框 / hall station）
   // 留下：cab門+landing門+vane+clutch+door operator+photocell+hangers → 全清楚
   setFadeMode(on, 0.08);
-  // 預設隱藏車頂機構（擋視野），勾 checkbox 才顯示
+  // 預設隱藏「擋視野」的元件，checkbox 才顯示
   if (on) {
     cabTopGroup.visible = false;
-    const cb = document.getElementById('toggleCabTop');
-    if (cb) cb.checked = false;
-    const cb2 = document.getElementById('toggleCabBody');
-    if (cb2) cb2.checked = true;
+    // 樓層顯示器（cab 內 + 各層門框上方）預設隱藏
+    if (floorDisplayMeshes.length === 0) collectFloorDisplays();
+    floorDisplayMeshes.forEach(m => m.visible = false);
+    const cb = document.getElementById('toggleCabTop');     if (cb)  cb.checked = false;
+    const cb2 = document.getElementById('toggleCabBody');   if (cb2) cb2.checked = true;
+    const cb3 = document.getElementById('toggleFloorDisp'); if (cb3) cb3.checked = false;
   } else {
-    cabTopGroup.visible = true;  // 離開門特寫，車頂回來
+    cabTopGroup.visible = true;
+    if (floorDisplayMeshes.length) floorDisplayMeshes.forEach(m => m.visible = true);
   }
   if (on) {
     // 鏡頭飛到 2F cab 門前（doorMode 強制把 cab 鎖在 2F，這裡用 2F 預測位置）
@@ -2131,6 +2142,18 @@ document.getElementById('toggleCabBody').addEventListener('change', e => {
   sling.visible = show;
   cabInterior.visible = show;
   cabGuideShoes.forEach(s => s.visible = show);
+});
+// 樓層顯示器（cab 內 + 各層門框上方）toggle
+const floorDisplayMeshes = [];
+function collectFloorDisplays() {
+  floorDisplayMeshes.length = 0;
+  scene.traverse(o => {
+    if (o.userData && o.userData.isFloorDisplay) floorDisplayMeshes.push(o);
+  });
+}
+document.getElementById('toggleFloorDisp').addEventListener('change', e => {
+  if (floorDisplayMeshes.length === 0) collectFloorDisplays();
+  floorDisplayMeshes.forEach(m => m.visible = e.target.checked);
 });
 
 // ===== 殘障內裝特寫模式 =====
