@@ -1275,6 +1275,7 @@ function setShaftVis(on) { shaftOn = on; shaftBox.visible = on; shaftEdges.visib
 let doorMode = false;
 let doorModeTargetCam = new THREE.Vector3();
 let doorModeTargetTar = new THREE.Vector3();
+let cameraLerping = false;  // true 才 lerp（用於退出特寫的平滑過渡），進入時直接 snap
 
 // 製作 3D 標籤 (sprite)
 function makeLabel(text, color) {
@@ -1565,13 +1566,16 @@ function setDoorMode(on) {
     cwGroup.position.y = (FLOOR_H * 2) - (lockedCabY - 1.15) + 0.85;
     doorModeTargetCam.set(cabGroup.position.x + 0.4, lockedCabY + 0.3, CAB_Z + 3.4);
     doorModeTargetTar.set(cabGroup.position.x, lockedCabY + 0.1, CAB_Z + 1.0);
-    // 鏡頭直接 snap 到位（不 lerp 才不會中途經過 1F 看起來鏡頭在錯位）
+    // 進入：snap 到位 + 不 lerp（讓使用者可以自由轉鏡頭看標籤）
     camera.position.copy(doorModeTargetCam);
     controls.target.copy(doorModeTargetTar);
-    controls.update();  // 同步 OrbitControls 內部狀態
+    controls.update();
+    cameraLerping = false;
   } else {
+    // 退出：lerp 回預設視角
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
+    cameraLerping = true;
   }
 }
 document.getElementById('doorPanelClose').addEventListener('click', () => setDoorMode(false));
@@ -1606,9 +1610,12 @@ function setCabinMode(on) {
     camera.position.copy(doorModeTargetCam);
     controls.target.copy(doorModeTargetTar);
     controls.update();
+    cameraLerping = false;
   } else {
+    // 退出：lerp 回預設視角
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
+    cameraLerping = true;
   }
 }
 document.getElementById('cabinPanelClose').addEventListener('click', () => setCabinMode(false));
@@ -1647,10 +1654,13 @@ function animate() {
   // 門特寫模式時 t 增長變慢（門開關慢動作）
   t += doorMode ? 0.0015 : 0.005;
 
-  // 鏡頭平滑 lerp 到目標
-  if (doorMode || doorModeTargetCam.lengthSq() > 0) {
-    camera.position.lerp(doorModeTargetCam, 0.06);
-    controls.target.lerp(doorModeTargetTar, 0.06);
+  // 鏡頭 lerp 只在「退出特寫」過渡時才跑；其他時間相機自由（讓使用者轉鏡頭）
+  if (cameraLerping) {
+    camera.position.lerp(doorModeTargetCam, 0.08);
+    controls.target.lerp(doorModeTargetTar, 0.08);
+    if (camera.position.distanceTo(doorModeTargetCam) < 0.05) {
+      cameraLerping = false;  // 到位就放手
+    }
   }
 
   // === 電梯運行 + 門開合狀態機 ===
