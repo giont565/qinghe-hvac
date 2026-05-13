@@ -169,6 +169,18 @@ window.addEventListener('unhandledrejection', e => {
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+// 將 module 內所有錯誤往外推到 loader UI
+function reportErr(e) {
+  const err = document.getElementById('loaderErr');
+  if (err) {
+    err.style.display = 'block';
+    err.textContent = '⚠ ' + (e.message || e) + (e.stack ? '\n' + e.stack.split('\n').slice(0,3).join('\n') : '');
+    document.getElementById('loaderMsg').textContent = '⚠ 初始化失敗';
+  }
+  console.error(e);
+}
+try {
+
 // ============ Scene Setup ============
 const canvas = document.getElementById('viewport');
 const scene = new THREE.Scene();
@@ -198,14 +210,14 @@ keyL.shadow.mapSize.set(2048, 2048);
 keyL.shadow.camera.left=-14; keyL.shadow.camera.right=14; keyL.shadow.camera.top=18; keyL.shadow.camera.bottom=-4;
 keyL.shadow.bias = -0.0008;
 scene.add(keyL);
-scene.add(Object.assign(new THREE.DirectionalLight(0xb0c4de, 0.38), { position: new THREE.Vector3(-10, 6, -4) }));
-scene.add(Object.assign(new THREE.DirectionalLight(0xa3e635, 0.32), { position: new THREE.Vector3(0, 6, -14) }));
+const fillL = new THREE.DirectionalLight(0xb0c4de, 0.38); fillL.position.set(-10, 6, -4); scene.add(fillL);
+const rimL = new THREE.DirectionalLight(0xa3e635, 0.32); rimL.position.set(0, 6, -14); scene.add(rimL);
 
 // Ground + grid
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.95 }));
 ground.rotation.x = -Math.PI/2; ground.position.y = -1.55; ground.receiveShadow = true;
 scene.add(ground);
-scene.add(Object.assign(new THREE.GridHelper(60, 60, 0x222, 0x161616), { position: new THREE.Vector3(0, -1.54, 0) }));
+const grid = new THREE.GridHelper(60, 60, 0x222222, 0x161616); grid.position.y = -1.54; scene.add(grid);
 
 // ============ Dimensions ============
 const FLOOR_H = 3.5;
@@ -991,6 +1003,8 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+} catch (e) { reportErr(e); }
 </script>
 </body>
 </html>
