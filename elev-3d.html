@@ -113,9 +113,30 @@ window.addEventListener('unhandledrejection', function(e) {
 <div class="hud hud-tr">
   <p class="sub">View Controls</p>
   <div class="controls">
+    <button class="ctrl-btn" data-action="door"><span>🔍 門機構特寫</span><span class="key">D</span></button>
     <button class="ctrl-btn" data-action="explode"><span>系統拆解 Exploded</span><span class="key">E</span></button>
     <button class="ctrl-btn active" data-action="shaft"><span>顯示井道 Shaft</span><span class="key">S</span></button>
     <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
+  </div>
+</div>
+
+<!-- 門機構特寫面板 -->
+<div id="doorPanel" style="position:fixed;right:16px;bottom:16px;width:340px;background:rgba(15,15,17,.92);backdrop-filter:blur(20px);border:1px solid rgba(163,230,53,.4);border-radius:12px;padding:14px 18px;font-size:12px;z-index:11;display:none;line-height:1.6">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span style="font-weight:600;color:#a3e635;font-size:14px">🚪 門機構運作原理</span>
+    <span id="doorPanelClose" style="cursor:pointer;color:#86868b;font-size:18px;line-height:1">×</span>
+  </div>
+  <div style="color:#c9ccd1;font-size:11.5px">
+    <p><b style="color:#fb923c">① 馬達 (Motor)</b> — VFD 控速 DC 馬達，雙向轉動驅動開/關門</p>
+    <p><b style="color:#fb923c">② 皮帶 + 滑輪 (Belt + Pulley)</b> — 馬達主動輪 → 封閉式齒型皮帶 → 被動輪，轉動轉成水平直線運動</p>
+    <p><b style="color:#fb923c">③ Crank Arm</b> — 從皮帶下方拉桿接到門吊架，左右兩支同步反向位移</p>
+    <p><b style="color:#fb923c">④ 門吊架 + 上方軌道</b> — 滑塊掛在鋼軌上，門片懸吊滑行 (不接地)</p>
+    <p><b style="color:#a3e635">⑤ Vane 離合葉</b> — 轎門外緣的橘色垂直片，<b>只在 cab 對位 ±50mm 內</b>才能夾入 landing door clutch</p>
+    <p><b style="color:#a3e635">⑥ Clutch 夾鉤</b> — 樓層門上的 U 形機構，被 vane 夾住才會被拉開（中間懸浮樓層門就鎖死）</p>
+    <p><b style="color:#f472b6">⑦ Photocell 光電</b> — 紅外線阻擋偵測，有人擋立即反向開門防夾</p>
+    <p style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.1);color:#86868b">
+      <b>同步原理</b>：轎門開合時，vane 機械夾住該樓層 clutch，把兩層門當作一體拉開 — 即使 landing door 自己沒馬達，也能跟著動。其他樓層門因 vane 不在無法被拉，自動鎖住。
+    </p>
   </div>
 </div>
 
@@ -668,32 +689,98 @@ function setExplode(on) {
 let shaftOn = true;
 function setShaftVis(on) { shaftOn = on; shaftBox.visible = on; shaftEdges.visible = on; }
 
+// ============ 門機構特寫模式：fly-to + 元件標籤 + 慢動作 ============
+let doorMode = false;
+let doorModeTargetCam = new THREE.Vector3();
+let doorModeTargetTar = new THREE.Vector3();
+// 標籤 sprites — 對應 7 個機構元件
+const labelSprites = [];
+function makeLabel(text, color) {
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 56;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = 'rgba(15,15,17,.95)';
+  cx.fillRect(0, 0, 256, 56);
+  cx.strokeStyle = color; cx.lineWidth = 2; cx.strokeRect(1, 1, 254, 54);
+  cx.fillStyle = color; cx.font = 'bold 22px sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(text, 128, 28);
+  const tex = new THREE.CanvasTexture(cv);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sprite.scale.set(0.7, 0.16, 1);
+  sprite.visible = false;
+  return sprite;
+}
+// 7 個標籤：以 cab 局部座標放置（會跟著 cab 移動）
+const labels = [
+  { text: '① 馬達 Motor',     color: '#fb923c', lpos: new THREE.Vector3(-0.35, doorBaseY + doorPanelH/2 + 0.35, CAB_D/2 - 0.05) },
+  { text: '② 皮帶 Belt',      color: '#fb923c', lpos: new THREE.Vector3(0.05,  doorBaseY + doorPanelH/2 + 0.30, CAB_D/2 + 0.10) },
+  { text: '③ Crank Arm',     color: '#fb923c', lpos: new THREE.Vector3(-0.55, doorBaseY + doorPanelH/2 + 0.05, CAB_D/2 + 0.18) },
+  { text: '④ 門吊架 Hanger',  color: '#9aa0a8', lpos: new THREE.Vector3(0.55, doorBaseY + doorPanelH/2 + 0.13, CAB_D/2 + 0.20) },
+  { text: '⑤ Vane 離合葉',    color: '#a3e635', lpos: new THREE.Vector3(0.78,  doorBaseY + 0.4, CAB_D/2 + 0.25) },
+  { text: '⑥ Clutch 夾鉤',    color: '#fb923c', lpos: new THREE.Vector3(0,    doorBaseY + 0.4, CAB_D/2 + 0.50) },  // 樓層門位置
+  { text: '⑦ Photocell',     color: '#f472b6', lpos: new THREE.Vector3(-0.55, doorBaseY - 0.5, CAB_D/2 + 0.30) },
+];
+labels.forEach(lb => {
+  const s = makeLabel(lb.text, lb.color);
+  s.position.copy(lb.lpos);
+  cabGroup.add(s);   // 跟著 cab 一起動
+  labelSprites.push(s);
+});
+
+const doorPanel = document.getElementById('doorPanel');
+function setDoorMode(on) {
+  doorMode = on;
+  document.querySelector('[data-action="door"]').classList.toggle('active', on);
+  doorPanel.style.display = on ? 'block' : 'none';
+  labelSprites.forEach(s => s.visible = on);
+  if (on) {
+    // 鏡頭飛到 cab 前方近距離看門
+    const cabPos = cabGroup.position;
+    doorModeTargetCam.set(cabPos.x + 0.3, cabPos.y + 0.3, cabPos.z + 3.2);
+    doorModeTargetTar.set(cabPos.x, cabPos.y, cabPos.z + 1.0);
+  } else {
+    // 還原
+    doorModeTargetCam.set(9, 7, 10);
+    doorModeTargetTar.set(0, 6, 0);
+  }
+}
+document.getElementById('doorPanelClose').addEventListener('click', () => setDoorMode(false));
+
 document.querySelectorAll('.ctrl-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const a = btn.dataset.action;
-    if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
+    if (a === 'door') setDoorMode(!doorMode);
+    else if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
     else if (a === 'shaft') { setShaftVis(!shaftOn); btn.classList.toggle('active', shaftOn); }
-    else if (a === 'reset') { camera.position.set(9, 7, 10); controls.target.set(0, 6, 0); }
+    else if (a === 'reset') {
+      if (doorMode) setDoorMode(false);
+      camera.position.set(9, 7, 10); controls.target.set(0, 6, 0);
+    }
   });
 });
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  if (k === 'e') setExplode(!exploded);
+  if (k === 'd') setDoorMode(!doorMode);
+  else if (k === 'e') setExplode(!exploded);
   else if (k === 's') setShaftVis(!shaftOn);
-  else if (k === 'r') { camera.position.set(9, 7, 10); controls.target.set(0, 6, 0); }
+  else if (k === 'r') { if (doorMode) setDoorMode(false); camera.position.set(9, 7, 10); controls.target.set(0, 6, 0); }
 });
 
 // 動畫：轎廂上下移動 + sheave 轉
 let t = 0;
 function animate() {
   requestAnimationFrame(animate);
-  t += 0.005;
+  // 門特寫模式時 t 增長變慢（門開關慢動作）
+  t += doorMode ? 0.0015 : 0.005;
+
+  // 鏡頭平滑 lerp 到目標
+  if (doorMode || doorModeTargetCam.lengthSq() > 0) {
+    camera.position.lerp(doorModeTargetCam, 0.06);
+    controls.target.lerp(doorModeTargetTar, 0.06);
+  }
 
   // === 電梯運行 + 門開合狀態機 ===
-  // 邏輯：cab 在三樓層間循環移動 → 到樓層停 → 開門 hold 2.5s → 關門 → 再移動
-  // doorPhase ∈ [0,1]: 0 = 全關, 1 = 全開
   if (!exploded) {
-    // 全循環時間：移動 4s × 3 段 + 開關門 4s × 3 = 24s
     const cycle = 24;
     const phase = (t * 60) % cycle;  // t 累積太慢，乘 60 加速
     let targetFloor = 0;
