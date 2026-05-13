@@ -1187,6 +1187,51 @@
     .toggle-mobile::after { content: "▾"; transition: transform .2s; color: var(--sub); }
     .hud-tr.collapsed .toggle-mobile::after { transform: rotate(-90deg); }
   }
+
+  /* ============ 動作劇本 + 狀態 HUD（控制鏈視覺化）============ */
+  .hud-action { top:16px; right:16px; min-width:280px; pointer-events:auto; margin-top:330px; }
+  .hud-action .sub { color:#fbbf24; }
+  .sce-grid { display:grid; gap:6px; margin-top:10px; }
+  .sce-btn { display:flex; align-items:center; gap:8px; padding:9px 12px; font-size:12px; background:rgba(251,146,60,.08); border:1px solid rgba(251,146,60,.25); border-radius:7px; color:var(--ink); cursor:pointer; transition:background .2s, border-color .2s; font-family:inherit; text-align:left; }
+  .sce-btn:hover { background:rgba(251,146,60,.18); border-color:rgba(251,146,60,.5); }
+  .sce-btn.running { background:rgba(251,146,60,.28); border-color:#fb923c; box-shadow:0 0 12px rgba(251,146,60,.4); }
+  .sce-btn .ico { font-size:14px; }
+  .sce-btn[data-sce="fire"]:hover { background:rgba(244,114,182,.16); border-color:rgba(244,114,182,.6); }
+  .sce-btn[data-sce="filter"]:hover { background:rgba(251,191,36,.16); border-color:rgba(251,191,36,.6); }
+  .sce-btn.reset-btn { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.12); margin-top:4px; }
+
+  /* 底部狀態 HUD — 顯示當前 step + 檢查機制 */
+  .status-bar { position:fixed; left:50%; bottom:80px; transform:translateX(-50%); z-index:11; min-width:380px; max-width:560px; background:rgba(15,15,17,.92); backdrop-filter:blur(20px); border:1px solid rgba(251,146,60,.45); border-radius:14px; padding:12px 18px; opacity:0; transition:opacity .3s; pointer-events:none; }
+  .status-bar.show { opacity:1; }
+  .status-bar .sce-name { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:#fb923c; margin-bottom:4px; }
+  .status-bar .step-msg { font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px; }
+  .status-bar .checks { font-family:"SF Mono",monospace; font-size:10px; line-height:1.7; color:#86868b; max-height:80px; overflow:hidden; }
+  .status-bar .checks .ok { color:#a3e635; }
+  .status-bar .checks .warn { color:#fbbf24; }
+  .status-bar .checks .err { color:#f472b6; }
+
+  /* 右側即時讀值 panel — 設備 live readings */
+  .gauges { position:fixed; right:16px; top:50%; transform:translateY(-50%); z-index:10; width:200px; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(0,212,255,.25); border-radius:12px; padding:12px 14px; pointer-events:none; }
+  .gauges .sub { color:#00d4ff; margin-bottom:8px; }
+  .gauges .g-row { display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-bottom:1px dashed rgba(255,255,255,.06); font-size:11px; }
+  .gauges .g-row:last-child { border:none; }
+  .gauges .g-k { color:var(--sub); font-size:10px; }
+  .gauges .g-v { color:var(--ink); font-family:"SF Mono",monospace; font-size:12px; font-weight:600; }
+  .gauges .g-v.alert { color:#f472b6; }
+  .gauges .g-v.warn { color:#fbbf24; }
+  .gauges .g-v.ok { color:#a3e635; }
+  /* 系統狀態指示燈（櫃外大圓燈，可看見）*/
+  .sysled { position:fixed; right:240px; bottom:90px; z-index:10; width:14px; height:14px; border-radius:50%; background:#fb923c; box-shadow:0 0 16px rgba(251,146,60,.7); transition:background .35s, box-shadow .35s; }
+  .sysled.green { background:#a3e635; box-shadow:0 0 16px rgba(163,230,53,.7); }
+  .sysled.red { background:#f472b6; box-shadow:0 0 16px rgba(244,114,182,.7); }
+  .sysled.yellow { background:#fbbf24; box-shadow:0 0 16px rgba(251,191,36,.7); }
+
+  @media (max-width: 768px) {
+    .hud-action { margin-top:0; position:fixed; top:auto; bottom:12px; right:12px; left:12px; }
+    .gauges { display:none; }
+    .status-bar { bottom:120px; min-width:0; left:12px; right:12px; transform:none; }
+    .sysled { right:20px; bottom:160px; }
+  }
 </style>
 </head>
 <body>
@@ -1265,6 +1310,17 @@ setTimeout(function() {
   </div>
 </div>
 
+<div class="hud hud-action desktop-only" id="hudAction">
+  <p class="sub">⚙ 動作劇本 Operation Sequence</p>
+  <div class="sce-grid">
+    <button class="sce-btn" data-sce="startup"><span class="ico">▶</span><span>正常啟動 Cold Start</span></button>
+    <button class="sce-btn" data-sce="co2"><span class="ico">💨</span><span>CO₂ 升高 Demand Vent</span></button>
+    <button class="sce-btn" data-sce="filter"><span class="ico">🛑</span><span>濾網阻塞 Filter Clog</span></button>
+    <button class="sce-btn" data-sce="fire"><span class="ico">🚨</span><span>火警停機 Fire IL Stop</span></button>
+    <button class="sce-btn reset-btn" data-sce="reset"><span class="ico">↺</span><span>Reset 回到停機狀態</span></button>
+  </div>
+</div>
+
 <div class="hud hud-bl">
   <p class="key-hint">
     <span class="desktop-only"><kbd>滑鼠左鍵</kbd> 旋轉 &nbsp; <kbd>右鍵</kbd> 平移 &nbsp; <kbd>滾輪</kbd> 縮放 &nbsp; <kbd>點擊元件</kbd> 查看</span>
@@ -1281,6 +1337,29 @@ setTimeout(function() {
   <h3 id="sel-name">—</h3>
   <p id="sel-desc" class="info"></p>
   <div id="sel-specs"></div>
+</div>
+
+<!-- 即時讀值面板（劇本執行時亮起）-->
+<div class="gauges" id="gauges">
+  <p class="sub">📊 Live Readings</p>
+  <div class="g-row"><span class="g-k">VFD</span><span class="g-v" id="g-vfd">0 Hz</span></div>
+  <div class="g-row"><span class="g-k">Damper</span><span class="g-v" id="g-damper">0 %</span></div>
+  <div class="g-row"><span class="g-k">MV Valve</span><span class="g-v" id="g-valve">0 %</span></div>
+  <div class="g-row"><span class="g-k">PDT-107 靜壓</span><span class="g-v" id="g-static">0 Pa</span></div>
+  <div class="g-row"><span class="g-k">TT-105 SA</span><span class="g-v" id="g-satemp">26.0 °C</span></div>
+  <div class="g-row"><span class="g-k">FS-100 OA</span><span class="g-v" id="g-oaflow">0 CMH</span></div>
+  <div class="g-row"><span class="g-k">CO₂-103</span><span class="g-v" id="g-co2">800 ppm</span></div>
+  <div class="g-row"><span class="g-k">ΔP-101 Filter</span><span class="g-v" id="g-filterdp">45 Pa</span></div>
+</div>
+
+<!-- 系統狀態指示燈 -->
+<div class="sysled" id="sysled" title="System Status"></div>
+
+<!-- 底部 step + checks 狀態列 -->
+<div class="status-bar" id="statusBar">
+  <div class="sce-name" id="sb-name">—</div>
+  <div class="step-msg" id="sb-step">—</div>
+  <div class="checks" id="sb-checks"></div>
 </div>
 
 <script>
@@ -1570,6 +1649,8 @@ valveGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 24, 16), matValve))
 const valveStem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.22), matFrame); valveStem.position.y = 0.18; valveGroup.add(valveStem);
 const valveMotor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.26), matMotor); valveMotor.position.y = 0.4; valveGroup.add(valveMotor);
 valveGroup.userData = { name:"MV Globe Valve", kind:"valve", desc:"比例式電動二通閥 DN65（裝於 CHWR）", specs:[["口徑","DN65"],["訊號","0-10V 比例式"],["Cv","48"],["actuator","Honeywell N20010S2"],["位置","CHWR return"]] };
+valveGroup.userData.stem = valveStem;       // 給 sim tick 旋轉用（表示開度）
+valveGroup.userData.actuator = valveMotor;  // 給 sim tick 變色用（active 時亮起）
 ahuGroup.add(valveGroup);
 
 // Fan
@@ -1604,13 +1685,17 @@ damperGroup.add(damperFrame);
 const matBlade = new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.5, metalness: 0.7 });
 // 6 片葉片（對開式 opposed blade，相鄰葉片反向旋轉省能）
 const bladeSpacing = 0.24;
+damperGroup.userData.blades = [];
+damperGroup.userData.bladeDirs = [];
 for (let i = -2.5; i <= 2.5; i++) {
   const blade = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.045, AHU_D*0.66), matBlade);
   blade.position.set(0, i * bladeSpacing, 0);
   // 對開：奇數片反向
   const dir = (Math.floor(i + 2.5) % 2 === 0) ? -1 : 1;
-  blade.rotation.x = dir * Math.PI/5;
+  blade.rotation.x = dir * Math.PI/5;  // 初始 ~36° 半開狀態（sim reset 後會被 setDamperAnim 覆寫）
   damperGroup.add(blade);
+  damperGroup.userData.blades.push(blade);
+  damperGroup.userData.bladeDirs.push(dir);
   // 葉片軸 (旋轉軸)
   const pivot = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, AHU_D*0.7), new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.4, metalness: 0.9 }));
   pivot.rotation.x = Math.PI/2;
@@ -2042,10 +2127,253 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'r') { camera.position.set(7, 4.5, 9); controls.target.set(0, 1, 0); }
 });
 
+// ============ 動作劇本（Sequence of Operations）狀態機 ============
+// 連鎖鏈：BA → Damper → VFD → Fan → MV Valve → SA temp → 檢查機制
+// 每個 scenario 是一連串「t (ms) → msg + do() → check」的步驟
+// =============================================================
+const filterMat = bagMat;  // 濾網 bag 材質 ref，用於 ΔP alarm 變色
+
+const sim = {
+  // 即時讀值（current = 顯示值、target = PID 目標、各元件 lerp 向 target 收斂）
+  damperCur: 0, damperTarget: 0,        // 0..1 (0=全閉, 1=全開)
+  fanHzCur: 0,  fanHzTarget: 0,         // 0..60 Hz
+  valveCur: 0,  valveTarget: 0,         // 0..1
+  staticPa: 0,  staticTarget: 0,
+  saTempC: 26,  saTempTarget: 26,
+  oaFlow: 0,    oaFlowTarget: 0,
+  co2ppm: 800,  co2Target: 800,
+  filterDp: 45, filterAlarm: false,
+  // LED / 警示燈
+  sysLed: 'amber',   // amber / green / yellow / red
+  // 當前劇本
+  scenarioName: null,
+  steps: [],
+  stepIdx: 0,
+  scenarioElapsed: 0,
+  checks: [],
+  lastTickMs: performance.now(),
+
+  setSysLed(c) {
+    this.sysLed = c;
+    const el = document.getElementById('sysled');
+    if (el) el.className = 'sysled' + (c==='green'?' green':c==='red'?' red':c==='yellow'?' yellow':'');
+  },
+
+  addCheck(text, type) {  // type: 'ok'|'warn'|'err'
+    this.checks.push({ text, type });
+    if (this.checks.length > 4) this.checks.shift();
+    const cEl = document.getElementById('sb-checks');
+    if (cEl) {
+      while (cEl.firstChild) cEl.removeChild(cEl.firstChild);
+      this.checks.forEach(c => {
+        const d = document.createElement('div');
+        d.className = c.type || '';
+        d.textContent = c.text;
+        cEl.appendChild(d);
+      });
+    }
+  },
+
+  showStep(sceName, msg) {
+    const bar = document.getElementById('statusBar');
+    document.getElementById('sb-name').textContent = sceName;
+    document.getElementById('sb-step').textContent = msg;
+    bar.classList.add('show');
+  },
+
+  hideStatus() {
+    document.getElementById('statusBar').classList.remove('show');
+  },
+
+  start(name) {
+    if (this.scenarioName) return;  // 已有劇本在跑，忽略
+    const sce = SCENARIOS[name];
+    if (!sce) return;
+    this.scenarioName = name;
+    this.steps = sce.steps;
+    this.stepIdx = 0;
+    this.scenarioElapsed = 0;
+    this.checks = [];
+    document.querySelectorAll('.sce-btn').forEach(b => {
+      b.classList.toggle('running', b.dataset.sce === name);
+    });
+    this.showStep(sce.title, this.steps[0].msg);
+    if (this.steps[0].run) this.steps[0].run(this);
+    if (this.steps[0].check) this.addCheck(this.steps[0].check, this.steps[0].checkType || 'ok');
+  },
+
+  end() {
+    this.scenarioName = null;
+    this.steps = [];
+    this.stepIdx = 0;
+    document.querySelectorAll('.sce-btn').forEach(b => b.classList.remove('running'));
+    setTimeout(() => this.hideStatus(), 2500);
+  },
+
+  resetAll() {
+    // 停所有劇本、所有讀值歸零（停機狀態）
+    this.scenarioName = null;
+    this.damperTarget = 0; this.fanHzTarget = 0; this.valveTarget = 0;
+    this.staticTarget = 0; this.saTempTarget = 26; this.oaFlowTarget = 0;
+    this.co2Target = 800; this.filterDp = 45; this.filterAlarm = false;
+    this.setSysLed('amber');
+    document.querySelectorAll('.sce-btn').forEach(b => b.classList.remove('running'));
+    this.checks = [];
+    const cEl = document.getElementById('sb-checks');
+    if (cEl) while (cEl.firstChild) cEl.removeChild(cEl.firstChild);
+    this.showStep('SYSTEM', '停機狀態 — 等待指令');
+    setTimeout(() => this.hideStatus(), 1800);
+  },
+
+  // 主 tick — 每幀呼叫
+  update() {
+    const now = performance.now();
+    const dt = Math.min(64, now - this.lastTickMs);
+    this.lastTickMs = now;
+
+    // 1. 推進劇本步驟（用真實時間 ms 觸發每個 step）
+    if (this.scenarioName) {
+      this.scenarioElapsed += dt;
+      while (this.stepIdx + 1 < this.steps.length && this.scenarioElapsed >= this.steps[this.stepIdx + 1].at) {
+        this.stepIdx++;
+        const s = this.steps[this.stepIdx];
+        this.showStep(SCENARIOS[this.scenarioName].title, s.msg);
+        if (s.run) s.run(this);
+        if (s.check) this.addCheck(s.check, s.checkType || 'ok');
+        if (s.end) { this.end(); break; }
+      }
+    }
+
+    // 2. 收斂 current → target（lerp，模擬實際機械響應慣性）
+    const lerp = (cur, tgt, k) => cur + (tgt - cur) * k;
+    this.damperCur = lerp(this.damperCur, this.damperTarget, 0.04);
+    this.fanHzCur  = lerp(this.fanHzCur,  this.fanHzTarget,  0.025);
+    this.valveCur  = lerp(this.valveCur,  this.valveTarget,  0.05);
+    this.staticPa  = lerp(this.staticPa,  this.staticTarget, 0.06);
+    this.saTempC   = lerp(this.saTempC,   this.saTempTarget, 0.03);
+    this.oaFlow    = lerp(this.oaFlow,    this.oaFlowTarget, 0.05);
+    this.co2ppm    = lerp(this.co2ppm,    this.co2Target,    0.02);
+
+    // 3. 套用到 3D 元件
+    // 3a. Damper 葉片：closed=dir*PI/2 (垂直擋風), open=0 (平行氣流)
+    if (damperGroup.userData.blades) {
+      damperGroup.userData.blades.forEach((blade, i) => {
+        const dir = damperGroup.userData.bladeDirs[i];
+        blade.rotation.x = dir * (Math.PI/2) * (1 - this.damperCur);
+      });
+    }
+    // 3b. Fan impeller 速度與 VFD Hz 連動
+    if (fanGroup.userData.impeller) {
+      fanGroup.userData.impeller.rotation.y += this.fanHzCur * 0.005;
+    }
+    // 3c. Valve stem 旋轉表示開度（0=關 / PI/2=全開）
+    if (valveGroup.userData.stem) {
+      valveGroup.userData.stem.rotation.y = this.valveCur * Math.PI/2;
+    }
+    // 3d. Valve actuator 顏色：active 時更亮
+    if (valveGroup.userData.actuator) {
+      valveGroup.userData.actuator.material.emissive.setHex(this.valveCur > 0.05 ? 0x441f00 : 0x000000);
+      valveGroup.userData.actuator.material.emissiveIntensity = 0.2 + this.valveCur * 0.4;
+    }
+    // 3e. Filter 變色（ΔP alarm 時 bag 變橘）
+    if (filterMat) {
+      const targetR = this.filterAlarm ? 0.92 : 0.91;
+      const targetG = this.filterAlarm ? 0.50 : 0.90;
+      const targetB = this.filterAlarm ? 0.20 : 0.85;
+      filterMat.color.r = lerp(filterMat.color.r, targetR, 0.05);
+      filterMat.color.g = lerp(filterMat.color.g, targetG, 0.05);
+      filterMat.color.b = lerp(filterMat.color.b, targetB, 0.05);
+    }
+
+    // 4. 更新右側 gauge 讀值
+    const set = (id, val, alertCond, warnCond) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val;
+      el.classList.toggle('alert', !!alertCond);
+      el.classList.toggle('warn', !!warnCond && !alertCond);
+      el.classList.toggle('ok', !alertCond && !warnCond && this.fanHzCur > 30);
+    };
+    set('g-vfd',      Math.round(this.fanHzCur) + ' Hz');
+    set('g-damper',   Math.round(this.damperCur * 100) + ' %');
+    set('g-valve',    Math.round(this.valveCur * 100) + ' %');
+    set('g-static',   Math.round(this.staticPa) + ' Pa');
+    set('g-satemp',   this.saTempC.toFixed(1) + ' °C', this.saTempC > 22, this.saTempC > 20);
+    set('g-oaflow',   Math.round(this.oaFlow) + ' CMH');
+    set('g-co2',      Math.round(this.co2ppm) + ' ppm', this.co2ppm > 1000, this.co2ppm > 900);
+    set('g-filterdp', Math.round(this.filterDp) + ' Pa', this.filterDp > 250, this.filterDp > 200);
+  }
+};
+
+// ============ 4 個劇本定義（at = 從劇本開始算的 ms）============
+const SCENARIOS = {
+  startup: {
+    title: '正常啟動 · Cold Start',
+    steps: [
+      { at: 0,    msg: '1/6 BA Controller 發送啟動指令（圖綠燈）', run: s => s.setSysLed('green'), check: '✓ BA Niagara 4 命令送出', checkType: 'ok' },
+      { at: 800,  msg: '2/6 DM 外氣風閥 0% → 100% 開啟（actuator 35 Nm）', run: s => { s.damperTarget = 1.0; s.oaFlowTarget = 1500; } },
+      { at: 3500, msg: '✓ 檢查機制 #1：Damper 限位開關確認到位', check: '✓ Damper End-Switch CONFIRMED @ 100%', checkType: 'ok' },
+      { at: 4000, msg: '3/6 VFD 變頻啟動：0 → 60 Hz ramp（11 kW motor）', run: s => { s.fanHzTarget = 60; s.staticTarget = 650; } },
+      { at: 8000, msg: '✓ 檢查機制 #2：PDT-107 風管靜壓建立', check: '✓ Static Pressure 650 Pa REACHED (target ±5%)', checkType: 'ok' },
+      { at: 8800, msg: '4/6 MV 比例式二通閥開啟（PID by TT-105）', run: s => { s.valveTarget = 0.65; s.saTempTarget = 18; } },
+      { at: 13000, msg: '✓ 檢查機制 #3：TT-105 SA 達設定值', check: '✓ SA Temp 18°C ±0.5°C ACHIEVED', checkType: 'ok' },
+      { at: 13500, msg: '5/6 系統穩態 — 所有 interlock OK', check: '✓ All Interlocks Normal · 6,000 CMH SA', checkType: 'ok' },
+      { at: 15000, msg: '6/6 啟動完成 — 進入正常運轉', end: true },
+    ]
+  },
+
+  co2: {
+    title: 'CO₂ 升高 · IAQ Demand Vent',
+    steps: [
+      { at: 0,    msg: '1/5 室內 CO₂ 升至 1200 ppm（觸發 IAQ 閾值）', run: s => { s.co2Target = 1200; }, check: '⚠ CO₂-103 NDIR 偵測 1200 ppm > 1000 ppm 警戒', checkType: 'warn' },
+      { at: 1200, msg: '2/5 BA 計算 PID → 加大外氣比例', run: s => s.setSysLed('green'), check: '✓ BA PID: ΔDamper = +30%', checkType: 'ok' },
+      { at: 1800, msg: '3/5 Damper 30% → 60%、MV 閥同步補冷負荷', run: s => { s.damperTarget = 0.6; s.valveTarget = 0.85; s.oaFlowTarget = 2400; } },
+      { at: 5500, msg: '✓ 檢查機制：FS-100 OA 風量上升至設定值', check: '✓ FS-100 OA Flow 2,400 CMH CONFIRMED', checkType: 'ok' },
+      { at: 6200, msg: '4/5 CO₂ 開始下降（外氣稀釋）', run: s => { s.co2Target = 800; } },
+      { at: 9500, msg: '5/5 CO₂ 回到 800 ppm — 回到正常通風', check: '✓ CO₂ Back to Normal · IAQ OK', checkType: 'ok' },
+      { at: 11500, msg: '完成 — 維持穩態', end: true },
+    ]
+  },
+
+  filter: {
+    title: '濾網阻塞 · Filter Clog Alarm',
+    steps: [
+      { at: 0,    msg: '1/4 F7 濾網累積髒污 → ΔP 升至 280 Pa', run: s => { s.filterDp = 280; }, check: '⚠ ΔP-101 = 280 Pa（門檻 250 Pa）', checkType: 'warn' },
+      { at: 1500, msg: '2/4 BA 觸發 Filter Alarm（黃燈）', run: s => { s.setSysLed('yellow'); s.filterAlarm = true; }, check: '⚠ BA Alarm: FILTER_DP_HIGH', checkType: 'warn' },
+      { at: 3000, msg: '3/4 濾網標記為「需更換」（視覺變色）', check: '⚠ Filter visualized as ORANGE (replace required)', checkType: 'warn' },
+      { at: 5000, msg: '4/4 系統續轉但 alarm log 已記錄', check: '✓ AHU 仍運轉 · Maint ticket OPEN-2026-0514', checkType: 'ok' },
+      { at: 8000, msg: '完成 — 等候保養人員更換濾網', end: true },
+    ]
+  },
+
+  fire: {
+    title: '🚨 火警停機 · FIRE Interlock',
+    steps: [
+      { at: 0,    msg: '1/4 SD-201 偵煙器觸發（光電 + 離子化）', run: s => s.setSysLed('red'), check: '🚨 SD-201 SMOKE DETECTED', checkType: 'err' },
+      { at: 600,  msg: '2/4 BA 接收 FIRE 訊號 → IL 連動執行', check: '🚨 Fire Interlock NFPA 90A ENGAGED', checkType: 'err' },
+      { at: 1200, msg: '3/4 VFD 急停 / Damper 全閉 / MV 閥關水', run: s => { s.fanHzTarget = 0; s.damperTarget = 0; s.valveTarget = 0; s.staticTarget = 0; s.oaFlowTarget = 0; } },
+      { at: 5500, msg: '✓ 檢查機制：VFD/Damper/Valve 全部歸零', check: '🚨 AHU-B-08 STOPPED · Log @ ' + new Date().toLocaleTimeString(), checkType: 'err' },
+      { at: 7000, msg: '4/4 等待消防確認後手動 RESET', end: true },
+    ]
+  },
+};
+
+// ============ 按鈕綁定 ============
+document.querySelectorAll('.sce-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sce = btn.dataset.sce;
+    if (sce === 'reset') sim.resetAll();
+    else sim.start(sce);
+  });
+});
+
+// 初始化：所有元件歸到停機狀態
+sim.resetAll();
+
 function animate() {
   requestAnimationFrame(animate);
-  updateExplode();   // 平滑拆解動畫
-  if (fanGroup.userData.impeller) fanGroup.userData.impeller.rotation.y += 0.18;
+  updateExplode();      // 平滑拆解動畫
+  sim.update();         // 劇本狀態機 + 元件 lerp + gauge 更新
   controls.update();
   renderer.render(scene, camera);
 }
