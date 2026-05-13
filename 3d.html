@@ -1526,17 +1526,25 @@ damperGroup.userData = { name:"DM Outside Air Damper", kind:"damper", desc:"對�
 damperGroup.userData.basePos = damperGroup.position.clone();
 interiorGroup.add(damperGroup);
 
-// VFD
-const vfdGroup = new THREE.Group(); vfdGroup.position.set(1.2, -0.05, 1.4);
-vfdGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.2), new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.45, metalness: 0.6 })));
-for (let i = 0; i < 7; i++) {
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.55, 0.02), new THREE.MeshStandardMaterial({ color: 0xa54f00 }));
-  fin.position.set(-0.2 + i*0.06, 0, 0.11); vfdGroup.add(fin);
+// VFD（後面移到 ELEC PANEL 電盤櫃內，這裡先佔位準備搬移）
+const vfdGroup = new THREE.Group();
+// 內裝 VFD 機器 — 用 local 座標，後續放入電盤櫃 group 內
+{
+  vfdGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.6, 0.16), new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.45, metalness: 0.6 })));
+  for (let i = 0; i < 7; i++) {
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.5, 0.02), new THREE.MeshStandardMaterial({ color: 0xa54f00 }));
+    fin.position.set(-0.17 + i*0.055, 0, 0.09); vfdGroup.add(fin);
+  }
+  const vfdLCD = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.005), new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
+  vfdLCD.position.set(0.06, 0.15, 0.085); vfdGroup.add(vfdLCD);
+  // 警示燈 (黃綠紅)
+  [0xa3e635, 0xfbbf24, 0xf472b6].forEach((c, i) => {
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.02, 12, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.7 }));
+    led.position.set(0.16, 0.22 - i*0.05, 0.085);
+    vfdGroup.add(led);
+  });
 }
-const vfdLCD = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.1, 0.005), new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
-vfdLCD.position.set(0.08, 0.18, 0.105); vfdGroup.add(vfdLCD);
-vfdGroup.userData = { name:"VFD Drive", kind:"vfd", desc:"變頻驅動 11 kW", specs:[["容量","11 kW"],["頻率","20-60 Hz"],["輸入","380V 3-phase"],["通訊","Modbus / BACnet"]] };
-ahuGroup.add(vfdGroup);
+vfdGroup.userData = { name:"VFD Drive", kind:"vfd", desc:"變頻驅動 11 kW (位於電盤櫃內)", specs:[["容量","11 kW"],["頻率","20-60 Hz"],["輸入","380V 3-phase"],["通訊","Modbus / BACnet"]] };
 
 // ============ Ducts: OA / SA / RA ============
 const ductGroup = new THREE.Group(); ahuGroup.add(ductGroup);
@@ -1619,18 +1627,142 @@ co2Group.add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), matSensor))
 co2Group.userData = { name:"CO2-103 IAQ", kind:"sensor", desc:"NDIR 二氧化碳", specs:[["範圍","0-2000 ppm"],["輸出","4-20 mA"]] };
 ahuGroup.add(co2Group);
 
-// BA Controller
-const baGroup = new THREE.Group(); baGroup.position.set(0, 0.6, 1.6);
-baGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 0.25), new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.4, metalness: 0.7 })));
-const baScreen = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.01), new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
-baScreen.position.set(0, 0.1, 0.13); baGroup.add(baScreen);
-for (let i = 0; i < 3; i++) {
-  const c = i===0?0xa3e635:i===1?0xfb923c:0xf472b6;
-  const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.8 }));
-  led.position.set(0.5, 0.2 - i*0.12, 0.13); baGroup.add(led);
+// BA Controller — 內裝部分（後面放進 CTRL PANEL 控制盤櫃）
+const baGroup = new THREE.Group();
+{
+  // DDC 控制器主體
+  baGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.14), new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.4, metalness: 0.7 })));
+  // LCD 顯示螢幕
+  const baScreen = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.18, 0.005), new THREE.MeshBasicMaterial({ color: 0x0a3030 }));
+  baScreen.position.set(-0.04, 0.05, 0.075); baGroup.add(baScreen);
+  // 3 LED 指示燈
+  for (let i = 0; i < 3; i++) {
+    const c = i===0?0xa3e635:i===1?0xfb923c:0xf472b6;
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.8 }));
+    led.position.set(0.18, 0.08 - i*0.05, 0.075); baGroup.add(led);
+  }
+  // Terminal blocks（端子排，控制器下方）
+  const tb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.15, 0.1), new THREE.MeshStandardMaterial({ color: 0x4a5160, roughness: 0.8 }));
+  tb.position.set(0, -0.32, 0); baGroup.add(tb);
+  for (let i = 0; i < 8; i++) {
+    const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.02, 6), new THREE.MeshStandardMaterial({ color: 0xc0a050, metalness: 0.9 }));
+    screw.rotation.x = Math.PI/2;
+    screw.position.set(-0.21 + i*0.06, -0.32, 0.055);
+    baGroup.add(screw);
+  }
 }
-baGroup.userData = { name:"BA Controller", kind:"controller", desc:"中央 DDC 控制盤", specs:[["型號","Honeywell Niagara 4"],["通訊","BACnet/IP"],["輸入點","11"],["輸出點","6"]] };
-ahuGroup.add(baGroup);
+baGroup.userData = { name:"BA Controller", kind:"controller", desc:"中央 DDC 控制器 (位於控制盤櫃內)", specs:[["型號","Honeywell Niagara 4"],["通訊","BACnet/IP"],["輸入點","11"],["輸出點","6"]] };
+
+// ============== 旁置電盤 (ELEC PANEL) + 控制盤 (CTRL PANEL) 兩個獨立櫃 ==============
+const panelsGroup = new THREE.Group(); ahuGroup.add(panelsGroup);
+
+function makeCabinet(label, kind, desc, specs, internalMesh) {
+  const g = new THREE.Group();
+  const W = 0.85, H = 1.85, D = 0.4;
+  // 主櫃體（金屬殼）
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(W, H, D),
+    new THREE.MeshStandardMaterial({ color: kind==="elec"?0xb4b6bc:0xd0d3da, roughness: 0.45, metalness: 0.75 })
+  );
+  g.add(body);
+  // 框邊（粗 wireframe）
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(body.geometry),
+    new THREE.LineBasicMaterial({ color: 0x6a6e76 })
+  );
+  g.add(edges);
+  // 雙開門縫
+  const doorSlit = new THREE.Mesh(new THREE.BoxGeometry(0.012, H*0.9, 0.005), new THREE.MeshBasicMaterial({ color: 0x2a2e36 }));
+  doorSlit.position.set(0, 0, D/2 + 0.001); g.add(doorSlit);
+  // 門把手 ×2
+  [-0.18, 0.18].forEach(dx => {
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 8), new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.9 }));
+    handle.rotation.z = Math.PI/2;
+    handle.position.set(dx, 0, D/2 + 0.025);
+    g.add(handle);
+  });
+  // 銘版 (上方)
+  const tag = new THREE.Mesh(new THREE.BoxGeometry(W*0.65, 0.12, 0.008), new THREE.MeshBasicMaterial({ color: 0x1a1d24 }));
+  tag.position.set(0, H*0.42, D/2 + 0.005); g.add(tag);
+  // 通風百葉（底部）
+  for (let i = -3; i <= 3; i++) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(W*0.6, 0.02, 0.005), new THREE.MeshStandardMaterial({ color: 0x2a2e36 }));
+    slat.position.set(0, -H*0.4 + i*0.025, D/2 + 0.002);
+    g.add(slat);
+  }
+  // 觀察窗（透明面板，露出內部 VFD/BA）
+  const window_ = new THREE.Mesh(
+    new THREE.BoxGeometry(W*0.7, H*0.55, 0.005),
+    new THREE.MeshStandardMaterial({ color: 0x0a0d12, roughness: 0.05, metalness: 0.4, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
+  );
+  window_.position.set(0, 0.08, D/2 + 0.006);
+  g.add(window_);
+  const winFrame = new THREE.LineSegments(
+    new THREE.EdgesGeometry(window_.geometry),
+    new THREE.LineBasicMaterial({ color: 0x2a2e36 })
+  );
+  winFrame.position.copy(window_.position);
+  g.add(winFrame);
+  // 內裝主設備（VFD / BA Controller） — 放在櫃內前緣下方一點
+  internalMesh.position.set(0, 0.08, D/2 - 0.13);
+  g.add(internalMesh);
+  // 銘版文字（用 sprite 渲染 label）
+  const cv = document.createElement('canvas'); cv.width=512; cv.height=80;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#1a1d24'; cx.fillRect(0,0,512,80);
+  cx.fillStyle = kind==="elec"?'#fbbf24':'#a3e635';
+  cx.font = 'bold 38px -apple-system, sans-serif';
+  cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText(label, 256, 40);
+  const tex = new THREE.CanvasTexture(cv);
+  const tagMat = new THREE.MeshBasicMaterial({ map: tex });
+  const tagPlate = new THREE.Mesh(new THREE.PlaneGeometry(W*0.65, 0.12), tagMat);
+  tagPlate.position.set(0, H*0.42, D/2 + 0.012);
+  g.add(tagPlate);
+
+  g.userData = { name: label, kind, desc, specs };
+  return g;
+}
+
+// ELEC PANEL (電盤櫃) — 內裝 VFD
+const elecPanel = makeCabinet(
+  "ELEC PANEL · 電盤",
+  "elec",
+  "動力電盤櫃 — 內含 VFD 變頻器 + MCB 斷路器 + 接觸器",
+  [["容量","11 kW"],["輸入","380V 3φ"],["保護等級","IP54"],["散熱","下進上排自然對流"]],
+  vfdGroup
+);
+elecPanel.position.set(-1.1, 0.95, -2.7);
+panelsGroup.add(elecPanel);
+
+// CTRL PANEL (控制盤櫃) — 內裝 BA Controller
+const ctrlPanel = makeCabinet(
+  "CTRL PANEL · 控制盤",
+  "control",
+  "弱電控制盤櫃 — 內含 DDC 控制器 + 端子排 + 24V 電源",
+  [["控制器","Honeywell Niagara 4"],["通訊","BACnet/IP"],["I/O","11 in / 6 out"],["備援","UPS 30 min"]],
+  baGroup
+);
+ctrlPanel.position.set(1.1, 0.95, -2.7);
+panelsGroup.add(ctrlPanel);
+
+// 兩櫃之間 cable tray 連接 + 連到 AHU 殼體的線管 (conduit)
+const matConduit = new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.6, metalness: 0.6 });
+// 櫃間連通 (橫向 tray)
+const tray = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.06, 0.12), matConduit);
+tray.position.set(0, 0.5, -2.7);
+panelsGroup.add(tray);
+// 從 ELEC 出來進 AHU 殼底（動力線）
+const conduitElec = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.3, 8), matConduit);
+conduitElec.rotation.x = Math.PI/2;
+conduitElec.position.set(-1.1, 0.3, -2.05);
+panelsGroup.add(conduitElec);
+// 從 CTRL 出來進 AHU（控制線）
+const conduitCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.3, 8),
+  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.3, roughness: 0.5 }));
+conduitCtrl.rotation.x = Math.PI/2;
+conduitCtrl.position.set(1.1, 0.3, -2.05);
+panelsGroup.add(conduitCtrl);
 
 // ============== Click-to-Select ==============
 const raycaster = new THREE.Raycaster();

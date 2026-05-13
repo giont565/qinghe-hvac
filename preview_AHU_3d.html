@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B-AHU 3D Model — 互動建模</title>
+<!-- es-module-shims polyfill：給 iOS Safari < 16.4 / 舊瀏覽器吃 importmap -->
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root { --ink:#f5f5f7; --sub:#86868b; --sensor:#A3E635; --actuator:#FB923C; --chw:#00D4FF; --air:#A78BFA; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; background:#050505; color:var(--ink); font-family:-apple-system, "SF Pro Display", "Noto Sans TC", sans-serif; }
+  canvas { display:block; }
+  #viewport { position:fixed; inset:0; }
+  .hud { position:fixed; z-index:10; background:rgba(15,15,17,.78); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:14px 18px; font-size:13px; pointer-events:none; }
+  .hud-tl { top:16px; left:16px; }
+  .hud-tr { top:16px; right:16px; min-width:280px; pointer-events:auto; }
+  .hud-bl { bottom:16px; left:16px; }
+  .hud-br { bottom:16px; right:16px; }
+  h1 { font-size:18px; font-weight:600; letter-spacing:-.01em; margin-bottom:4px; }
+  .sub { color:var(--sub); font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
+  .controls { display:grid; gap:6px; margin-top:12px; }
+  .ctrl-btn { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; font-size:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:7px; color:var(--ink); cursor:pointer; transition:background .2s, border-color .2s; font-family:inherit; }
+  .ctrl-btn:hover { background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.18); }
+  .ctrl-btn.active { background:rgba(163,230,53,.12); border-color:rgba(163,230,53,.4); }
+  .ctrl-btn .key { color:var(--sub); font-family:"SF Mono", monospace; font-size:10px; }
+  .info { font-size:11px; line-height:1.6; color:var(--sub); }
+  .info b { color:var(--ink); }
+  .key-hint { font-family:"SF Mono", monospace; font-size:10px; color:var(--sub); }
+  .key-hint kbd { display:inline-block; padding:1px 5px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:3px; color:var(--ink); font-family:inherit; }
+  #selected { position:fixed; left:16px; top:50%; transform:translateY(-50%); z-index:10; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(163,230,53,.3); border-radius:12px; padding:14px 18px; min-width:240px; max-width:280px; font-size:12px; opacity:0; transition:opacity .25s; pointer-events:none; }
+  #selected.show { opacity:1; }
+  #selected h3 { font-size:14px; font-weight:600; margin-bottom:6px; color:var(--sensor); }
+  #selected .row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed rgba(255,255,255,.08); }
+  #selected .row:last-child { border:none; }
+  #selected .row .k { color:var(--sub); }
+  #selected .row .v { color:var(--ink); font-family:"SF Mono", monospace; }
+
+  /* Mobile responsive — 收成單列、可摺疊 */
+  @media (max-width: 768px) {
+    .hud { padding: 10px 14px; font-size: 12px; border-radius: 10px; }
+    .hud-tl { top: 12px; left: 12px; max-width: calc(100% - 24px); }
+    .hud-tr { top: auto; bottom: 12px; right: 12px; left: 12px; min-width: 0; max-height: 40vh; overflow-y: auto; }
+    .hud-br { display: none; } /* 手機隱藏 specs HUD（避免擠）*/
+    h1 { font-size: 15px; }
+    .ctrl-btn { padding: 10px 12px; font-size: 13px; } /* touch-friendly 大按鈕 */
+    .ctrl-btn .key { display: none; } /* 鍵盤快捷鍵手機沒用 */
+    .hud-tr.collapsed .controls { display: none; }
+    .hud-tr .toggle-mobile { display: flex; }
+    #selected { left: 12px; right: 12px; top: auto; bottom: 64px; transform: none; max-width: none; }
+  }
+  .toggle-mobile, .mobile-only { display: none; }
+  @media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-only { display: inline; }
+    .hud-bl { display: block; bottom: auto; top: 88px; left: 12px; right: 12px; }
+    .toggle-mobile {
+      display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+      margin-bottom: 4px;
+    }
+    .toggle-mobile::after { content: "▾"; transition: transform .2s; color: var(--sub); }
+    .hud-tr.collapsed .toggle-mobile::after { transform: rotate(-90deg); }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="viewport"></canvas>
+
+<!-- Loading / Error 覆蓋層 -->
+<div id="loader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#050505;color:#f5f5f7;z-index:100;font-family:inherit;text-align:center;padding:24px">
+  <div>
+    <div style="font-size:24px;font-weight:600;margin-bottom:12px;letter-spacing:.05em">⚙️ 載入 3D 模型中</div>
+    <div id="loader-status" style="color:#86868b;font-size:13px;line-height:1.6">正在從 CDN 載入 Three.js…</div>
+    <div id="loader-error" style="color:#fb923c;font-size:12px;margin-top:16px;display:none;max-width:480px"></div>
+  </div>
+</div>
+
+<script>
+// 偵測 import-map 支援（iOS Safari < 16.4 不支援會報錯）
+window.addEventListener('error', function(e) {
+  const err = document.getElementById('loader-error');
+  if (err && e.message) {
+    err.style.display = 'block';
+    err.textContent = '⚠ 載入失敗：' + e.message + '。請更新到 iOS 16.4+ / Chrome 89+ / Safari 16.4+，或在桌面瀏覽器開啟。';
+    document.getElementById('loader-status').textContent = '⚠ 瀏覽器不支援 ES module import maps';
+  }
+});
+// 5 秒沒載完就提示
+setTimeout(function() {
+  const loader = document.getElementById('loader');
+  if (loader && loader.style.display !== 'none') {
+    const err = document.getElementById('loader-error');
+    err.style.display = 'block';
+    err.textContent = '⚠ 載入逾時。可能是網路慢、CDN 被擋、或瀏覽器不支援 WebGL / import maps。建議桌面 Chrome 開啟。';
+  }
+}, 8000);
+</script>
+
+<div class="hud hud-tl">
+  <p class="sub">B 棟 · 行政研發大樓 · 8F</p>
+  <h1>B-AHU · 3D 模型</h1>
+  <p class="info" style="margin-top:6px">空調箱建模 — 互動拆解 / 旋轉檢視</p>
+</div>
+
+<div class="hud hud-tr" id="hudControls">
+  <div class="toggle-mobile" onclick="document.getElementById('hudControls').classList.toggle('collapsed')">
+    <span class="sub">View Controls · 點此收合</span>
+  </div>
+  <p class="sub desktop-only">View Controls</p>
+  <div class="controls">
+    <button class="ctrl-btn" data-action="explode"><span>內部拆解 Exploded</span><span class="key">E</span></button>
+    <button class="ctrl-btn active" data-action="casing"><span>顯示殼體 Casing</span><span class="key">C</span></button>
+    <button class="ctrl-btn active" data-action="duct"><span>顯示風管 Ducts</span><span class="key">D</span></button>
+    <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
+  </div>
+</div>
+
+<div class="hud hud-bl">
+  <p class="key-hint">
+    <span class="desktop-only"><kbd>滑鼠左鍵</kbd> 旋轉 &nbsp; <kbd>右鍵</kbd> 平移 &nbsp; <kbd>滾輪</kbd> 縮放 &nbsp; <kbd>點擊元件</kbd> 查看</span>
+    <span class="mobile-only"><kbd>單指</kbd> 旋轉 &nbsp; <kbd>雙指</kbd> 縮放 / 平移 &nbsp; <kbd>點擊</kbd> 元件查看</span>
+  </p>
+</div>
+
+<div class="hud hud-br">
+  <p class="sub">Specs</p>
+  <p class="info"><b>6,000 CMH</b> SA · <b>75 RT</b> · <b>650 Pa</b> ESP · <b>11 kW</b> VFD</p>
+</div>
+
+<div id="selected">
+  <h3 id="sel-name">—</h3>
+  <p id="sel-desc" class="info"></p>
+  <div id="sel-specs"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('viewport');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050505);
+scene.fog = new THREE.Fog(0x050505, 18, 40);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(7, 4.5, 9);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 4;
+controls.maxDistance = 25;
+controls.target.set(0, 1, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.32));
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.05);
+keyLight.position.set(6, 12, 8); keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.left = -10; keyLight.shadow.camera.right = 10;
+keyLight.shadow.camera.top = 10; keyLight.shadow.camera.bottom = -10;
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xb0c4de, 0.32);
+fillLight.position.set(-8, 4, -4); scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0xa3e635, 0.28);
+rimLight.position.set(0, 3, -10); scene.add(rimLight);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(40, 40),
+  new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.95, metalness: 0.1 })
+);
+ground.rotation.x = -Math.PI / 2; ground.position.y = -0.5; ground.receiveShadow = true;
+scene.add(ground);
+scene.add(Object.assign(new THREE.GridHelper(40, 40, 0x222222, 0x161616), { position: new THREE.Vector3(0, -0.49, 0) }));
+
+const AHU_W = 5.0, AHU_H = 2.0, AHU_D = 2.0;
+const ahuGroup = new THREE.Group(); scene.add(ahuGroup);
+
+const matCasing = new THREE.MeshStandardMaterial({ color: 0xe6e8eb, roughness: 0.6, metalness: 0.3, transparent: true, opacity: 0.16, side: THREE.DoubleSide });
+const matFrame  = new THREE.MeshStandardMaterial({ color: 0xa8aab0, roughness: 0.5, metalness: 0.55 });
+const matCoilTube = new THREE.MeshStandardMaterial({ color: 0x00d4ff, emissive: 0x004060, emissiveIntensity: 0.3, roughness: 0.4, metalness: 0.6 });
+const matFin = new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.6, metalness: 0.5 });
+const matFilter = new THREE.MeshStandardMaterial({ color: 0xf0eee5, roughness: 0.85, metalness: 0.05 });
+const matFanBody = new THREE.MeshStandardMaterial({ color: 0x6b6e74, roughness: 0.55, metalness: 0.7 });
+const matMotor = new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.5, metalness: 0.65 });
+const matValve = new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.45, metalness: 0.75, emissive: 0x441f00, emissiveIntensity: 0.2 });
+const matSensor = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.55, roughness: 0.5, metalness: 0.4 });
+const matDuct = new THREE.MeshStandardMaterial({ color: 0xa78bfa, roughness: 0.55, metalness: 0.4, transparent: true, opacity: 0.32, side: THREE.DoubleSide });
+
+const casing = new THREE.Mesh(new THREE.BoxGeometry(AHU_W, AHU_H, AHU_D), matCasing);
+casing.position.set(0, AHU_H/2, 0);
+casing.userData = { name:"AHU CASING", kind:"casing", desc:"雙皮 50mm PUR 隔熱 + SUS304 內板", specs:[["材質","SUS304 / GI"],["保溫","50mm PUR"],["外尺寸","5.0×2.0×2.0 m"]] };
+ahuGroup.add(casing);
+
+const casingEdges = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(AHU_W, AHU_H, AHU_D)), new THREE.LineBasicMaterial({ color: 0xf5f5f7 }));
+casingEdges.position.copy(casing.position); ahuGroup.add(casingEdges);
+
+[-1.5, -0.5, 0.5, 1.5].forEach(x => {
+  const div = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(AHU_D, AHU_H)), new THREE.LineBasicMaterial({ color: 0x666, opacity: 0.5, transparent: true }));
+  div.position.set(x, AHU_H/2, 0); div.rotation.y = Math.PI/2;
+  ahuGroup.add(div);
+});
+
+const interiorGroup = new THREE.Group(); ahuGroup.add(interiorGroup);
+
+// Filter
+const filterGroup = new THREE.Group(); filterGroup.position.set(-1.85, 0, 0);
+const filterFrame = new THREE.Mesh(new THREE.BoxGeometry(0.15, AHU_H*0.85, AHU_D*0.85), matFilter);
+filterGroup.add(filterFrame);
+for (let i = -0.7; i <= 0.7; i += 0.07) {
+  const pleat = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, AHU_D*0.85), new THREE.MeshStandardMaterial({ color: 0xd8d6cc, roughness: 0.9 }));
+  pleat.position.set(0, i + AHU_H*0.5, 0);
+  filterGroup.add(pleat);
+}
+filterGroup.userData = { name:"F-2 Filter (F7)", kind:"filter", desc:"二級高效過濾 F7", specs:[["等級","F7"],["過濾效率","65-75% @1μm"],["初始壓損","45 Pa"]] };
+filterGroup.userData.basePos = filterGroup.position.clone();
+interiorGroup.add(filterGroup);
+
+// Cooling Coil
+const coilGroup = new THREE.Group(); coilGroup.position.set(-1.0, AHU_H*0.5, 0);
+coilGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, AHU_H*0.85, AHU_D*0.85), matFrame));
+for (let i = 0; i < 36; i++) {
+  const fin = new THREE.Mesh(new THREE.PlaneGeometry(0.46, AHU_D*0.82), matFin);
+  fin.position.set(-0.23 + (i/36)*0.46, 0, 0); fin.rotation.y = Math.PI / 2;
+  coilGroup.add(fin);
+}
+for (let i = -3; i <= 3; i++) {
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, AHU_D*0.85), matCoilTube);
+  tube.rotation.x = Math.PI / 2; tube.position.set(0, i*0.2, 0);
+  coilGroup.add(tube);
+}
+coilGroup.userData = { name:"DCC Cooling Coil", kind:"coil", desc:"6 排 8 fin/in 銅管鋁鰭", specs:[["排數","6 row"],["鰭密","8 FPI"],["冷凍能力","75 RT"],["CHW","7→13°C"]] };
+coilGroup.userData.basePos = coilGroup.position.clone();
+interiorGroup.add(coilGroup);
+
+// Globe Valve
+const valveGroup = new THREE.Group(); valveGroup.position.set(-0.5, -0.05, -1.4);
+valveGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 16), matValve));
+const valveStem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.25), matFrame); valveStem.position.y = 0.2; valveGroup.add(valveStem);
+const valveMotor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.22, 0.28), matMotor); valveMotor.position.y = 0.42; valveGroup.add(valveMotor);
+const chwPipeS = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2), matCoilTube); chwPipeS.position.set(-0.4, 0, 0); chwPipeS.rotation.z = Math.PI/2; valveGroup.add(chwPipeS);
+const chwPipeR = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2), new THREE.MeshStandardMaterial({ color: 0x1E40AF, emissive: 0x0a1840, emissiveIntensity: 0.3, roughness: 0.4, metalness: 0.6 }));
+chwPipeR.position.set(0.4, 0, 0); chwPipeR.rotation.z = Math.PI/2; valveGroup.add(chwPipeR);
+valveGroup.userData = { name:"MV Globe Valve", kind:"valve", desc:"比例式電動二通閥 DN65", specs:[["口徑","DN65"],["訊號","0-10V"],["Cv","48"],["actuator","Belimo NMR24-MFT"]] };
+ahuGroup.add(valveGroup);
+
+// Fan
+const fanGroup = new THREE.Group(); fanGroup.position.set(0.7, AHU_H*0.5, 0);
+const voluteHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.7, 32), matFanBody);
+voluteHousing.rotation.z = Math.PI / 2; fanGroup.add(voluteHousing);
+const impeller = new THREE.Group();
+for (let i = 0; i < 8; i++) {
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.45, 0.12), new THREE.MeshStandardMaterial({ color: 0xd0d4da, roughness: 0.4, metalness: 0.6 }));
+  const angle = (i / 8) * Math.PI * 2;
+  blade.position.set(0.18 * Math.sin(angle), 0.18 * Math.cos(angle), 0);
+  blade.rotation.set(0, 0, angle + Math.PI/8);
+  impeller.add(blade);
+}
+impeller.add(new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 12), matFrame));
+impeller.rotation.x = Math.PI/2;
+fanGroup.add(impeller);
+const motorBox = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.4), matMotor); motorBox.position.set(0, -0.55, 0); fanGroup.add(motorBox);
+[-0.3, 0.3].forEach(dx => {
+  const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0x444, roughness: 0.8, metalness: 0.5 }));
+  spring.position.set(dx, -0.83, 0); fanGroup.add(spring);
+});
+fanGroup.userData = { name:"SF Supply Fan", kind:"fan", desc:"後傾離心式 11 kW VFD", specs:[["風量","6,000 CMH"],["外部餘壓","650 Pa"],["馬達","11 kW"],["變頻","20-60 Hz"]] };
+fanGroup.userData.impeller = impeller;
+fanGroup.userData.basePos = fanGroup.position.clone();
+interiorGroup.add(fanGroup);
+
+// Damper
+const damperGroup = new THREE.Group(); damperGroup.position.set(-2.7, AHU_H*0.5, 0);
+damperGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.15, AHU_H*0.7, AHU_D*0.7), matFrame));
+for (let i = -2; i <= 2; i++) {
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, AHU_D*0.65), new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.5, metalness: 0.7 }));
+  blade.position.set(0, i*0.28, 0); blade.rotation.x = -Math.PI/4;
+  damperGroup.add(blade);
+}
+const damperMotor = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.2), matMotor);
+damperMotor.position.set(0, AHU_H*0.42, 0); damperGroup.add(damperMotor);
+damperGroup.userData = { name:"DM Outside Air Damper", kind:"damper", desc:"6 片電動風閥", specs:[["葉片","6 片 對開式"],["驅動","Belimo MFT 24V"],["開度","0-100%"]] };
+damperGroup.userData.basePos = damperGroup.position.clone();
+interiorGroup.add(damperGroup);
+
+// VFD
+const vfdGroup = new THREE.Group(); vfdGroup.position.set(1.2, -0.05, 1.4);
+vfdGroup.add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.2), new THREE.MeshStandardMaterial({ color: 0xfb923c, roughness: 0.45, metalness: 0.6 })));
+for (let i = 0; i < 7; i++) {
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.55, 0.02), new THREE.MeshStandardMaterial({ color: 0xa54f00 }));
+  fin.position.set(-0.2 + i*0.06, 0, 0.11); vfdGroup.add(fin);
+}
+const vfdLCD = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.1, 0.005), new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
+vfdLCD.position.set(0.08, 0.18, 0.105); vfdGroup.add(vfdLCD);
+vfdGroup.userData = { name:"VFD Drive", kind:"vfd", desc:"變頻驅動 11 kW", specs:[["容量","11 kW"],["頻率","20-60 Hz"],["輸入","380V 3-phase"],["通訊","Modbus / BACnet"]] };
+ahuGroup.add(vfdGroup);
+
+// Ducts
+const ductGroup = new THREE.Group(); ahuGroup.add(ductGroup);
+const oaDuct = new THREE.Mesh(new THREE.BoxGeometry(1.8, AHU_H*0.75, AHU_D*0.7), matDuct);
+oaDuct.position.set(-AHU_W/2 - 0.9, AHU_H/2, 0);
+oaDuct.userData = { name:"OA Duct", kind:"duct", desc:"外氣進氣保溫風管 + 百葉" };
+ductGroup.add(oaDuct);
+ductGroup.add(Object.assign(new THREE.LineSegments(new THREE.EdgesGeometry(oaDuct.geometry), new THREE.LineBasicMaterial({ color: 0xa78bfa })), { position: oaDuct.position.clone() }));
+const saDuct = new THREE.Mesh(new THREE.BoxGeometry(2.5, AHU_H*0.75, AHU_D*0.7), matDuct);
+saDuct.position.set(AHU_W/2 + 1.25, AHU_H/2, 0);
+saDuct.userData = { name:"SA Duct", kind:"duct", desc:"送風風管 → VAV → 區域" };
+ductGroup.add(saDuct);
+ductGroup.add(Object.assign(new THREE.LineSegments(new THREE.EdgesGeometry(saDuct.geometry), new THREE.LineBasicMaterial({ color: 0xa78bfa })), { position: saDuct.position.clone() }));
+
+// Sensors
+function addSensor(name, x, desc, specs) {
+  const g = new THREE.Group(); g.position.set(x, AHU_H + 0.15, 0);
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.18), matSensor));
+  const probe = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.4), matSensor);
+  probe.position.y = -0.26; g.add(probe);
+  g.userData = { name, kind:"sensor", desc, specs };
+  ahuGroup.add(g);
+}
+addSensor("ΔP-101 Filter dP",  -1.85, "前過濾段壓差變送器", [["範圍","0-500 Pa"],["輸出","4-20 mA"]]);
+addSensor("TT-105 Supply Air",  0.7, "SA 送風溫度 Pt100", [["元件","Pt100 Class A"],["範圍","-40~120°C"]]);
+addSensor("PDT-107 Static Pr.", 1.4, "風管靜壓變送器", [["範圍","0-500 Pa"],["輸出","4-20 mA"]]);
+addSensor("SD-201 Smoke Det.",  2.0, "風管偵煙器（NFPA 90A）", [["型式","光電 + 離子化"],["連動","FIRE → AHU stop"]]);
+
+const co2Group = new THREE.Group(); co2Group.position.set(1.8, -0.05, -1.4);
+co2Group.add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), matSensor));
+co2Group.userData = { name:"CO2-103 IAQ", kind:"sensor", desc:"NDIR 二氧化碳", specs:[["範圍","0-2000 ppm"],["輸出","4-20 mA"]] };
+ahuGroup.add(co2Group);
+
+// BA Controller
+const baGroup = new THREE.Group(); baGroup.position.set(0, 0.6, 1.6);
+baGroup.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 0.25), new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.4, metalness: 0.7 })));
+const baScreen = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.01), new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
+baScreen.position.set(0, 0.1, 0.13); baGroup.add(baScreen);
+for (let i = 0; i < 3; i++) {
+  const c = i===0?0xa3e635:i===1?0xfb923c:0xf472b6;
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.8 }));
+  led.position.set(0.5, 0.2 - i*0.12, 0.13); baGroup.add(led);
+}
+baGroup.userData = { name:"BA Controller", kind:"controller", desc:"中央 DDC 控制盤", specs:[["型號","Honeywell Niagara 4"],["通訊","BACnet/IP"],["輸入點","11"],["輸出點","6"]] };
+ahuGroup.add(baGroup);
+
+// ============== Click-to-Select ==============
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const selectedEl = document.getElementById('selected');
+const selName = document.getElementById('sel-name');
+const selDesc = document.getElementById('sel-desc');
+const selSpecs = document.getElementById('sel-specs');
+
+function findRoot(obj) {
+  while (obj && !obj.userData?.name) obj = obj.parent;
+  return obj;
+}
+
+canvas.addEventListener('click', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(scene.children, true);
+  if (hits.length) {
+    const root = findRoot(hits[0].object);
+    if (root && root.userData.name) {
+      selName.textContent = root.userData.name;
+      selDesc.textContent = root.userData.desc || '';
+      // Safe DOM construction — no innerHTML
+      while (selSpecs.firstChild) selSpecs.removeChild(selSpecs.firstChild);
+      (root.userData.specs || []).forEach(([k, v]) => {
+        const row = document.createElement('div'); row.className = 'row';
+        const sk = document.createElement('span'); sk.className = 'k'; sk.textContent = k;
+        const sv = document.createElement('span'); sv.className = 'v'; sv.textContent = v;
+        row.appendChild(sk); row.appendChild(sv);
+        selSpecs.appendChild(row);
+      });
+      selectedEl.classList.add('show');
+      return;
+    }
+  }
+  selectedEl.classList.remove('show');
+});
+
+// HUD Controls
+let exploded = false;
+function setExplode(on) {
+  exploded = on;
+  const f = on ? 1 : 0;
+  filterGroup.position.set(filterGroup.userData.basePos.x - f*1.0, filterGroup.userData.basePos.y + f*1.5, filterGroup.userData.basePos.z);
+  coilGroup.position.set(coilGroup.userData.basePos.x, coilGroup.userData.basePos.y + f*2.5, coilGroup.userData.basePos.z);
+  fanGroup.position.set(fanGroup.userData.basePos.x + f*1.0, fanGroup.userData.basePos.y + f*1.8, fanGroup.userData.basePos.z);
+  damperGroup.position.set(damperGroup.userData.basePos.x - f*1.5, damperGroup.userData.basePos.y + f*1.0, damperGroup.userData.basePos.z);
+}
+
+let casingOn = true, ductOn = true;
+function setCasingVis(on) { casingOn = on; casing.visible = on; casingEdges.visible = on; }
+function setDuctVis(on) { ductOn = on; ductGroup.visible = on; }
+
+document.querySelectorAll('.ctrl-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const a = btn.dataset.action;
+    if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
+    else if (a === 'casing') { setCasingVis(!casingOn); btn.classList.toggle('active', casingOn); }
+    else if (a === 'duct')   { setDuctVis(!ductOn);     btn.classList.toggle('active', ductOn); }
+    else if (a === 'reset')  { camera.position.set(7, 4.5, 9); controls.target.set(0, 1, 0); }
+  });
+});
+
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'e') setExplode(!exploded);
+  else if (k === 'c') setCasingVis(!casingOn);
+  else if (k === 'd') setDuctVis(!ductOn);
+  else if (k === 'r') { camera.position.set(7, 4.5, 9); controls.target.set(0, 1, 0); }
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (fanGroup.userData.impeller) fanGroup.userData.impeller.rotation.y += 0.18;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// 載入完成 → 隱藏 loader
+const loader = document.getElementById('loader');
+if (loader) loader.style.display = 'none';
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
