@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B-AHU · BOM 設備清單</title>
+<script src="tailwind.js"></script>
+<style>
+  :root { --ink:#f5f5f7; --sub:#86868b; --sensor:#A3E635; --actuator:#FB923C; --chw:#00D4FF; --air:#A78BFA; }
+  html, body { background:#0a0b0e; color:var(--ink); font-family:-apple-system, "SF Pro Display", "Noto Sans TC", sans-serif; }
+  .mono { font-family: "SF Mono", "Menlo", monospace; }
+
+  /* 共用網站導覽列 */
+  .site-nav { position:fixed; top:0; left:0; right:0; z-index:200; height:46px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; background:rgba(10,11,14,.82); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.06); font-size:12px; }
+  .site-brand { display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; font-weight:600; letter-spacing:.04em; }
+  .brand-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#a3e635,#00d4ff); box-shadow:0 0 8px rgba(163,230,53,.5); }
+  .site-tabs { display:flex; gap:4px; }
+  .site-tabs a { padding:6px 12px; border-radius:6px; color:#86868b; text-decoration:none; font-size:12px; transition:background .2s, color .2s; display:flex; align-items:center; gap:6px; }
+  .site-tabs a:hover { background:rgba(255,255,255,.06); color:var(--ink); }
+  .site-tabs a.is-active { background:rgba(163,230,53,.14); color:#a3e635; border:1px solid rgba(163,230,53,.3); }
+  .site-tabs .ico { font-size:10px; opacity:.7; }
+  @media (max-width: 768px) { .site-nav { padding: 0 12px; height: 42px; } .site-brand span:last-child { display:none; } }
+
+  /* BOM 表格樣式 */
+  .bom-section { margin-top: 32px; }
+  .bom-section h2 { font-size: 18px; font-weight: 700; letter-spacing: .04em; padding: 12px 16px; background: linear-gradient(90deg, rgba(163,230,53,.08), transparent 60%); border-left: 3px solid var(--sensor); margin-bottom: 0; }
+  .bom-section h2 .count { float: right; color: var(--sub); font-weight: 400; font-size: 13px; }
+  table.bom { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.bom thead { background: rgba(255,255,255,.04); }
+  table.bom th { font-weight: 500; color: var(--sub); padding: 10px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.1); white-space: nowrap; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+  table.bom td { padding: 11px 14px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: top; }
+  table.bom tr:hover td { background: rgba(255,255,255,.025); }
+  table.bom .tag { font-family: "SF Mono", monospace; font-size: 11.5px; color: var(--sensor); font-weight: 600; }
+  table.bom .qty { font-family: "SF Mono", monospace; font-weight: 600; text-align: right; }
+  table.bom .price { font-family: "SF Mono", monospace; text-align: right; color: var(--sub); }
+  table.bom .desc { color: #c9ccd1; max-width: 380px; line-height: 1.55; }
+  table.bom .model { font-family: "SF Mono", monospace; color: #d4d4d8; font-size: 12px; }
+
+  .pill { display: inline-block; padding: 2px 8px; border: 1px solid rgba(255,255,255,.14); border-radius: 999px; font-size: 10.5px; color: var(--sub); margin-right: 4px; }
+
+  /* 響應式：手機把次要欄位摺起 */
+  @media (max-width: 768px) {
+    table.bom { font-size: 12px; }
+    table.bom th, table.bom td { padding: 8px 8px; }
+    table.bom .hide-mobile { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 共用導覽 -->
+<nav class="site-nav">
+  <a class="site-brand" href="index.html">
+    <span class="brand-dot"></span>
+    <span>青禾半導體 · 機電系統</span>
+  </a>
+  <div class="site-tabs">
+    <a href="index.html"><span class="ico">▣</span> P&amp;ID 系統圖</a>
+    <a href="3d.html"><span class="ico">◆</span> 3D 模型</a>
+    <a href="bom.html" class="is-active"><span class="ico">≡</span> BOM 設備清單</a>
+  </div>
+</nav>
+
+<main class="max-w-7xl mx-auto pt-20 px-6 pb-24">
+
+  <header class="mb-10 pb-6 border-b border-white/10">
+    <p class="text-xs tracking-[0.32em] text-zinc-500 uppercase mb-2">B 棟 · 行政研發大樓 · 8F</p>
+    <h1 class="text-4xl font-bold tracking-tight">B-AHU · BOM 設備清單</h1>
+    <p class="text-zinc-400 mt-3 text-sm">Bill of Materials — 含主機體 / 儀控 / 配電 / 風管 四大類，共 <span class="text-white font-semibold">28 項</span></p>
+    <div class="mt-4 flex gap-3 flex-wrap">
+      <span class="pill">DWG B-AHU-BOM</span>
+      <span class="pill">REV 03</span>
+      <span class="pill">2026·05·13</span>
+      <span class="pill" style="border-color: rgba(163,230,53,.3); color: var(--sensor)">設備合計 NT$ ~1.8M</span>
+    </div>
+  </header>
+
+  <!-- ============== A. 主機體 / 過濾 / 換熱 / 風機 ============== -->
+  <section class="bom-section">
+    <h2>A · 主機體與機械段 <span class="count">9 項</span></h2>
+    <table class="bom">
+      <thead><tr>
+        <th style="width:90px">Tag</th>
+        <th>元件名稱</th>
+        <th class="hide-mobile">廠牌 / 型號</th>
+        <th class="hide-mobile desc">規格 / 描述</th>
+        <th style="width:70px">數量</th>
+        <th class="hide-mobile" style="width:120px">參考單價</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="tag">AHU-B-08F</td><td>空調箱本體</td><td class="model hide-mobile">日立 / 富士工 客製</td><td class="desc hide-mobile">5.0×2.0×2.0 m、雙皮 50mm PUR、SUS304 內板、6 段組合（混合/過濾/盤管/加濕/風機/後濾）</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 480,000</td></tr>
+        <tr><td class="tag">F-1</td><td>G4 預過濾</td><td class="model hide-mobile">Camfil 30/30</td><td class="desc hide-mobile">板狀、G4 等級、效率 90%@10μm、初壓 35 Pa</td><td class="qty">8 pcs</td><td class="price hide-mobile">$ 1,800</td></tr>
+        <tr><td class="tag">F-2</td><td>F7 主過濾</td><td class="model hide-mobile">Camfil Hi-Flo M7</td><td class="desc hide-mobile">袋狀 pleated、F7 等級、效率 65-75%@1μm、初壓 45 Pa</td><td class="qty">8 pcs</td><td class="price hide-mobile">$ 4,200</td></tr>
+        <tr><td class="tag">CC-1</td><td>冷盤管（DCC）</td><td class="model hide-mobile">天瑞 / 銅管鋁鰭</td><td class="desc hide-mobile">6 排 × 8 fin/in、面積 3.2 m²、銅管 Φ12.7、鋁親水鰭</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 95,000</td></tr>
+        <tr><td class="tag">DP-1</td><td>凝水排放盤</td><td class="model hide-mobile">SUS304 一體成型</td><td class="desc hide-mobile">含 P-trap 落水頭 + 50A 排水管接頭</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 6,500</td></tr>
+        <tr><td class="tag">HU-1</td><td>蒸汽加濕器</td><td class="model hide-mobile">CAREL humiSteam</td><td class="desc hide-mobile">電極式、10 kg/hr、純水進、SS 噴管</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 78,000</td></tr>
+        <tr><td class="tag">SF-1</td><td>送風機</td><td class="model hide-mobile">Comefri TXL 450</td><td class="desc hide-mobile">後傾離心式、6,000 CMH、外部餘壓 650 Pa、11 kW IE3 馬達、皮帶傳動 + 彈簧減震</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 142,000</td></tr>
+        <tr><td class="tag">F-3</td><td>H13 後過濾 HEPA</td><td class="model hide-mobile">Camfil Megalam EnerGuard</td><td class="desc hide-mobile">HEPA H13、效率 99.95%@0.3μm（保留段，CR 需求才裝）</td><td class="qty">- </td><td class="price hide-mobile">$ 8,500</td></tr>
+        <tr><td class="tag">VD-1</td><td>軟接（防震 flex）</td><td class="model hide-mobile">耐隆塗布玻纖布</td><td class="desc hide-mobile">SA / OA / RA 風管連接處 ×3、寬 100mm</td><td class="qty">3 pcs</td><td class="price hide-mobile">$ 1,200</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== B. 風閥 / 控制閥 ============== -->
+  <section class="bom-section">
+    <h2>B · 風閥與控制閥 <span class="count">3 項</span></h2>
+    <table class="bom">
+      <thead><tr>
+        <th style="width:90px">Tag</th><th>元件名稱</th><th class="model hide-mobile">廠牌 / 型號</th><th class="desc hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="tag">DM-1</td><td>外氣電動風閥</td><td class="model hide-mobile">Belimo GMF24A-MFT</td><td class="desc hide-mobile">對開式 6 片葉、35 Nm actuator、0-10V 比例、彈簧復歸</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 18,500</td></tr>
+        <tr><td class="tag">MV-1</td><td>冰水比例式控制閥</td><td class="model hide-mobile">Belimo NMR24-MFT</td><td class="desc hide-mobile">2-way Globe Valve DN65、Cv 48、0-10V、actuator 10 Nm</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 24,000</td></tr>
+        <tr><td class="tag">BV-1</td><td>球閥 + Y 型過濾</td><td class="model hide-mobile">Sant DN65</td><td class="desc hide-mobile">CHW 進出主管 ON/OFF + Y 濾隔濾雜質</td><td class="qty">2 SET</td><td class="price hide-mobile">$ 4,800</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== C. 儀錶 / 感測器 ============== -->
+  <section class="bom-section">
+    <h2>C · 儀錶與感測器 <span class="count">7 項</span></h2>
+    <table class="bom">
+      <thead><tr>
+        <th style="width:90px">Tag</th><th>元件名稱</th><th class="model hide-mobile">廠牌 / 型號</th><th class="desc hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="tag">FS-100</td><td>外氣風量站</td><td class="model hide-mobile">Honeywell HAFSMT0050</td><td class="desc hide-mobile">熱式多點陣列、0-10 m/s、I²C/0-10V 輸出、±2% 精度</td><td class="qty">1 pc</td><td class="price hide-mobile">$ 28,000</td></tr>
+        <tr><td class="tag">ΔP-101</td><td>過濾段壓差</td><td class="model hide-mobile">Setra 264</td><td class="desc hide-mobile">電容式 ±2% FS、0-500 Pa、4-20mA 輸出</td><td class="qty">1 pc</td><td class="price hide-mobile">$ 8,200</td></tr>
+        <tr><td class="tag">TT-102</td><td>CHW 入水溫度</td><td class="model hide-mobile">Pt100 Class A + 套管</td><td class="desc hide-mobile">浸入式 200mm thermowell、-40~120°C</td><td class="qty">1 pc</td><td class="price hide-mobile">$ 3,600</td></tr>
+        <tr><td class="tag">TT-103</td><td>CHW 出水溫度</td><td class="model hide-mobile">同上</td><td class="desc hide-mobile">同 TT-102</td><td class="qty">1 pc</td><td class="price hide-mobile">$ 3,600</td></tr>
+        <tr><td class="tag">TT-105</td><td>SA 送風溫度</td><td class="model hide-mobile">Pt100 風管插入式</td><td class="desc hide-mobile">300mm 桿、無套管、Class A</td><td class="qty">1 pc</td><td class="price hide-mobile">$ 2,800</td></tr>
+        <tr><td class="tag">PDT-107</td><td>SA 風管靜壓</td><td class="model hide-mobile">Setra 267</td><td class="desc hide-mobile">±500 Pa 雙向、4-20mA、自動歸零</td><td class="qty">1 pc</td><td class="price hide-mobile">$ 9,500</td></tr>
+        <tr><td class="tag">SD-201</td><td>風管偵煙器</td><td class="model hide-mobile">System Sensor InnovairFlex</td><td class="desc hide-mobile">光電 + 離子化、含取樣管、NFPA 90A 認證</td><td class="qty">1 pc</td><td class="price hide-mobile">$ 15,500</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== D. 自控 / 配電 / 控制盤 ============== -->
+  <section class="bom-section">
+    <h2>D · 自控 / 配電 / 控制盤 <span class="count">6 項</span></h2>
+    <table class="bom">
+      <thead><tr>
+        <th style="width:90px">Tag</th><th>元件名稱</th><th class="model hide-mobile">廠牌 / 型號</th><th class="desc hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="tag">VFD-1</td><td>變頻器</td><td class="model hide-mobile">ABB ACH580-01-026A-4</td><td class="desc hide-mobile">11 kW 三相 380V、HVAC drive、Modbus + BACnet、IP21</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 58,000</td></tr>
+        <tr><td class="tag">BA-1</td><td>DDC 控制器</td><td class="model hide-mobile">Honeywell Niagara 4</td><td class="desc hide-mobile">JACE 8000 或同等、BACnet/IP、11 in / 6 out、含工程軟體</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 145,000</td></tr>
+        <tr><td class="tag">CO2-103</td><td>二氧化碳變送器</td><td class="model hide-mobile">Vaisala GMW90R</td><td class="desc hide-mobile">NDIR 雙波長、0-2000 ppm、4-20mA、壁掛</td><td class="qty">1 pc</td><td class="price hide-mobile">$ 18,200</td></tr>
+        <tr><td class="tag">EP-1</td><td>動力電盤櫃（ELEC PANEL）</td><td class="model hide-mobile">客製鋼板 IP54</td><td class="desc hide-mobile">0.85×1.85×0.4 m、含 MCB / 接觸器 / 過載保護、下進線</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 42,000</td></tr>
+        <tr><td class="tag">CP-1</td><td>弱電控制盤櫃（CTRL PANEL）</td><td class="model hide-mobile">客製鋼板 IP54</td><td class="desc hide-mobile">同尺寸、含 DDC + 端子排 + 24V DC PSU + UPS 30 min</td><td class="qty">1 SET</td><td class="price hide-mobile">$ 38,000</td></tr>
+        <tr><td class="tag">CT-1</td><td>線管 / 電纜架</td><td class="model hide-mobile">熱浸鋅 cable tray</td><td class="desc hide-mobile">動力 PVC 線管 32A、控制屏蔽 Belden 8132、cable tray 150 寬</td><td class="qty">1 LOT</td><td class="price hide-mobile">$ 12,500</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== E. 風管 / 配管 ============== -->
+  <section class="bom-section">
+    <h2>E · 風管與配管 <span class="count">3 項</span></h2>
+    <table class="bom">
+      <thead><tr>
+        <th style="width:90px">Tag</th><th>元件名稱</th><th class="model hide-mobile">廠牌 / 型號</th><th class="desc hide-mobile">規格 / 描述</th><th style="width:70px">數量</th><th class="hide-mobile" style="width:120px">參考單價</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="tag">OA-DUCT</td><td>外氣風管</td><td class="model hide-mobile">GI + 50mm 玻棉保溫</td><td class="desc hide-mobile">600×300mm、含百葉 + 防鳥網、SMACNA Class 2</td><td class="qty">~6 m</td><td class="price hide-mobile">$ 28,000</td></tr>
+        <tr><td class="tag">SA-DUCT</td><td>送風主管</td><td class="model hide-mobile">GI + 50mm 玻棉保溫</td><td class="desc hide-mobile">600×300mm 主管 + 分支轉接、含 3 道法蘭、2 支吊桿</td><td class="qty">~12 m</td><td class="price hide-mobile">$ 56,000</td></tr>
+        <tr><td class="tag">CHW-PIPE</td><td>冰水進出管</td><td class="model hide-mobile">SCH40 鋼管 + 50mm Armaflex</td><td class="desc hide-mobile">DN65 進出各 1 道、含支架 + 法蘭 + 球閥 + 自動排氣閥</td><td class="qty">~8 m</td><td class="price hide-mobile">$ 32,000</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== 合計 ============== -->
+  <section class="bom-section">
+    <h2>F · 合計 <span class="count">含設備、配管、控制櫃</span></h2>
+    <div class="grid md:grid-cols-4 gap-4 mt-3">
+      <div class="border border-white/10 rounded-lg p-4">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">A 主機體</p>
+        <p class="mono text-2xl font-bold mt-1">$ 717.2 K</p>
+      </div>
+      <div class="border border-white/10 rounded-lg p-4">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">B+C 閥 + 儀錶</p>
+        <p class="mono text-2xl font-bold mt-1">$ 116.5 K</p>
+      </div>
+      <div class="border border-white/10 rounded-lg p-4">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">D 自控 + 配電</p>
+        <p class="mono text-2xl font-bold mt-1">$ 313.7 K</p>
+      </div>
+      <div class="border border-white/10 rounded-lg p-4">
+        <p class="text-xs text-zinc-500 tracking-widest uppercase">E 風管 + 配管</p>
+        <p class="mono text-2xl font-bold mt-1">$ 116.0 K</p>
+      </div>
+    </div>
+    <div class="border border-zinc-700 rounded-lg p-4 mt-4 bg-gradient-to-r from-lime-500/10 to-transparent">
+      <div class="flex items-baseline justify-between">
+        <p class="text-sm text-zinc-300">設備、配管、櫃體小計（未稅）</p>
+        <p class="mono text-3xl font-bold text-lime-400">NT$ 1,263,400</p>
+      </div>
+      <p class="text-xs text-zinc-500 mt-2">不含安裝工資 / 試車調適 / 平衡測試 / 教育訓練；以上單價為市場參考價，最終以實際採購為準。</p>
+    </div>
+  </section>
+
+  <p class="text-xs text-zinc-600 mt-12 leading-relaxed border-t border-white/5 pt-6">
+    本 BOM 為 B-AHU 單一機組之設備清冊，對應 P&amp;ID（<a href="index.html" class="underline hover:text-lime-400">index.html#b</a>）及 3D 模型（<a href="3d.html" class="underline hover:text-lime-400">3d.html</a>）。實際採購數量、品牌與規格須依現場圖說調整。
+  </p>
+
+</main>
+
+</body>
+</html>
