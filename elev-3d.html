@@ -298,23 +298,67 @@ machGroup.userData = { name:"Hoist Machine 牽引機", kind:"machine", desc:"永
 machGroup.userData.basePos = machGroup.position.clone();
 ELEV.add(machGroup);
 
-// ============ 7. Hoist Ropes 牽引繩 (從 sheave 一側到 cab 頂, 另一側到 cw 頂) ============
+// ============ 7. Hoist Ropes 牽引繩 (8 條，分佈 sheave 8 個槽) ============
 const ropeMat = new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.4 });
-// rope to cab
-const ropeCab = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, SHAFT_H - 4.0, 8), ropeMat);
-ropeCab.position.set(0.35, (SHAFT_H - 1.8 + initialCabY + CAB_H/2 + 0.1) / 2, -0.3);
-ropeCab.scale.y = (SHAFT_H - 1.8 - (initialCabY + CAB_H/2 + 0.1)) / (SHAFT_H - 4.0);
-ropeCab.userData = { name:"Hoist Rope 牽引鋼絲繩 (cab)", kind:"rope", desc:"主曳引鋼絲繩（轎廂側）", specs:[["規格","8 × Φ10 mm"],["材質","8x19 Seale"],["安全係數","≥ 12:1"],["維護","年度檢測"]] };
-ELEV.add(ropeCab);
-// rope to cw
-const ropeCw = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, SHAFT_H - 4.0, 8), ropeMat);
-ropeCw.position.set(0.35, (SHAFT_H - 1.8 + cwGroup.position.y + 0.9) / 2, -SHAFT_D/2 + 0.3);
-ropeCw.scale.y = (SHAFT_H - 1.8 - (cwGroup.position.y + 0.9)) / (SHAFT_H - 4.0);
-ELEV.add(ropeCw);
-// 由 sheave 頂跨過去的水平段（視覺示意）
-const ropeHoriz = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.005, SHAFT_D - 0.6), ropeMat);
-ropeHoriz.position.set(0.35, SHAFT_H - 1.45, -0.3 + (-SHAFT_D/2 + 0.3 - (-0.3))/2);
-ELEV.add(ropeHoriz);
+const sheaveCenterY = SHAFT_H - 1.8;
+const cabTopY = initialCabY + CAB_H/2 + 0.1;
+const cwTopY = cwGroup.position.y + 0.9;
+for (let i = 0; i < 8; i++) {
+  const grooveX = 0.35 + (i - 3.5) * 0.022;
+  // cab 側 (從 sheave 下到 cab 頂)
+  const ropeLenCab = sheaveCenterY - cabTopY;
+  const rCab = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, ropeLenCab, 6), ropeMat);
+  rCab.position.set(grooveX, (sheaveCenterY + cabTopY)/2, -0.3);
+  rCab.userData = { name:`Hoist Rope #${i+1} (cab)`, kind:"rope", desc:"主曳引鋼絲繩 — 轎廂側 8 條中第 "+(i+1)+" 條", specs:[["規格","Φ10 mm × 8 條"],["材質","8×19 Seale 鋼絲繩"],["安全係數","≥ 12:1"]] };
+  ELEV.add(rCab);
+  // cw 側 (sheave 下到 cw 頂)
+  const ropeLenCw = sheaveCenterY - cwTopY;
+  const rCw = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, ropeLenCw, 6), ropeMat);
+  rCw.position.set(grooveX, (sheaveCenterY + cwTopY)/2, -SHAFT_D/2 + 0.3);
+  ELEV.add(rCw);
+}
+// sheave 頂跨繩段（弧形示意 — 多條細線跨過）
+for (let i = 0; i < 8; i++) {
+  const grooveX = 0.35 + (i - 3.5) * 0.022;
+  const horiz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, SHAFT_D - 0.6, 6), ropeMat);
+  horiz.rotation.x = Math.PI/2;
+  horiz.position.set(grooveX, SHAFT_H - 1.45, -0.3 + (-SHAFT_D/2 + 0.3 - (-0.3))/2);
+  ELEV.add(horiz);
+}
+
+// ============ 7b. Pit 梯子（緊急逃生用，pit 內壁）============
+const ladderMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.6, roughness: 0.5 });
+[-0.2, 0.2].forEach(zOff => {
+  const railLad = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, PIT_H + 0.2, 8), ladderMat);
+  railLad.position.set(SHAFT_W/2 - 0.12, -PIT_H/2 + 0.1, zOff + 0.7);
+  ELEV.add(railLad);
+});
+for (let i = 0; i < 5; i++) {
+  const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.4, 8), ladderMat);
+  rung.rotation.x = Math.PI/2;
+  rung.position.set(SHAFT_W/2 - 0.12, -PIT_H + 0.4 + i*0.3, 0.7);
+  ELEV.add(rung);
+}
+
+// ============ 7c. Guide Shoes 引導鞋 (轎廂 4 個 + 配重 2 個) ============
+const guideShoeMat = new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.35 });
+[
+  [-CAB_W/2-0.05,  CAB_H/2-0.2, -0.25],
+  [ CAB_W/2+0.05,  CAB_H/2-0.2, -0.25],
+  [-CAB_W/2-0.05, -CAB_H/2+0.2, -0.25],
+  [ CAB_W/2+0.05, -CAB_H/2+0.2, -0.25],
+].forEach(p => {
+  const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.14, 0.14), guideShoeMat);
+  shoe.position.set(p[0], p[1], p[2]);
+  shoe.userData = { name:"Guide Shoe 引導鞋", kind:"safety", desc:"轎廂沿導軌定位（roller / sliding shoe）", specs:[["型式","Roller Guide"],["數量","4 / cab"]] };
+  cabGroup.add(shoe);
+});
+// 配重引導鞋
+[-0.30, 0.30].forEach(x => {
+  const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.12), guideShoeMat);
+  shoe.position.set(x, 0.85, 0);
+  cwGroup.add(shoe);
+});
 
 // ============ 8. Buffers 緩衝器 (pit 2 個) ============
 [[0, -SHAFT_D/2 + 0.3], [0, 0]].forEach(([x, z], i) => {
