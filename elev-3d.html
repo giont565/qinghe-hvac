@@ -1459,10 +1459,10 @@ function setDoorMode(on) {
   // 隱藏雜訊
   hideInDoorMode.forEach(o => o.visible = !on);
   if (on) {
-    // 鏡頭飛到 cab 門前
-    const cabPos = cabGroup.position;
-    doorModeTargetCam.set(cabPos.x + 0.4, cabPos.y + 0.3, cabPos.z + 3.4);
-    doorModeTargetTar.set(cabPos.x, cabPos.y + 0.1, cabPos.z + 1.0);
+    // 鏡頭飛到 2F cab 門前（doorMode 強制把 cab 鎖在 2F，這裡用 2F 預測位置）
+    const lockedCabY = 1 * FLOOR_H + 1.15;  // 4.65 (2F)
+    doorModeTargetCam.set(cabGroup.position.x + 0.4, lockedCabY + 0.3, CAB_Z + 3.4);
+    doorModeTargetTar.set(cabGroup.position.x, lockedCabY + 0.1, CAB_Z + 1.0);
   } else {
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
@@ -1481,10 +1481,10 @@ function setCabinMode(on) {
   cabinDoorForceOpen = on;
   if (on && doorMode) setDoorMode(false);  // 兩種特寫互斥
   if (on) {
-    // 鏡頭飛進 cab 內部偏前（看得到後牆鏡 + 兩側扶手 + COP）
-    const cabPos = cabGroup.position;
-    doorModeTargetCam.set(cabPos.x + 0.3, cabPos.y + 0.6, cabPos.z + 1.6);
-    doorModeTargetTar.set(cabPos.x, cabPos.y, cabPos.z - 0.3);
+    // 鏡頭飛進 2F cab 內部偏前（看得到後牆鏡 + 兩側扶手 + COP）
+    const lockedCabY = 1 * FLOOR_H + 1.15;
+    doorModeTargetCam.set(cabGroup.position.x + 0.3, lockedCabY + 0.6, CAB_Z + 1.6);
+    doorModeTargetTar.set(cabGroup.position.x, lockedCabY, CAB_Z - 0.3);
   } else {
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
