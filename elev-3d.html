@@ -18,39 +18,68 @@
   canvas { display:block; }
   #viewport { position:fixed; inset:0; }
 
+  /* Nav */
+  .site-nav { position:fixed; top:0; left:0; right:0; z-index:200; height:46px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; background:rgba(10,11,14,.82); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.06); font-size:12px; }
+  .site-brand { display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; font-weight:600; }
+  .brand-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#a3e635,#00d4ff); box-shadow:0 0 8px rgba(163,230,53,.5); }
+  .site-sys { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; margin-left:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:6px; font-size:11px; color:var(--sub); }
+  .site-sys select { background:transparent; border:none; color:var(--ink); font-size:12px; font-family:inherit; cursor:pointer; }
+  .site-sys option { background:#1a1d24; color:var(--ink); }
+  .site-tabs { display:flex; gap:4px; padding:3px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:9px; flex-wrap:wrap; }
+  .site-tabs a { padding:6px 12px; border-radius:6px; color:#86868b; text-decoration:none; font-size:12px; display:flex; align-items:center; gap:6px; }
+  .site-tabs a:hover { background:rgba(255,255,255,.06); color:var(--ink); }
+  .site-tabs a.is-active { background:rgba(163,230,53,.14); color:#a3e635; border:1px solid rgba(163,230,53,.3); }
+  @media (max-width:768px){ .site-nav{padding:0 8px;height:42px;font-size:11px} .site-brand span:last-child{display:none} }
+
+  /* HUD */
   .hud { position:fixed; z-index:10; background:rgba(15,15,17,.78); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:14px 18px; font-size:13px; }
-  .hud-tl { top:60px; left:16px; }
+  .hud-tl { top:60px; left:16px; max-width:300px; }
   .hud-tr { top:60px; right:16px; min-width:280px; }
   .hud-bl { bottom:16px; left:16px; }
-  .hud-br { bottom:16px; right:16px; }
+  .hud-br { bottom:16px; right:16px; min-width:240px; }
   h1 { font-size:18px; font-weight:600; letter-spacing:-.01em; margin-bottom:4px; }
   .sub { color:var(--sub); font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
   .controls { display:grid; gap:6px; margin-top:12px; }
-  .ctrl-btn { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; font-size:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:7px; color:var(--ink); cursor:pointer; transition:background .2s; font-family:inherit; }
+  .ctrl-btn { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; font-size:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:7px; color:var(--ink); cursor:pointer; transition:background .2s, border-color .2s; font-family:inherit; }
   .ctrl-btn:hover { background:rgba(255,255,255,.09); }
   .ctrl-btn.active { background:rgba(163,230,53,.12); border-color:rgba(163,230,53,.4); }
   .key { color:var(--sub); font-family:"SF Mono", monospace; font-size:10px; }
   .info { font-size:11px; line-height:1.6; color:var(--sub); }
   .info b { color:var(--ink); }
-  .key-hint kbd { display:inline-block; padding:1px 5px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:3px; color:var(--ink); font-family:inherit; font-size:10px; }
-  #selected { position:fixed; left:16px; top:50%; transform:translateY(-50%); z-index:10; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(163,230,53,.3); border-radius:12px; padding:14px 18px; min-width:240px; max-width:280px; font-size:12px; opacity:0; transition:opacity .25s; pointer-events:none; }
+  kbd { display:inline-block; padding:1px 5px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:3px; color:var(--ink); font-family:inherit; font-size:10px; }
+
+  /* 呼叫按鈕 + 樓層狀態 */
+  .floor-call { display:flex; flex-direction:column; gap:6px; margin-top:12px; }
+  .floor-row { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:7px; }
+  .floor-row.is-current { background:rgba(163,230,53,.16); border-color:rgba(163,230,53,.5); }
+  .floor-row .lbl { font-size:13px; font-weight:600; }
+  .floor-call-btn { padding:4px 10px; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.4); border-radius:5px; color:#fbbf24; font-size:11px; cursor:pointer; font-family:inherit; }
+  .floor-call-btn:hover { background:rgba(251,191,36,.22); }
+  .floor-call-btn:disabled { opacity:.3; cursor:not-allowed; }
+  .floor-call-btn.is-calling { background:rgba(251,191,36,.4); color:#fff; }
+
+  .car-disp { display:flex; align-items:center; gap:10px; padding:10px 14px; background:#0a0d12; border:1px solid #2a2e36; border-radius:7px; margin-top:8px; }
+  .car-disp .lcd { background:#0a3030; color:#a3e635; padding:4px 10px; border-radius:4px; font-family:"SF Mono",monospace; font-size:14px; font-weight:700; min-width:50px; text-align:center; box-shadow:inset 0 0 4px rgba(163,230,53,.4); }
+  .car-disp .arrow { color:var(--sensor); font-size:18px; }
+  .car-disp .arrow.idle { color:#444; }
+  .car-status { font-size:11px; color:var(--sub); }
+  .car-status.running { color:#fbbf24; }
+  .car-status.opening, .car-status.closing { color:#00d4ff; }
+  .car-status.idle { color:var(--sensor); }
+
+  #selected { position:fixed; left:16px; bottom:80px; z-index:10; background:rgba(15,15,17,.85); backdrop-filter:blur(20px); border:1px solid rgba(163,230,53,.3); border-radius:12px; padding:14px 18px; min-width:240px; max-width:280px; font-size:12px; opacity:0; transition:opacity .25s; pointer-events:none; }
   #selected.show { opacity:1; }
   #selected h3 { font-size:14px; font-weight:600; margin-bottom:6px; color:var(--sensor); }
   #selected .row { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed rgba(255,255,255,.08); }
   #selected .row .k { color:var(--sub); }
   #selected .row .v { font-family:"SF Mono", monospace; }
 
-  /* 共用導覽 */
-  .site-nav { position:fixed; top:0; left:0; right:0; z-index:200; height:46px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; background:rgba(10,11,14,.82); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.06); font-size:12px; }
-  .site-brand { display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; font-weight:600; }
-  .brand-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#a3e635,#00d4ff); box-shadow:0 0 8px rgba(163,230,53,.5); }
-  .site-sys { display:flex; align-items:center; gap:6px; padding:4px 10px; margin-left:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:6px; font-size:11px; color:var(--sub); }
-  .site-sys select { background:transparent; border:none; color:var(--ink); font-size:12px; font-family:inherit; cursor:pointer; }
-  .site-tabs { display:flex; gap:4px; padding:3px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:9px; flex-wrap:wrap; }
-  .site-tabs a { padding:6px 12px; border-radius:6px; color:#86868b; text-decoration:none; font-size:12px; display:flex; align-items:center; gap:6px; }
-  .site-tabs a:hover { background:rgba(255,255,255,.06); color:var(--ink); }
-  .site-tabs a.is-active { background:rgba(163,230,53,.14); color:#a3e635; border:1px solid rgba(163,230,53,.3); }
-  @media (max-width: 768px) { .site-nav { padding:0 8px; height:42px; font-size:11px; } .site-brand span:last-child { display:none; } }
+  @media (max-width:900px){
+    .hud-tr { left:16px; right:16px; top:60px; min-width:0; max-height:60vh; overflow-y:auto; }
+    .hud-tl { display:none; }
+    .hud-bl, .hud-br { display:none; }
+    #selected { left:16px; right:16px; bottom:16px; top:auto; max-width:none; }
+  }
 </style>
 </head>
 <body>
@@ -87,26 +116,29 @@
 
 <div class="hud hud-tl">
   <p class="sub">B 棟 · 客梯 · ELEV-01</p>
-  <h1>Elevator · 客梯機械系統</h1>
+  <h1>Elevator · 互動模型</h1>
   <p class="info" style="margin-top:6px">4-stop MRL traction lift · 13 人 / 900 kg / 1.0 m/s</p>
+  <div class="car-disp">
+    <div class="lcd" id="floorLCD">1F</div>
+    <div class="arrow idle" id="dirArrow">●</div>
+    <div class="car-status idle" id="carStatus">待機 IDLE</div>
+  </div>
 </div>
 
 <div class="hud hud-tr">
-  <p class="sub">View Controls</p>
+  <p class="sub">樓層呼叫 Hall Call</p>
+  <div class="floor-call" id="floorCallList"></div>
+  <p class="sub" style="margin-top:14px">視角控制</p>
   <div class="controls">
     <button class="ctrl-btn" data-action="explode"><span>系統拆解 Exploded</span><span class="key">E</span></button>
     <button class="ctrl-btn active" data-action="shaft"><span>顯示井道 Shaft</span><span class="key">S</span></button>
+    <button class="ctrl-btn" data-action="cutaway"><span>剖視（前牆隱）Cutaway</span><span class="key">C</span></button>
     <button class="ctrl-btn" data-action="reset"><span>重置視角 Reset</span><span class="key">R</span></button>
   </div>
 </div>
 
 <div class="hud hud-bl">
-  <p class="key-hint"><kbd>單指/左鍵</kbd> 旋轉　<kbd>滾輪/雙指</kbd> 縮放　<kbd>點擊</kbd> 元件查看</p>
-</div>
-
-<div class="hud hud-br">
-  <p class="sub">Specs</p>
-  <p class="info"><b>900 kg</b> · <b>1.0 m/s</b> · <b>4-stop</b> · <b>13 person</b> · <b>Gearless MRL</b></p>
+  <p style="font-size:10px;color:var(--sub)"><kbd>左鍵/單指</kbd> 旋轉　<kbd>右鍵/雙指</kbd> 平移　<kbd>滾輪</kbd> 縮放　<kbd>1-4</kbd> 呼叫樓層</p>
 </div>
 
 <div id="selected">
@@ -119,265 +151,529 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+// ============ Scene Setup ============
 const canvas = document.getElementById('viewport');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050505);
-scene.fog = new THREE.Fog(0x050505, 25, 60);
+scene.fog = new THREE.Fog(0x050505, 28, 60);
 
 const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 200);
-camera.position.set(9, 7, 10);
+camera.position.set(10, 7, 12);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.06;
-controls.minDistance = 4;
-controls.maxDistance = 40;
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.minDistance = 3; controls.maxDistance = 40;
 controls.target.set(0, 6, 0);
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.32));
-const keyL = new THREE.DirectionalLight(0xffffff, 1.0); keyL.position.set(8, 18, 10); keyL.castShadow = true;
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+const keyL = new THREE.DirectionalLight(0xffffff, 1.05); keyL.position.set(10, 20, 12); keyL.castShadow = true;
 keyL.shadow.mapSize.set(2048, 2048);
-keyL.shadow.camera.left=-12; keyL.shadow.camera.right=12; keyL.shadow.camera.top=16; keyL.shadow.camera.bottom=-2;
+keyL.shadow.camera.left=-14; keyL.shadow.camera.right=14; keyL.shadow.camera.top=18; keyL.shadow.camera.bottom=-4;
+keyL.shadow.bias = -0.0008;
 scene.add(keyL);
-scene.add(Object.assign(new THREE.DirectionalLight(0xb0c4de, 0.32), { position: new THREE.Vector3(-8, 6, -4) }));
-scene.add(Object.assign(new THREE.DirectionalLight(0xa3e635, 0.28), { position: new THREE.Vector3(0, 6, -12) }));
+scene.add(Object.assign(new THREE.DirectionalLight(0xb0c4de, 0.38), { position: new THREE.Vector3(-10, 6, -4) }));
+scene.add(Object.assign(new THREE.DirectionalLight(0xa3e635, 0.32), { position: new THREE.Vector3(0, 6, -14) }));
 
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.95 }));
-ground.rotation.x = -Math.PI/2; ground.position.y = -0.5; ground.receiveShadow = true;
+// Ground + grid
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.95 }));
+ground.rotation.x = -Math.PI/2; ground.position.y = -1.55; ground.receiveShadow = true;
 scene.add(ground);
-scene.add(Object.assign(new THREE.GridHelper(50, 50, 0x222, 0x161616), { position: new THREE.Vector3(0, -0.49, 0) }));
+scene.add(Object.assign(new THREE.GridHelper(60, 60, 0x222, 0x161616), { position: new THREE.Vector3(0, -1.54, 0) }));
 
-// ====== Elevator 尺寸 ======
-const FLOOR_H = 3.5;       // 樓層高
-const FLOORS = 4;          // 4 stops (1F / 2F / 3F / RF)
-const SHAFT_W = 2.2;       // 井道寬 (X)
-const SHAFT_D = 2.4;       // 井道深 (Z)
-const SHAFT_H = FLOOR_H * (FLOORS - 1) + 4.5;  // 14.0
-const CAB_W = 1.6;
-const CAB_D = 1.6;
-const CAB_H = 2.3;
+// ============ Dimensions ============
+const FLOOR_H = 3.5;
+const FLOORS = 4;
+const FLOOR_NAMES = ['1F', '2F', '3F', 'RF'];
+const FLOOR_Y = FLOOR_NAMES.map((_, i) => i * FLOOR_H);  // 樓層 Y 平面
+const SHAFT_W = 2.2;
+const SHAFT_D = 2.4;
+const PIT_H = 1.5;
+const SHAFT_H = FLOOR_H * (FLOORS - 1) + 3.5 + PIT_H;
+const CAB_W = 1.6, CAB_D = 1.6, CAB_H = 2.3;
+const CAB_FLOOR_OFFSET = 0.05;  // cab floor 相對於樓層 Y
 
 const ELEV = new THREE.Group(); scene.add(ELEV);
+ELEV.position.y = 0;  // 基準 y=0 對應 1F floor
 
-// ============ 1. Hoistway 井道 (透明殼) ============
+// ============ 1. Hoistway 殼 ============
 const matShaft = new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.7, metalness: 0.2, transparent: true, opacity: 0.12, side: THREE.DoubleSide });
-const shaftBox = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W, SHAFT_H, SHAFT_D), matShaft);
-shaftBox.position.set(0, SHAFT_H/2 - 1.5, 0); // 含 1.5m pit
-shaftBox.userData = { name:"Hoistway 井道", kind:"shaft", desc:"電梯井道（含 1.5m 緩衝坑 + 機房上方頂層）", specs:[["截面","2.2×2.4 m"],["總高","14 m"],["樓層","B1（pit）→ 1F → 2F → 3F → RF"],["防火","2 hr fire rating"]] };
-ELEV.add(shaftBox);
-const shaftEdges = new THREE.LineSegments(new THREE.EdgesGeometry(shaftBox.geometry), new THREE.LineBasicMaterial({ color: 0xf5f5f7 }));
-shaftEdges.position.copy(shaftBox.position); ELEV.add(shaftEdges);
+const shaftGroup = new THREE.Group();
+// 4 面牆獨立做（為了 cutaway 可隱前牆）
+const wallSpec = [
+  { w: SHAFT_W, h: SHAFT_H, x: 0, y: SHAFT_H/2 - PIT_H, z: -SHAFT_D/2, key:'back' },
+  { w: SHAFT_D, h: SHAFT_H, x: -SHAFT_W/2, y: SHAFT_H/2 - PIT_H, z: 0, rotY: Math.PI/2, key:'left' },
+  { w: SHAFT_D, h: SHAFT_H, x: SHAFT_W/2, y: SHAFT_H/2 - PIT_H, z: 0, rotY: Math.PI/2, key:'right' },
+  { w: SHAFT_W, h: SHAFT_H, x: 0, y: SHAFT_H/2 - PIT_H, z: SHAFT_D/2, key:'front' },
+];
+const walls = {};
+wallSpec.forEach(s => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(s.w, s.h), matShaft);
+  m.position.set(s.x, s.y, s.z);
+  if (s.rotY) m.rotation.y = s.rotY;
+  m.userData = { name:"Hoistway Wall", kind:"shaft", desc:`井道牆面 (${s.key})`, specs:[["材質","RC + 2hr 防火"],["厚度","200 mm"]] };
+  walls[s.key] = m;
+  shaftGroup.add(m);
+});
+// Wireframe of bounding box
+const shaftEdges = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(SHAFT_W, SHAFT_H, SHAFT_D)),
+  new THREE.LineBasicMaterial({ color: 0xf5f5f7 })
+);
+shaftEdges.position.set(0, SHAFT_H/2 - PIT_H, 0);
+shaftGroup.add(shaftEdges);
+ELEV.add(shaftGroup);
 
-// ============ 2. Pit 緩衝坑底 (混凝土) ============
-const pit = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W*0.98, 0.3, SHAFT_D*0.98),
-  new THREE.MeshStandardMaterial({ color: 0x4a5160, roughness: 0.9 }));
-pit.position.set(0, -1.35, 0); ELEV.add(pit);
-pit.userData = { name:"Pit 緩衝坑底", kind:"pit", desc:"井道底部 1.5m 預留空間，含緩衝器與底部限位", specs:[["深度","1.5 m"],["排水","Φ75 落水頭"]] };
-
-// 樓層線 + 號牌
-const floorMat = new THREE.LineBasicMaterial({ color: 0x666 });
-for (let i = 0; i < FLOORS; i++) {
-  const y = i * FLOOR_H;
+// 樓層線 + 樓層號牌
+FLOOR_Y.forEach((y, i) => {
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-SHAFT_W/2 - 0.2, y, SHAFT_D/2 + 0.05),
-    new THREE.Vector3(SHAFT_W/2 + 0.2, y, SHAFT_D/2 + 0.05)
-  ]), floorMat);
+    new THREE.Vector3(-SHAFT_W/2-0.4, y, SHAFT_D/2+0.05),
+    new THREE.Vector3(SHAFT_W/2+0.4, y, SHAFT_D/2+0.05)
+  ]), new THREE.LineBasicMaterial({ color: 0x666 }));
   ELEV.add(line);
-  // 號牌 sprite
+  // 號牌
   const cv = document.createElement('canvas'); cv.width=128; cv.height=64;
   const cx = cv.getContext('2d');
-  cx.fillStyle='rgba(15,15,17,.9)'; cx.fillRect(0,0,128,64);
+  cx.fillStyle='rgba(15,15,17,.92)'; cx.fillRect(0,0,128,64);
   cx.strokeStyle='#a3e635'; cx.lineWidth=2; cx.strokeRect(2,2,124,60);
-  cx.fillStyle='#a3e635'; cx.font='bold 32px sans-serif'; cx.textAlign='center';
-  const label = i === FLOORS-1 ? 'RF' : `${i+1}F`;
-  cx.fillText(label, 64, 44);
-  const tex = new THREE.CanvasTexture(cv);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex }));
-  sprite.scale.set(0.6, 0.3, 1);
-  sprite.position.set(-SHAFT_W/2 - 0.45, y + 1.0, SHAFT_D/2 + 0.05);
+  cx.fillStyle='#a3e635'; cx.font='bold 30px sans-serif'; cx.textAlign='center';
+  cx.fillText(FLOOR_NAMES[i], 64, 44);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv) }));
+  sprite.scale.set(0.55, 0.28, 1);
+  sprite.position.set(-SHAFT_W/2 - 0.55, y + 1.1, SHAFT_D/2 + 0.06);
   ELEV.add(sprite);
-}
+});
 
-// ============ 3. Cab 轎廂 ============
-const cabGroup = new THREE.Group();
-const initialCabY = FLOOR_H + 0.3;  // 停在 2F 附近
-cabGroup.position.set(0, initialCabY, -0.3);
-// 轎體
-const cabBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, CAB_H, CAB_D),
-  new THREE.MeshStandardMaterial({ color: 0xe8eaef, roughness: 0.4, metalness: 0.6, transparent: true, opacity: 0.85 }));
-cabBody.castShadow = true;
-cabGroup.add(cabBody);
-// 轎廂頂部馬達連接點 (sling)
-const sling = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.1, 0.1, CAB_D + 0.1),
-  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.8, roughness: 0.4 }));
-sling.position.y = CAB_H/2 + 0.1; cabGroup.add(sling);
-// COP 控制板（內部右側牆）
-const cop = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, 0.2),
-  new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.7 }));
-cop.position.set(CAB_W/2 - 0.03, 0.3, 0.3);
-cabGroup.add(cop);
-// COP 按鈕燈
-for (let i = 0; i < 4; i++) {
-  const btn = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
-    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.4 }));
-  btn.position.set(CAB_W/2 - 0.005, 0.55 - i*0.12, 0.3);
-  cabGroup.add(btn);
-}
-// 轎門（雙開）
-const doorMat = new THREE.MeshStandardMaterial({ color: 0xb0b4ba, metalness: 0.85, roughness: 0.3 });
-const cabDoorL = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.05, CAB_H - 0.2, 0.04), doorMat);
-cabDoorL.position.set(-CAB_W/4 + 0.025, 0, CAB_D/2 + 0.02);
-cabGroup.add(cabDoorL);
-const cabDoorR = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.05, CAB_H - 0.2, 0.04), doorMat);
-cabDoorR.position.set(CAB_W/4 - 0.025, 0, CAB_D/2 + 0.02);
-cabGroup.add(cabDoorR);
-cabGroup.userData = { name:"Cab 轎廂", kind:"cab", desc:"乘客車廂 + 雙開門 + COP 操作板", specs:[["容量","13 人 / 900 kg"],["速度","1.0 m/s"],["材質","SUS304 髮絲紋"],["門","中分雙開 2-panel"]] };
-cabGroup.userData.basePos = cabGroup.position.clone();
-ELEV.add(cabGroup);
+// Pit 底板
+const pitFloor = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W*0.98, 0.25, SHAFT_D*0.98),
+  new THREE.MeshStandardMaterial({ color: 0x3a414d, roughness: 0.9 }));
+pitFloor.position.set(0, -PIT_H + 0.12, 0);
+pitFloor.receiveShadow = true;
+pitFloor.userData = { name:"Pit Floor 緩衝坑底", kind:"pit", desc:"井道底部 RC 結構 + 排水孔", specs:[["深度","1.5 m"],["排水","Φ75 落水"]] };
+ELEV.add(pitFloor);
 
-// ============ 4. Counterweight 配重 ============
-const cwGroup = new THREE.Group();
-cwGroup.position.set(0, FLOOR_H*1.8, -SHAFT_D/2 + 0.3);
-const cwFrame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.8, 0.4),
-  new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.8, roughness: 0.5 }));
-cwGroup.add(cwFrame);
-// 配重塊 (堆疊條)
-for (let i = 0; i < 8; i++) {
-  const block = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.18, 0.32),
-    new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.7, roughness: 0.65 }));
-  block.position.y = -0.7 + i * 0.20;
-  cwGroup.add(block);
+// Pit 梯子
+const ladder = new THREE.Group();
+const ladderSide = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.6, roughness: 0.5 });
+[-0.15, 0.15].forEach(dx => {
+  const r = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, PIT_H + 0.2, 8), ladderSide);
+  r.position.set(SHAFT_W/2 - 0.12, -PIT_H/2 + 0.1, dx + 0.7);
+  ladder.add(r);
+});
+for (let i = 0; i < 5; i++) {
+  const rung = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.3, 8), ladderSide);
+  rung.rotation.x = Math.PI/2;
+  rung.position.set(SHAFT_W/2 - 0.12, -PIT_H + 0.4 + i*0.3, 0.7);
+  ladder.add(rung);
 }
-cwGroup.userData = { name:"Counterweight 配重", kind:"cw", desc:"配重塊 — 平衡 50% 額定 + 轎廂自重", specs:[["重量","2,100 kg (cab + 50% load)"],["材質","鑄鐵塊堆疊"],["導軌","T70/B"]] };
-cwGroup.userData.basePos = cwGroup.position.clone();
-ELEV.add(cwGroup);
+ELEV.add(ladder);
 
-// ============ 5. Guide Rails 導軌 (4 條) ============
+// ============ 2. Guide Rails 導軌 (4 條，含軌座) ============
 const railMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.85, roughness: 0.3 });
+const railsBrkMat = new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.7, roughness: 0.5 });
 // 轎廂左右導軌
-[ -SHAFT_W/2 + 0.15, SHAFT_W/2 - 0.15 ].forEach(x => {
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, SHAFT_H, 0.12), railMat);
-  rail.position.set(x, SHAFT_H/2 - 1.5, -0.3);
-  rail.userData = { name:"Cab Guide Rail 轎廂導軌", kind:"rail", desc:"T 型鋼導軌 T90/B", specs:[["截面","T90/B"],["材質","冷拉精軋鋼"],["軌距","2,200 mm"],["接續","每段 5m 含 fishplate"]] };
+[-SHAFT_W/2+0.15, SHAFT_W/2-0.15].forEach(x => {
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.09, SHAFT_H, 0.13), railMat);
+  rail.position.set(x, SHAFT_H/2 - PIT_H, -0.25);
+  rail.castShadow = true;
+  rail.userData = { name:"Cab Guide Rail 轎廂導軌", kind:"rail", desc:"T 型鋼導軌 T90/B", specs:[["截面","T90/B"],["材質","冷拉精軋鋼"],["軌距","2,200 mm"]] };
   ELEV.add(rail);
+  // 軌座 (每樓層一個)
+  FLOOR_Y.forEach(y => {
+    const brk = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.15, 0.18), railsBrkMat);
+    brk.position.set(x + (x > 0 ? -0.07 : 0.07), y, -0.25);
+    ELEV.add(brk);
+  });
 });
 // 配重導軌
-[ -0.2, 0.2 ].forEach(x => {
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, SHAFT_H, 0.1), railMat);
-  rail.position.set(x, SHAFT_H/2 - 1.5, -SHAFT_D/2 + 0.3);
+[-0.25, 0.25].forEach(x => {
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(0.07, SHAFT_H, 0.11), railMat);
+  rail.position.set(x, SHAFT_H/2 - PIT_H, -SHAFT_D/2 + 0.3);
+  rail.castShadow = true;
   rail.userData = { name:"CW Guide Rail 配重導軌", kind:"rail", desc:"配重 T 型導軌 T70/B", specs:[["截面","T70/B"]] };
   ELEV.add(rail);
 });
 
-// ============ 6. Machine Group (頂部馬達 + 牽引輪) ============
+// ============ 3. Cab 轎廂（內部裝飾、扶手、燈、操作板）============
+const cabGroup = new THREE.Group();
+let cabFloor = 0;       // 當前所在樓層 (0~3)
+let cabTargetY = FLOOR_Y[0] + CAB_FLOOR_OFFSET;
+cabGroup.position.set(0, cabTargetY, -0.25);
+
+// 外殼框架 (4 個牆 + 頂 + 底)
+const matCabExt = new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.75, roughness: 0.35 });
+const matCabInt = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, metalness: 0.3, roughness: 0.6 });
+// 底板
+const cabFloorMesh = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, 0.06, CAB_D),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.6, roughness: 0.5 }));
+cabFloorMesh.position.y = -CAB_H/2 + 0.03;
+cabFloorMesh.castShadow = true; cabFloorMesh.receiveShadow = true;
+cabGroup.add(cabFloorMesh);
+// 內部地板紋路（馬賽克）
+for (let i = -3; i <= 3; i++) {
+  for (let j = -3; j <= 3; j++) {
+    if ((i+j) % 2 === 0) {
+      const tile = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22),
+        new THREE.MeshStandardMaterial({ color: 0x8a8e96, roughness: 0.6 }));
+      tile.rotation.x = -Math.PI/2;
+      tile.position.set(i*0.22, -CAB_H/2 + 0.061, j*0.22);
+      cabGroup.add(tile);
+    }
+  }
+}
+// 天花板 + 燈
+const ceiling = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, 0.06, CAB_D), matCabInt);
+ceiling.position.y = CAB_H/2 - 0.03; cabGroup.add(ceiling);
+const cabLight = new THREE.Mesh(new THREE.BoxGeometry(CAB_W*0.7, 0.04, CAB_D*0.7),
+  new THREE.MeshStandardMaterial({ color: 0xfff5e0, emissive: 0xfff5e0, emissiveIntensity: 0.8 }));
+cabLight.position.y = CAB_H/2 - 0.07; cabGroup.add(cabLight);
+const cabBulb = new THREE.PointLight(0xfff5e0, 0.8, 5);
+cabBulb.position.y = CAB_H/2 - 0.2; cabGroup.add(cabBulb);
+// 後牆 + 左右牆（半透明，看得到內部）
+const matWallSemi = new THREE.MeshStandardMaterial({ color: 0xe8eaef, metalness: 0.4, roughness: 0.5, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+const wallBack = new THREE.Mesh(new THREE.PlaneGeometry(CAB_W, CAB_H), matWallSemi);
+wallBack.position.set(0, 0, -CAB_D/2); cabGroup.add(wallBack);
+const wallL = new THREE.Mesh(new THREE.PlaneGeometry(CAB_D, CAB_H), matWallSemi);
+wallL.rotation.y = Math.PI/2; wallL.position.set(-CAB_W/2, 0, 0); cabGroup.add(wallL);
+const wallR = new THREE.Mesh(new THREE.PlaneGeometry(CAB_D, CAB_H), matWallSemi);
+wallR.rotation.y = -Math.PI/2; wallR.position.set(CAB_W/2, 0, 0); cabGroup.add(wallR);
+// 三面扶手
+const handrailMat = new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9, roughness: 0.2 });
+const handrailB = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, CAB_W*0.9, 16), handrailMat);
+handrailB.rotation.z = Math.PI/2; handrailB.position.set(0, 0.05, -CAB_D/2 + 0.05);
+cabGroup.add(handrailB);
+const handrailL = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, CAB_D*0.9, 16), handrailMat);
+handrailL.rotation.x = Math.PI/2; handrailL.position.set(-CAB_W/2 + 0.05, 0.05, 0);
+cabGroup.add(handrailL);
+const handrailR = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, CAB_D*0.9, 16), handrailMat);
+handrailR.rotation.x = Math.PI/2; handrailR.position.set(CAB_W/2 - 0.05, 0.05, 0);
+cabGroup.add(handrailR);
+// 樓層 indicator (轎廂內天花板下方，含上下箭頭)
+const indGroup = new THREE.Group();
+const indPanel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.02),
+  new THREE.MeshStandardMaterial({ color: 0x0a0d12, metalness: 0.8 }));
+indGroup.add(indPanel);
+// 樓層數字 (canvas texture)
+const indCv = document.createElement('canvas'); indCv.width=256; indCv.height=64;
+const indCx = indCv.getContext('2d');
+function drawFloorIndicator(label, arrow) {
+  indCx.fillStyle='#0a0d12'; indCx.fillRect(0,0,256,64);
+  indCx.fillStyle='#a3e635'; indCx.font='bold 38px monospace'; indCx.textAlign='center'; indCx.textBaseline='middle';
+  indCx.fillText(label, 100, 32);
+  indCx.font='bold 30px sans-serif';
+  indCx.fillStyle = arrow ? '#a3e635' : '#1a3a1a';
+  indCx.fillText(arrow || '●', 175, 32);
+  indTex.needsUpdate = true;
+}
+const indTex = new THREE.CanvasTexture(indCv);
+const indDisplay = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.10), new THREE.MeshBasicMaterial({ map: indTex }));
+indDisplay.position.z = 0.012; indGroup.add(indDisplay);
+indGroup.position.set(0, CAB_H/2 - 0.25, -CAB_D/2 + 0.012);
+cabGroup.add(indGroup);
+drawFloorIndicator('1F', '●');
+
+// COP 操作板（右牆內側）
+const copPanel = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.95, 0.22),
+  new THREE.MeshStandardMaterial({ color: 0x2a2e36, metalness: 0.85, roughness: 0.25 }));
+copPanel.position.set(CAB_W/2 - 0.022, 0.1, 0.35);
+cabGroup.add(copPanel);
+// COP 按鈕 4 顆（樓層）+ 開門/關門
+const copBtnState = [];
+for (let i = 0; i < 4; i++) {
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 16),
+    new THREE.MeshStandardMaterial({ color: 0x5a5d62, emissive: 0x111111, roughness: 0.5 }));
+  btn.rotation.z = Math.PI/2;
+  btn.position.set(CAB_W/2 - 0.004, 0.4 - i*0.11, 0.35);
+  btn.userData = { isCopBtn: true, floor: i, name:`COP Btn ${FLOOR_NAMES[i]}`, kind:"button", desc:`轎廂內 ${FLOOR_NAMES[i]} 樓按鈕`, specs:[["燈","LED amber"],["材質","SUS304"]] };
+  cabGroup.add(btn);
+  copBtnState.push(btn);
+}
+// 開門 / 關門 / 警報按鈕（特殊）
+['<>', '>|<', '!'].forEach((label, i) => {
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 16),
+    new THREE.MeshStandardMaterial({ color: i===2 ? 0x88262a : 0x5a5d62, emissive: 0x111111, roughness: 0.5 }));
+  btn.rotation.z = Math.PI/2;
+  btn.position.set(CAB_W/2 - 0.004, -0.05 - i*0.08, 0.35);
+  cabGroup.add(btn);
+});
+
+// 轎廂頂部 sling 吊架
+const sling = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.18, 0.14, CAB_D + 0.18),
+  new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.85, roughness: 0.4 }));
+sling.position.y = CAB_H/2 + 0.07; sling.castShadow = true;
+cabGroup.add(sling);
+// 4 個繩端錐套接點
+const ropeAnchor = new THREE.MeshStandardMaterial({ color: 0x8a8e96, metalness: 0.8, roughness: 0.3 });
+const anchorPoints = [];
+for (let i = 0; i < 4; i++) {
+  const a = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.1, 8), ropeAnchor);
+  a.position.set(-CAB_W/2 + 0.2 + i*(CAB_W-0.4)/3, CAB_H/2 + 0.18, 0);
+  cabGroup.add(a);
+  anchorPoints.push(a);
+}
+// 引導鞋 (4 個 — 上下、左右)
+[
+  [-CAB_W/2-0.05,  CAB_H/2-0.2, -0.25],
+  [ CAB_W/2+0.05,  CAB_H/2-0.2, -0.25],
+  [-CAB_W/2-0.05, -CAB_H/2+0.2, -0.25],
+  [ CAB_W/2+0.05, -CAB_H/2+0.2, -0.25],
+].forEach(p => {
+  const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.16),
+    new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.35 }));
+  shoe.position.set(p[0], p[1], p[2]);
+  shoe.userData = { name:"Guide Shoe 引導鞋", kind:"safety", desc:"轎廂沿導軌定位（roller / sliding shoe）", specs:[["型式","Roller Guide Shoe"],["數量","4 / cab"]] };
+  cabGroup.add(shoe);
+});
+// 安全鉗 (轎廂底兩側)
+[-CAB_W/2-0.05, CAB_W/2+0.05].forEach(x => {
+  const sg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.22, 0.2),
+    new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.7, roughness: 0.35 }));
+  sg.position.set(x, -CAB_H/2 + 0.1, -0.25);
+  sg.userData = { name:"Safety Gear 安全鉗", kind:"safety", desc:"超速時夾緊導軌剎停（漸進式 / 瞬時式）", specs:[["型式","Progressive"],["觸發","Governor 1.4 × 額定"],["重設","維修後手動"]] };
+  cabGroup.add(sg);
+});
+// 載重感應器 (sling 底)
+const lcMesh = new THREE.Mesh(new THREE.BoxGeometry(CAB_W*0.95, 0.04, CAB_D*0.95),
+  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.4 }));
+lcMesh.position.y = CAB_H/2 + 0.16;
+lcMesh.userData = { name:"Load Cell 載重感應", kind:"sensor", desc:"轎廂底架四點載重監測 + 超載警報", specs:[["範圍","0-1200 kg"],["精度","±2%"],["過載閥值","110% × 900 = 990 kg"]] };
+cabGroup.add(lcMesh);
+
+// 轎門（雙開、左右兩片，個別可動）
+const doorMat = new THREE.MeshStandardMaterial({ color: 0xb0b4ba, metalness: 0.88, roughness: 0.25 });
+const cabDoorL = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.04, CAB_H - 0.2, 0.04), doorMat);
+cabDoorL.position.set(-CAB_W/4 + 0.02, 0.05, CAB_D/2 + 0.02);
+cabDoorL.castShadow = true;
+cabDoorL.userData = { name:"Cab Door 轎門 (Left)", kind:"door", desc:"轎廂左門片", specs:[["材質","髮絲紋 SUS304"]] };
+cabGroup.add(cabDoorL);
+const cabDoorR = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.04, CAB_H - 0.2, 0.04), doorMat);
+cabDoorR.position.set(CAB_W/4 - 0.02, 0.05, CAB_D/2 + 0.02);
+cabDoorR.castShadow = true;
+cabGroup.add(cabDoorR);
+
+cabGroup.userData = { name:"Cab 轎廂", kind:"cab", desc:"乘客車廂 + 雙開門 + COP + 緊急照明 + 載重", specs:[["容量","13 人 / 900 kg"],["速度","1.0 m/s"],["材質","SUS304 髮絲紋"],["門","中分雙開 2-panel"]] };
+ELEV.add(cabGroup);
+
+// ============ 4. Counterweight 配重 ============
+const cwGroup = new THREE.Group();
+let cwTargetY = FLOOR_Y[FLOORS-1] - cabTargetY + FLOOR_Y[0] + 1.5;  // 反向
+cwGroup.position.set(0, cwTargetY, -SHAFT_D/2 + 0.3);
+const cwFrame = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.9, 0.42),
+  new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.8, roughness: 0.5 }));
+cwFrame.castShadow = true;
+cwGroup.add(cwFrame);
+for (let i = 0; i < 9; i++) {
+  const block = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.18, 0.34),
+    new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.7, roughness: 0.65 }));
+  block.position.y = -0.8 + i * 0.20;
+  cwGroup.add(block);
+}
+// 配重 sling + 安全鉗
+[-0.30, 0.30].forEach(x => {
+  const sg = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.18, 0.16),
+    new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.7 }));
+  sg.position.set(x, -1.0, 0);
+  cwGroup.add(sg);
+});
+cwGroup.userData = { name:"Counterweight 配重", kind:"cw", desc:"配重塊 — 平衡 50% 額定 + 轎廂自重", specs:[["重量","2,100 kg"],["材質","鑄鐵塊堆疊"],["導軌","T70/B"]] };
+ELEV.add(cwGroup);
+
+// ============ 5. Hoist Machine (頂部) ============
 const machGroup = new THREE.Group();
-machGroup.position.set(0, SHAFT_H - 1.8, -0.3);
-// 馬達 + 永磁齒輪 (gearless)
-const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.55, 24),
+machGroup.position.set(0, SHAFT_H - PIT_H - 1.0, -0.25);
+// Bed plate
+const machBed = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 0.8),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.7, roughness: 0.4 }));
+machBed.position.y = -0.45; machBed.castShadow = true;
+machGroup.add(machBed);
+// 馬達
+const motorBody = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.6, 24),
   new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.35 }));
-motor.rotation.z = Math.PI/2;
-machGroup.add(motor);
-// 牽引輪 (sheave)
-const sheave = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.12, 32),
-  new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.9, roughness: 0.25 }));
+motorBody.rotation.z = Math.PI/2;
+motorBody.castShadow = true;
+machGroup.add(motorBody);
+// motor 散熱片
+for (let i = 0; i < 8; i++) {
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.65, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0xc16a10, metalness: 0.6 }));
+  fin.rotation.z = Math.PI/2;
+  fin.position.set(0, 0.34 * Math.cos((i/8) * Math.PI * 2), 0.34 * Math.sin((i/8) * Math.PI * 2));
+  machGroup.add(fin);
+}
+// 牽引輪 sheave (有 8 槽)
+const sheave = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.18, 48),
+  new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.92, roughness: 0.2 }));
 sheave.rotation.z = Math.PI/2;
-sheave.position.x = 0.35;
+sheave.position.x = 0.42;
+sheave.castShadow = true;
 machGroup.add(sheave);
-// 制動器 (brake)
-const brake = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.25),
-  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.6, roughness: 0.4 }));
-brake.position.x = -0.4;
+// 牽引輪 8 槽 marker
+for (let i = -3.5; i <= 3.5; i++) {
+  const groove = new THREE.Mesh(new THREE.TorusGeometry(0.385, 0.012, 6, 32),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76 }));
+  groove.rotation.y = Math.PI/2;
+  groove.position.set(0.42 + i*0.02, 0, 0);
+  machGroup.add(groove);
+}
+// brake
+const brake = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.34, 0.28),
+  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.55, roughness: 0.4 }));
+brake.position.x = -0.48;
 machGroup.add(brake);
-machGroup.userData = { name:"Hoist Machine 牽引機", kind:"machine", desc:"永磁同步無齒輪曳引機（MRL）", specs:[["型式","PMSM Gearless"],["功率","8.5 kW"],["額定轉速","119 rpm"],["扭矩","580 Nm"],["效率","IE5"]] };
-machGroup.userData.basePos = machGroup.position.clone();
+const brakeDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 24),
+  new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.9 }));
+brakeDisc.rotation.z = Math.PI/2;
+brakeDisc.position.x = -0.32; machGroup.add(brakeDisc);
+machGroup.userData = { name:"Hoist Machine 牽引機", kind:"machine", desc:"永磁同步無齒輪曳引機（MRL）+ 雙片煞車", specs:[["型式","PMSM Gearless"],["功率","8.5 kW"],["轉速","119 rpm"],["扭矩","580 Nm"]] };
 ELEV.add(machGroup);
 
-// ============ 7. Hoist Ropes 牽引繩 (從 sheave 一側到 cab 頂, 另一側到 cw 頂) ============
+// ============ 6. Hoist Ropes 牽引繩（8 條）============
+const ropesGroup = new THREE.Group(); ELEV.add(ropesGroup);
 const ropeMat = new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.4 });
-// rope to cab
-const ropeCab = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, SHAFT_H - 4.0, 8), ropeMat);
-ropeCab.position.set(0.35, (SHAFT_H - 1.8 + initialCabY + CAB_H/2 + 0.1) / 2, -0.3);
-ropeCab.scale.y = (SHAFT_H - 1.8 - (initialCabY + CAB_H/2 + 0.1)) / (SHAFT_H - 4.0);
-ropeCab.userData = { name:"Hoist Rope 牽引鋼絲繩 (cab)", kind:"rope", desc:"主曳引鋼絲繩（轎廂側）", specs:[["規格","8 × Φ10 mm"],["材質","8x19 Seale"],["安全係數","≥ 12:1"],["維護","年度檢測"]] };
-ELEV.add(ropeCab);
-// rope to cw
-const ropeCw = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, SHAFT_H - 4.0, 8), ropeMat);
-ropeCw.position.set(0.35, (SHAFT_H - 1.8 + cwGroup.position.y + 0.9) / 2, -SHAFT_D/2 + 0.3);
-ropeCw.scale.y = (SHAFT_H - 1.8 - (cwGroup.position.y + 0.9)) / (SHAFT_H - 4.0);
-ELEV.add(ropeCw);
-// 由 sheave 頂跨過去的水平段（視覺示意）
-const ropeHoriz = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.005, SHAFT_D - 0.6), ropeMat);
-ropeHoriz.position.set(0.35, SHAFT_H - 1.45, -0.3 + (-SHAFT_D/2 + 0.3 - (-0.3))/2);
-ELEV.add(ropeHoriz);
+const ropePool = [];  // 動態更新
+function buildRope(x1, y1, z1, x2, y2, z2) {
+  const dx = x2-x1, dy = y2-y1, dz = z2-z1;
+  const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+  const r = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, len, 6), ropeMat);
+  r.position.set((x1+x2)/2, (y1+y2)/2, (z1+z2)/2);
+  r.lookAt(x2, y2, z2);
+  r.rotateX(Math.PI/2);
+  return r;
+}
+function rebuildRopes() {
+  ropesGroup.clear();
+  const sheaveY = machGroup.position.y;
+  const sheaveX = 0.42;  // sheave 中心位置
+  // 8 條繩，分佈 sheave 槽
+  for (let i = 0; i < 8; i++) {
+    const grooveX = sheaveX + (i - 3.5) * 0.02;
+    // 繩從 sheave 一端下到 cab anchor，另一端下到 cw 頂
+    // cab side: from (grooveX, sheaveY, 轎廂 z=-0.25)
+    const anchorIdx = Math.min(3, i % 4);
+    const aWorld = new THREE.Vector3();
+    anchorPoints[anchorIdx].getWorldPosition(aWorld);
+    ropesGroup.add(buildRope(grooveX, sheaveY, -0.25, grooveX, aWorld.y, aWorld.z));
+    // cw side: from (grooveX, sheaveY, cw z=-SHAFT_D/2+0.3) to top of cw
+    const cwTopY = cwGroup.position.y + 0.95;
+    ropesGroup.add(buildRope(grooveX, sheaveY, -SHAFT_D/2 + 0.3, grooveX, cwTopY, -SHAFT_D/2 + 0.3));
+  }
+}
+rebuildRopes();
 
-// ============ 8. Buffers 緩衝器 (pit 2 個) ============
-[[0, -SHAFT_D/2 + 0.3], [0, 0]].forEach(([x, z], i) => {
-  const buf = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.5, 16),
+// ============ 7. Buffers 緩衝器 ============
+[ [0, -0.3], [0, -SHAFT_D/2 + 0.3] ].forEach(([x, z], i) => {
+  const buf = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.55, 16),
     new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.5, roughness: 0.4 }));
-  buf.position.set(x, -1.0, z);
-  buf.userData = { name: i===0 ? "CW Buffer 配重緩衝器" : "Cab Buffer 轎廂緩衝器", kind:"safety", desc:"油壓式緩衝器（速度 ≥ 1.0m/s 需用）", specs:[["型式","油壓緩衝 oil buffer"],["容量","符合 EN 81-20"],["位置","pit 底部"]] };
+  buf.position.set(x, -PIT_H + 0.5, z);
+  buf.castShadow = true;
+  buf.userData = { name: i===0 ? "Cab Buffer 轎廂緩衝器" : "CW Buffer 配重緩衝器", kind:"safety", desc:"油壓式緩衝器", specs:[["型式","Oil Buffer"],["EN 81-20 合規"]] };
   ELEV.add(buf);
 });
 
-// ============ 9. Governor 限速器 + 安全鉗 ============
+// ============ 8. Governor 限速器 + 繩 ============
 const govGroup = new THREE.Group();
-govGroup.position.set(SHAFT_W/2 - 0.15, SHAFT_H - 2.3, -0.3);
-const govWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 24),
+govGroup.position.set(SHAFT_W/2 - 0.16, SHAFT_H - PIT_H - 0.4, -0.25);
+const govWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.10, 32),
   new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.85, roughness: 0.3 }));
 govWheel.rotation.z = Math.PI/2;
 govGroup.add(govWheel);
-const govBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.25),
+const govBase = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.3),
   new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.7 }));
-govBase.position.set(-0.1, -0.15, 0); govGroup.add(govBase);
-govGroup.userData = { name:"Governor 限速器", kind:"safety", desc:"超速保護 — 觸發安全鉗夾緊導軌", specs:[["動作速度","1.4 × 額定 = 1.4 m/s"],["重設","手動 reset"],["訊號","NC 切斷主迴路"]] };
+govBase.position.set(-0.12, -0.2, 0); govGroup.add(govBase);
+govGroup.userData = { name:"Governor 限速器", kind:"safety", desc:"超速保護機構 — 1.4× 額定觸發安全鉗", specs:[["動作","1.4 m/s"],["觸發","切斷 NC + 安全鉗"]] };
 ELEV.add(govGroup);
-// 限速器繩（細鋼絲，貫穿全井道）
-const govRope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, SHAFT_H - 1.5, 6),
+// Governor rope 連續
+const govRope = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, SHAFT_H - 1.2, 6),
   new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.7 }));
-govRope.position.set(SHAFT_W/2 - 0.15, (SHAFT_H - 2.3 - 0.5)/2, -0.3);
+govRope.position.set(SHAFT_W/2 - 0.16, (SHAFT_H - PIT_H - 0.4 + (-PIT_H + 0.5))/2, -0.25);
 ELEV.add(govRope);
+// pit 端 tension wheel
+const govTension = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.08, 24),
+  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.85 }));
+govTension.rotation.z = Math.PI/2;
+govTension.position.set(SHAFT_W/2 - 0.16, -PIT_H + 0.55, -0.25);
+ELEV.add(govTension);
 
-// ============ 10. Door Operator + Landing Doors (3 層) ============
-[1, 2, 3].forEach(f => {
-  const y = (f - 1) * FLOOR_H;
-  const ldL = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.02, CAB_H - 0.2, 0.04),
+// ============ 9. Landing Doors + 樓層設備 (3 樓層) ============
+const landingDoors = [];  // 存每樓的 [L, R] 門片，可動畫
+[0, 1, 2].forEach(f => {
+  const y = FLOOR_Y[f];
+  // 門框
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.2, CAB_H + 0.1, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.8 }));
+  frame.position.set(0, y + CAB_H/2 - 0.05, SHAFT_D/2 + 0.05);
+  ELEV.add(frame);
+  // 樓層門 (前面開口)
+  const cutout = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.05, CAB_H - 0.05, 0.07),
+    new THREE.MeshBasicMaterial({ color: 0x000 }));
+  cutout.position.set(0, y + (CAB_H - 0.05)/2 + 0.025, SHAFT_D/2 + 0.05);
+  ELEV.add(cutout);
+  // 門片 L
+  const ldL = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.04, CAB_H - 0.15, 0.04),
     new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.85, roughness: 0.3 }));
-  ldL.position.set(-CAB_W/4 + 0.01, y + (CAB_H - 0.2)/2 + 0.05, SHAFT_D/2 + 0.02);
-  ldL.userData = { name:`Landing Door ${f}F (Left)`, kind:"door", desc:`${f} 樓層門 — 左片`, specs:[["材質","髮絲紋 SUS304"],["互鎖","mechanical + electrical interlock"]] };
+  ldL.position.set(-CAB_W/4 + 0.02, y + (CAB_H - 0.15)/2 + 0.04, SHAFT_D/2 + 0.06);
+  ldL.castShadow = true;
+  ldL.userData = { name:`Landing Door ${FLOOR_NAMES[f]} (L)`, kind:"door", desc:`${FLOOR_NAMES[f]} 樓層門左片`, specs:[["互鎖","mechanical + electrical"]] };
   ELEV.add(ldL);
-  const ldR = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.02, CAB_H - 0.2, 0.04),
+  // 門片 R
+  const ldR = new THREE.Mesh(new THREE.BoxGeometry(CAB_W/2 - 0.04, CAB_H - 0.15, 0.04),
     new THREE.MeshStandardMaterial({ color: 0xa0a4ac, metalness: 0.85, roughness: 0.3 }));
-  ldR.position.set(CAB_W/4 - 0.01, y + (CAB_H - 0.2)/2 + 0.05, SHAFT_D/2 + 0.02);
+  ldR.position.set(CAB_W/4 - 0.02, y + (CAB_H - 0.15)/2 + 0.04, SHAFT_D/2 + 0.06);
+  ldR.castShadow = true;
   ELEV.add(ldR);
-  // 樓層 hall button (兩按鈕 ↑↓ 或單按鈕)
-  const hall = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.02),
-    new THREE.MeshStandardMaterial({ color: 0x303138, metalness: 0.8 }));
-  hall.position.set(CAB_W/2 + 0.35, y + 1.2, SHAFT_D/2 + 0.03);
-  ELEV.add(hall);
+  landingDoors.push({ L: ldL, R: ldR, y, baseX_L: -CAB_W/4 + 0.02, baseX_R: CAB_W/4 - 0.02 });
+  // Hall button (右側牆面)
+  const hallPanel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.28, 0.025),
+    new THREE.MeshStandardMaterial({ color: 0x2a2e36, metalness: 0.85 }));
+  hallPanel.position.set(CAB_W/2 + 0.4, y + 1.3, SHAFT_D/2 + 0.06);
+  ELEV.add(hallPanel);
+  // 上下箭頭按鈕
+  if (f < 2) {
+    const btnUp = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16),
+      new THREE.MeshStandardMaterial({ color: 0x5a5d62, emissive: 0x111111 }));
+    btnUp.position.set(CAB_W/2 + 0.4, y + 1.36, SHAFT_D/2 + 0.073);
+    ELEV.add(btnUp);
+  }
+  if (f > 0) {
+    const btnDn = new THREE.Mesh(new THREE.CircleGeometry(0.025, 16),
+      new THREE.MeshStandardMaterial({ color: 0x5a5d62, emissive: 0x111111 }));
+    btnDn.position.set(CAB_W/2 + 0.4, y + 1.24, SHAFT_D/2 + 0.073);
+    ELEV.add(btnDn);
+  }
+  // 樓層 indicator 顯示器
+  const fInd = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.08, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x0a0d12, metalness: 0.7 }));
+  fInd.position.set(CAB_W/2 + 0.4, y + 1.55, SHAFT_D/2 + 0.07);
+  ELEV.add(fInd);
 });
 
-// ============ 11. Controller Cabinet (旁置控制盤) ============
-const ctrlElev = new THREE.Group();
-ctrlElev.position.set(-SHAFT_W/2 - 1.2, 0.95, 0);
-const ctrlBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.85, 0.35),
+// RF 沒有樓層門（屋頂機房）但加維修板
+{
+  const y = FLOOR_Y[3];
+  const accessPanel = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + 0.2, 0.5, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x4a5160, metalness: 0.7 }));
+  accessPanel.position.set(0, y + 0.5, SHAFT_D/2 + 0.05);
+  accessPanel.userData = { name:"Machine Room Access RF", kind:"door", desc:"頂層機房維修進出口", specs:[["材質","鋼板"]] };
+  ELEV.add(accessPanel);
+}
+
+// ============ 10. Controller Cabinet (旁置) ============
+const ctrlGroup = new THREE.Group();
+ctrlGroup.position.set(-SHAFT_W/2 - 1.3, 0.93, -0.4);
+const ctrlBox = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.85, 0.36),
   new THREE.MeshStandardMaterial({ color: 0xd0d3da, metalness: 0.7, roughness: 0.4 }));
-ctrlElev.add(ctrlBox);
-const ctrlWin = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.1, 0.005),
-  new THREE.MeshStandardMaterial({ color: 0x0a0d12, transparent: true, opacity: 0.25 }));
-ctrlWin.position.z = 0.18; ctrlElev.add(ctrlWin);
-// 內部 VFD + CPU + 安全模組
-const cabVFD = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.15),
-  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.6 }));
-cabVFD.position.set(0, 0.3, 0.08); ctrlElev.add(cabVFD);
-const cabCPU = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.12),
-  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.4 }));
-cabCPU.position.set(0, -0.1, 0.08); ctrlElev.add(cabCPU);
+ctrlBox.castShadow = true;
+ctrlGroup.add(ctrlBox);
+const ctrlEdges = new THREE.LineSegments(new THREE.EdgesGeometry(ctrlBox.geometry), new THREE.LineBasicMaterial({ color: 0x6a6e76 }));
+ctrlGroup.add(ctrlEdges);
 // 銘版
 {
   const cv = document.createElement('canvas'); cv.width=512; cv.height=80;
@@ -387,32 +683,77 @@ cabCPU.position.set(0, -0.1, 0.08); ctrlElev.add(cabCPU);
   cx.fillText('ELEV CTRL · 控制盤', 256, 40);
   const tex = new THREE.CanvasTexture(cv);
   const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.1), new THREE.MeshBasicMaterial({ map: tex }));
-  tag.position.set(0, 0.78, 0.18); ctrlElev.add(tag);
+  tag.position.set(0, 0.78, 0.182); ctrlGroup.add(tag);
 }
-ctrlElev.userData = { name:"Elevator Controller 控制盤", kind:"controller", desc:"電梯控制櫃 — 含 VFD + CPU + 安全繼電器", specs:[["VFD","KEB Combivert F6"],["CPU","Motion controller"],["安全","SIL-3 STO/SBC/SS1"],["通訊","CANopen + Modbus"]] };
-ELEV.add(ctrlElev);
+// 觀察窗
+const ctrlWin = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.005),
+  new THREE.MeshStandardMaterial({ color: 0x0a0d12, transparent: true, opacity: 0.25 }));
+ctrlWin.position.set(0, 0.05, 0.183); ctrlGroup.add(ctrlWin);
+// 內裝 — VFD + CPU + SAFETY
+const vfdMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.16),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.6, roughness: 0.4 }));
+vfdMesh.position.set(0, 0.4, 0.085); ctrlGroup.add(vfdMesh);
+const cpuMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.13),
+  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.5, roughness: 0.45 }));
+cpuMesh.position.set(0, 0.06, 0.085); ctrlGroup.add(cpuMesh);
+const safetyMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.13),
+  new THREE.MeshStandardMaterial({ color: 0xf472b6, emissive: 0x6e1c4a, emissiveIntensity: 0.5 }));
+safetyMesh.position.set(0, -0.20, 0.085); ctrlGroup.add(safetyMesh);
+// LED 燈
+for (let i = 0; i < 3; i++) {
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8),
+    new THREE.MeshStandardMaterial({ color: [0xa3e635, 0xfb923c, 0xf472b6][i], emissive: [0xa3e635, 0xfb923c, 0xf472b6][i], emissiveIntensity: 0.8 }));
+  led.position.set(0.2, 0.55 - i*0.06, 0.183);
+  ctrlGroup.add(led);
+}
+ctrlGroup.userData = { name:"Elevator Controller 控制盤", kind:"controller", desc:"電梯控制櫃 — VFD + CPU + 安全模組 + UPS", specs:[["VFD","KEB Combivert F6 11kW"],["CPU","Motion Controller"],["Safety","SIL-3 STO/SS1"],["UPS","30 min 備援"]] };
+ELEV.add(ctrlGroup);
 
-// ============ 12. Sensors ============
+// ============ 11. Sensors ============
 function addElevSensor(name, pos, desc, specs) {
   const g = new THREE.Group(); g.position.set(...pos);
   g.add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.1),
-    new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.6 })));
+    new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.7 })));
   g.userData = { name, kind:"sensor", desc, specs };
   ELEV.add(g);
 }
-// 上下端站 limit switches
-addElevSensor("Top Limit 上限位",     [SHAFT_W/2 - 0.1, SHAFT_H - 2.6, -0.3], "頂端強制停止", [["型式","NC magnetic"]]);
-addElevSensor("Bottom Limit 下限位",  [SHAFT_W/2 - 0.1, -0.4, -0.3], "底端強制停止", [["型式","NC magnetic"]]);
-// 加速 / 減速 / Final limit
-addElevSensor("Encoder 編碼器",       [-0.4, SHAFT_H - 1.8, -0.3], "馬達絕對位置回授", [["型式","Heidenhain EBI 1135"],["分辨率","2¹⁹ × 4096"]]);
-addElevSensor("Load Cell 載重",       [0, initialCabY + 1.3, -0.3], "轎廂底架載重監測", [["範圍","0-1200 kg"],["110% 過載警報"]]);
-addElevSensor("Door Zone 樓層感應",   [-0.85, FLOOR_H + 1.5, -0.3], "磁感應 / 光電 — 樓層平層精確停車", [["精度","±3 mm"]]);
+addElevSensor("Top Limit 上限位",     [SHAFT_W/2 - 0.05, SHAFT_H - PIT_H - 0.4, -0.25], "頂端強制停止 NC", [["型式","Magnetic NC"]]);
+addElevSensor("Bottom Limit 下限位",  [SHAFT_W/2 - 0.05, -PIT_H + 0.25, -0.25], "底端強制停止 NC", [["型式","Magnetic NC"]]);
+addElevSensor("Encoder 編碼器",       [-0.4, SHAFT_H - PIT_H - 0.85, -0.25], "馬達絕對位置回授", [["型式","Heidenhain EBI 1135"]]);
+addElevSensor("Door Zone 門區 1F",    [-SHAFT_W/2+0.05, FLOOR_Y[0] + 1.1, -0.25], "1F 樓層平層磁感應", [["精度","±3 mm"]]);
+addElevSensor("Door Zone 門區 2F",    [-SHAFT_W/2+0.05, FLOOR_Y[1] + 1.1, -0.25], "2F 樓層平層磁感應", [["精度","±3 mm"]]);
+addElevSensor("Door Zone 門區 3F",    [-SHAFT_W/2+0.05, FLOOR_Y[2] + 1.1, -0.25], "3F 樓層平層磁感應", [["精度","±3 mm"]]);
 
-// ============ Click-to-Select ==============
+// ============ 12. Click 互動：高亮 + Specs ============
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const selectedEl = document.getElementById('selected');
+let lastHighlight = null;
+const origEmissive = new Map();
+
 function findRoot(o) { while (o && !o.userData?.name) o = o.parent; return o; }
+function highlight(root) {
+  // 清除上次
+  if (lastHighlight) {
+    lastHighlight.traverse(o => {
+      if (o.isMesh && origEmissive.has(o)) {
+        const orig = origEmissive.get(o);
+        o.material.emissive.setHex(orig.color);
+        o.material.emissiveIntensity = orig.intensity;
+      }
+    });
+    origEmissive.clear();
+  }
+  // 新高亮
+  root.traverse(o => {
+    if (o.isMesh && o.material.emissive) {
+      origEmissive.set(o, { color: o.material.emissive.getHex(), intensity: o.material.emissiveIntensity });
+      o.material.emissive.setHex(0xa3e635);
+      o.material.emissiveIntensity = 0.5;
+    }
+  });
+  lastHighlight = root;
+}
 
 canvas.addEventListener('click', e => {
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -422,6 +763,15 @@ canvas.addEventListener('click', e => {
   if (hits.length) {
     const root = findRoot(hits[0].object);
     if (root?.userData?.name) {
+      // COP 按鈕特例：點 = 呼叫該樓
+      if (root.userData.isCopBtn) {
+        callFloor(root.userData.floor);
+        // 視覺：按鈕變亮
+        root.material.emissive.setHex(0xfbbf24);
+        root.material.emissiveIntensity = 0.7;
+        setTimeout(() => { root.material.emissiveIntensity = 0; }, 4000);
+        return;
+      }
       document.getElementById('sel-name').textContent = root.userData.name;
       document.getElementById('sel-desc').textContent = root.userData.desc || '';
       const specs = document.getElementById('sel-specs');
@@ -432,61 +782,186 @@ canvas.addEventListener('click', e => {
         const sv = document.createElement('span'); sv.className = 'v'; sv.textContent = v;
         r.appendChild(sk); r.appendChild(sv); specs.appendChild(r);
       });
-      selectedEl.classList.add('show'); return;
+      highlight(root);
+      selectedEl.classList.add('show');
+      return;
     }
   }
   selectedEl.classList.remove('show');
 });
 
-// HUD Controls
+// ============ 13. HUD 視角控制 ============
 let exploded = false;
 function setExplode(on) {
   exploded = on;
   const f = on ? 1 : 0;
-  cabGroup.position.set(cabGroup.userData.basePos.x + f*3, cabGroup.userData.basePos.y, cabGroup.userData.basePos.z + f*2);
-  cwGroup.position.set(cwGroup.userData.basePos.x - f*2, cwGroup.userData.basePos.y, cwGroup.userData.basePos.z - f*2);
-  machGroup.position.set(machGroup.userData.basePos.x, machGroup.userData.basePos.y + f*2, machGroup.userData.basePos.z);
+  cabGroup.position.x = f * 3.5;
+  cwGroup.position.x = -f * 3.0;
+  machGroup.position.y = SHAFT_H - PIT_H - 1.0 + f * 2.5;
 }
 let shaftOn = true;
-function setShaftVis(on) { shaftOn = on; shaftBox.visible = on; shaftEdges.visible = on; }
+function setShaftVis(on) { shaftOn = on; Object.values(walls).forEach(w => w.visible = on); shaftEdges.visible = on; }
+let cutaway = false;
+function setCutaway(on) { cutaway = on; walls.front.visible = !on && shaftOn; }
 
 document.querySelectorAll('.ctrl-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const a = btn.dataset.action;
     if (a === 'explode') { setExplode(!exploded); btn.classList.toggle('active', exploded); }
     else if (a === 'shaft') { setShaftVis(!shaftOn); btn.classList.toggle('active', shaftOn); }
-    else if (a === 'reset') { camera.position.set(9, 7, 10); controls.target.set(0, 6, 0); }
+    else if (a === 'cutaway') { setCutaway(!cutaway); btn.classList.toggle('active', cutaway); }
+    else if (a === 'reset') { camera.position.set(10, 7, 12); controls.target.set(0, 6, 0); }
   });
 });
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  if (k === 'e') setExplode(!exploded);
-  else if (k === 's') setShaftVis(!shaftOn);
-  else if (k === 'r') { camera.position.set(9, 7, 10); controls.target.set(0, 6, 0); }
+  if (k === 'e') { setExplode(!exploded); document.querySelector('[data-action=explode]').classList.toggle('active', exploded); }
+  else if (k === 's') { setShaftVis(!shaftOn); document.querySelector('[data-action=shaft]').classList.toggle('active', shaftOn); }
+  else if (k === 'c') { setCutaway(!cutaway); document.querySelector('[data-action=cutaway]').classList.toggle('active', cutaway); }
+  else if (k === 'r') { camera.position.set(10, 7, 12); controls.target.set(0, 6, 0); }
+  else if (['1','2','3','4'].includes(k)) callFloor(parseInt(k)-1);
 });
 
-// 動畫：轎廂上下移動 + sheave 轉
-let t = 0;
+// ============ 14. 電梯運行邏輯 (狀態機) ============
+const STATE = { IDLE:'idle', MOVING:'moving', LEVELING:'leveling', OPENING:'opening', OPEN:'open', CLOSING:'closing' };
+let state = STATE.IDLE;
+let queue = [];
+let doorOpenTimer = 0;
+const doorMaxOpen = CAB_W/2 - 0.05;
+let doorOpenAmt = 0;
+let cabVel = 0;
+const cabMaxV = 0.025;  // per frame ≈ 1 m/s @ 60fps in unit scale
+
+function statusText() {
+  return { idle:'待機 IDLE', moving:'運行 MOVING', leveling:'平層 LEVEL', opening:'開門 OPENING', open:'門開 OPEN', closing:'關門 CLOSING' }[state];
+}
+function updateHUD() {
+  document.getElementById('floorLCD').textContent = FLOOR_NAMES[cabFloor];
+  const arrow = document.getElementById('dirArrow');
+  const dir = cabVel > 0.001 ? '▲' : cabVel < -0.001 ? '▼' : '●';
+  arrow.textContent = dir;
+  arrow.className = 'arrow' + (dir === '●' ? ' idle' : '');
+  const st = document.getElementById('carStatus');
+  st.textContent = statusText();
+  st.className = 'car-status ' + (state === STATE.MOVING || state === STATE.LEVELING ? 'running' :
+                                  state === STATE.OPENING || state === STATE.CLOSING ? 'opening' :
+                                  state === STATE.OPEN ? 'opening' : 'idle');
+  drawFloorIndicator(FLOOR_NAMES[cabFloor], dir);
+  // 樓層卡片 highlight
+  document.querySelectorAll('.floor-row').forEach((r, i) => {
+    r.classList.toggle('is-current', i === cabFloor);
+  });
+}
+
+function callFloor(target) {
+  if (target === cabFloor && state === STATE.IDLE) {
+    // 已在該樓 → 直接開門
+    state = STATE.OPENING; doorOpenTimer = 0;
+    return;
+  }
+  if (target !== cabFloor && !queue.includes(target)) queue.push(target);
+  if (state === STATE.IDLE) processQueue();
+  // 對應按鈕亮起
+  const btn = document.querySelector(`[data-floor="${target}"]`);
+  if (btn) btn.classList.add('is-calling');
+}
+function processQueue() {
+  if (!queue.length) return;
+  const target = queue[0];
+  if (target === cabFloor) { queue.shift(); processQueue(); return; }
+  cabTargetY = FLOOR_Y[target] + CAB_FLOOR_OFFSET;
+  state = STATE.MOVING;
+}
+
+// 樓層呼叫面板
+const callList = document.getElementById('floorCallList');
+FLOOR_NAMES.forEach((name, i) => {
+  const row = document.createElement('div');
+  row.className = 'floor-row' + (i === 0 ? ' is-current' : '');
+  const lbl = document.createElement('span');
+  lbl.className = 'lbl'; lbl.textContent = name;
+  const btn = document.createElement('button');
+  btn.className = 'floor-call-btn'; btn.textContent = '呼叫';
+  btn.dataset.floor = i;
+  btn.addEventListener('click', () => callFloor(i));
+  row.appendChild(lbl); row.appendChild(btn);
+  callList.appendChild(row);
+});
+
+// ============ 15. Animation Loop ============
+const clock = new THREE.Clock();
+let sheaveAngle = 0;
 function animate() {
   requestAnimationFrame(animate);
-  t += 0.005;
-  // 轎廂上下動（範圍 1F ~ 3F）
-  if (!exploded) {
-    const wave = (Math.sin(t) + 1) / 2; // 0~1
-    const y = wave * FLOOR_H * 2 + 0.3;
-    cabGroup.position.y = y;
-    cwGroup.position.y = (FLOOR_H * 2) - (y - 0.3) + 0.7; // 配重反向
-    // 牽引輪旋轉
-    sheave.rotation.x += Math.cos(t) * 0.08;
-    motor.rotation.x += Math.cos(t) * 0.08;
+  const dt = clock.getDelta();
+
+  // 電梯狀態機
+  if (state === STATE.MOVING) {
+    const dy = cabTargetY - cabGroup.position.y;
+    const dist = Math.abs(dy);
+    if (dist < 0.04) {
+      state = STATE.LEVELING;
+      cabVel = 0;
+    } else {
+      // S-curve 簡化：距離大就全速
+      const targetVel = Math.sign(dy) * Math.min(cabMaxV, dist * 0.4);
+      cabVel = THREE.MathUtils.lerp(cabVel, targetVel, 0.06);
+      cabGroup.position.y += cabVel;
+      // 配重反向
+      cwGroup.position.y -= cabVel;
+      // sheave 轉
+      sheaveAngle -= cabVel * 0.6 / 0.4;
+      sheave.rotation.x = sheaveAngle;
+      motorBody.rotation.x = sheaveAngle;
+      brakeDisc.rotation.x = sheaveAngle;
+      rebuildRopes();
+    }
+  } else if (state === STATE.LEVELING) {
+    cabGroup.position.y = cabTargetY;
+    cwGroup.position.y = FLOOR_Y[FLOORS-1] - cabTargetY + FLOOR_Y[0] + 1.5;
+    cabVel = 0;
+    cabFloor = FLOOR_Y.findIndex(y => Math.abs(y + CAB_FLOOR_OFFSET - cabTargetY) < 0.1);
+    if (cabFloor === -1) cabFloor = 0;
+    rebuildRopes();
+    state = STATE.OPENING;
+    doorOpenAmt = 0;
+    // 該樓 hall 按鈕 reset
+    const btn = document.querySelector(`[data-floor="${cabFloor}"]`);
+    if (btn) btn.classList.remove('is-calling');
+    queue.shift();
+  } else if (state === STATE.OPENING) {
+    doorOpenAmt = Math.min(doorMaxOpen, doorOpenAmt + 0.015);
+    cabDoorL.position.x = -CAB_W/4 + 0.02 - doorOpenAmt;
+    cabDoorR.position.x = CAB_W/4 - 0.02 + doorOpenAmt;
+    // 同步該樓 landing door
+    if (cabFloor < 3) {
+      const ld = landingDoors[cabFloor];
+      ld.L.position.x = ld.baseX_L - doorOpenAmt;
+      ld.R.position.x = ld.baseX_R + doorOpenAmt;
+    }
+    if (doorOpenAmt >= doorMaxOpen) { state = STATE.OPEN; doorOpenTimer = 0; }
+  } else if (state === STATE.OPEN) {
+    doorOpenTimer += dt;
+    if (doorOpenTimer >= 2.5) state = STATE.CLOSING;
+  } else if (state === STATE.CLOSING) {
+    doorOpenAmt = Math.max(0, doorOpenAmt - 0.012);
+    cabDoorL.position.x = -CAB_W/4 + 0.02 - doorOpenAmt;
+    cabDoorR.position.x = CAB_W/4 - 0.02 + doorOpenAmt;
+    if (cabFloor < 3) {
+      const ld = landingDoors[cabFloor];
+      ld.L.position.x = ld.baseX_L - doorOpenAmt;
+      ld.R.position.x = ld.baseX_R + doorOpenAmt;
+    }
+    if (doorOpenAmt <= 0) { state = STATE.IDLE; processQueue(); }
   }
+
+  updateHUD();
   controls.update();
   renderer.render(scene, camera);
 }
 animate();
 
-const loader = document.getElementById('loader');
-if (loader) loader.style.display = 'none';
+document.getElementById('loader').style.display = 'none';
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth/window.innerHeight;
