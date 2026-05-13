@@ -240,7 +240,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
-controls.minDistance = 4;
+controls.minDistance = 1.0;  // 允許 close-up 進到 cab 內部（門/內裝特寫需要）
 controls.maxDistance = 40;
 controls.target.set(0, 6, 0);
 
@@ -1513,6 +1513,7 @@ function setDoorMode(on) {
     // 鏡頭直接 snap 到位（不 lerp 才不會中途經過 1F 看起來鏡頭在錯位）
     camera.position.copy(doorModeTargetCam);
     controls.target.copy(doorModeTargetTar);
+    controls.update();  // 同步 OrbitControls 內部狀態
   } else {
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
@@ -1542,6 +1543,7 @@ function setCabinMode(on) {
     doorModeTargetTar.set(cabGroup.position.x, lockedCabY, CAB_Z - 0.3);
     camera.position.copy(doorModeTargetCam);
     controls.target.copy(doorModeTargetTar);
+    controls.update();
   } else {
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
