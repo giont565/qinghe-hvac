@@ -2705,7 +2705,7 @@ let _lastDoorPhase = 0;   // 上一幀 doorPhase（判方向）
 function animate() {
   requestAnimationFrame(animate);
   // 門特寫模式時 t 增長變慢（門開關慢動作）
-  t += doorMode ? 0.0015 : 0.005;
+  t += (doorMode ? 0.0015 : 0.005) * elevSim.speed;   // normal loop 也吃 speed 倍率（0.5×=慢動作）
 
   // 鏡頭 lerp 只在「退出特寫」過渡時才跑；其他時間相機自由（讓使用者轉鏡頭）
   if (cameraLerping) {
@@ -2787,9 +2787,9 @@ function animate() {
     // 每層外部到樓顯示器同步刷新
     hallDisplays.forEach(h => paintHallDisp(h.canvas, h.tex, dispFloorNo, dispDir));
     if (moving) {
-      sheave.rotation.x += 0.12;
-      motor.rotation.x += 0.12;
-      fanBlade.rotation.x += 0.35;  // 風扇高速旋轉
+      sheave.rotation.x += 0.12 * elevSim.speed;
+      motor.rotation.x += 0.12 * elevSim.speed;
+      fanBlade.rotation.x += 0.35 * elevSim.speed;  // 風扇高速旋轉
     }
 
     // === 門特寫步驟指示（依 doorPhase 顯示對應箭頭 + 文字）===
@@ -2962,16 +2962,16 @@ function animate() {
     // 馬達輸出軸自轉（門開合中）
     const doorMoving = doorPhase > 0.02 && doorPhase < 0.98;
     if (doorMoving) {
-      doMotor.rotation.x += 0.2;
-      doPulleyL.rotation.x += 0.5;
-      doPulleyR.rotation.x += 0.5;
+      doMotor.rotation.x += 0.2 * elevSim.speed;
+      doPulleyL.rotation.x += 0.5 * elevSim.speed;
+      doPulleyR.rotation.x += 0.5 * elevSim.speed;
     }
 
     // === 強化動作細節 ===
     // 1. 皮帶齒沿皮帶移動（上排向右、下排向左，模擬封閉式齒型皮帶）
     const beltLen = 0.50;
     const beltSpeed = doorMoving ? (doorPhase > _lastDoorPhase ? 1 : -1) : 0;
-    _beltAcc += beltSpeed * 0.012;
+    _beltAcc += beltSpeed * 0.012 * elevSim.speed;
     beltTeeth.forEach((tooth, i) => {
       const isUpper = i < 4;
       const groupIdx = i % 4;
