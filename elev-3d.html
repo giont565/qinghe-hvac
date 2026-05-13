@@ -269,7 +269,10 @@ const cabGroup = new THREE.Group();
 //   → cab door 中心 = cabY + doorBaseY(-0.05) = (樓 idx)*FLOOR_H + 1.10
 //   → 與 landing door 中心 (y + ldPanelH/2 + 0.05 = (樓 idx)*FLOOR_H + 1.10) 完全對齊
 const initialCabY = FLOOR_H + 1.15;  // 停在 2F 平層
-cabGroup.position.set(0, initialCabY, 0.5);  // 推到 shaft 前方（門側）— 騰出後方給 CW
+// cab z=0.35 → cab front face z=1.15，留 50mm 給 shaft 牆 (z=1.20)
+// → landing door z=1.27 在 cab door z=1.175 外側 95mm，順序正確、不重疊
+const CAB_Z = 0.35;
+cabGroup.position.set(0, initialCabY, CAB_Z);
 // 轎體（透明殼讓外人可窺視內部殘障設施）
 const cabBody = new THREE.Mesh(new THREE.BoxGeometry(CAB_W, CAB_H, CAB_D),
   new THREE.MeshStandardMaterial({ color: 0xe8eaef, roughness: 0.4, metalness: 0.5,
@@ -737,7 +740,7 @@ const railMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.8
 // 轎廂左右導軌
 [ -SHAFT_W/2 + 0.15, SHAFT_W/2 - 0.15 ].forEach(x => {
   const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, SHAFT_H, 0.12), railMat);
-  rail.position.set(x, SHAFT_H/2 - 1.5, 0.5);  // cab guide rails — 跟 cab 同 z 位置（cab 兩側）
+  rail.position.set(x, SHAFT_H/2 - 1.5, CAB_Z);  // cab guide rails — 跟 cab 同 z 位置（cab 兩側）
   rail.userData = { name:"Cab Guide Rail 轎廂導軌", kind:"rail", desc:"T 型鋼導軌 T90/B", specs:[["截面","T90/B"],["材質","冷拉精軋鋼"],["軌距","2,200 mm"],["接續","每段 5m 含 fishplate"]] };
   ELEV.add(rail);
 });
@@ -782,7 +785,7 @@ for (let i = 0; i < 8; i++) {
   // cab 側 (從 sheave 下到 cab 頂)
   const ropeLenCab = sheaveCenterY - cabTopY;
   const rCab = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, ropeLenCab, 6), ropeMat);
-  rCab.position.set(grooveX, (sheaveCenterY + cabTopY)/2, 0.5);  // cab 側繩，z 跟 cab
+  rCab.position.set(grooveX, (sheaveCenterY + cabTopY)/2, CAB_Z);  // cab 側繩，z 跟 cab
   rCab.userData = { name:`Hoist Rope #${i+1} (cab)`, kind:"rope", desc:"主曳引鋼絲繩 — 轎廂側 8 條中第 "+(i+1)+" 條", specs:[["規格","Φ10 mm × 8 條"],["材質","8×19 Seale 鋼絲繩"],["安全係數","≥ 12:1"]] };
   ELEV.add(rCab);
   // cw 側 (sheave 下到 cw 頂)
@@ -792,12 +795,13 @@ for (let i = 0; i < 8; i++) {
   ELEV.add(rCw);
 }
 // sheave 頂跨繩段（弧形示意 — 多條細線跨過）
+const CW_Z = -SHAFT_D/2 + 0.22;  // -0.98
+const horizLen = CAB_Z - CW_Z;   // 0.35 - (-0.98) = 1.33
 for (let i = 0; i < 8; i++) {
   const grooveX = 0.35 + (i - 3.5) * 0.022;
-  // 跨過 sheave 從 cab 側 (z=+0.5) 到 cw 側 (z=-0.98)，長度 1.48
-  const horiz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.48, 6), ropeMat);
+  const horiz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, horizLen, 6), ropeMat);
   horiz.rotation.x = Math.PI/2;
-  horiz.position.set(grooveX, SHAFT_H - 1.45, (0.5 + (-0.98))/2);  // 中點 z=-0.24
+  horiz.position.set(grooveX, SHAFT_H - 1.45, (CAB_Z + CW_Z)/2);
   ELEV.add(horiz);
 }
 
