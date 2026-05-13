@@ -110,9 +110,27 @@
 <div id="loader" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#050505;color:#f5f5f7;z-index:100;text-align:center;padding:24px">
   <div>
     <div style="font-size:24px;font-weight:600;margin-bottom:12px">🛗 載入電梯 3D 模型中</div>
-    <div style="color:#86868b;font-size:13px">正在從 CDN 載入 Three.js…</div>
+    <div id="loaderMsg" style="color:#86868b;font-size:13px">正在從 CDN 載入 Three.js…</div>
+    <div id="loaderErr" style="color:#fb923c;font-size:12px;margin-top:16px;max-width:520px;display:none;font-family:SF Mono,monospace;text-align:left;white-space:pre-wrap"></div>
   </div>
 </div>
+<script>
+window.addEventListener('error', e => {
+  const err = document.getElementById('loaderErr');
+  if (err) {
+    err.style.display = 'block';
+    err.textContent = '⚠ ' + (e.message || 'unknown') + (e.filename ? '\n@ ' + e.filename + ':' + e.lineno : '');
+    document.getElementById('loaderMsg').textContent = '⚠ 載入失敗';
+  }
+});
+window.addEventListener('unhandledrejection', e => {
+  const err = document.getElementById('loaderErr');
+  if (err) {
+    err.style.display = 'block';
+    err.textContent = '⚠ Promise rejected: ' + (e.reason?.message || e.reason);
+  }
+});
+</script>
 
 <div class="hud hud-tl">
   <p class="sub">B 棟 · 客梯 · ELEV-01</p>
@@ -541,29 +559,34 @@ const ropeMat = new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9
 const ropePool = [];  // 動態更新
 function buildRope(x1, y1, z1, x2, y2, z2) {
   const dx = x2-x1, dy = y2-y1, dz = z2-z1;
-  const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+  const len = Math.max(0.01, Math.sqrt(dx*dx + dy*dy + dz*dz));
   const r = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, len, 6), ropeMat);
   r.position.set((x1+x2)/2, (y1+y2)/2, (z1+z2)/2);
-  r.lookAt(x2, y2, z2);
-  r.rotateX(Math.PI/2);
+  // 對齊端點：以 Y 軸朝向計算
+  const dir = new THREE.Vector3(dx, dy, dz).normalize();
+  const up = new THREE.Vector3(0, 1, 0);
+  const quat = new THREE.Quaternion().setFromUnitVectors(up, dir);
+  r.quaternion.copy(quat);
   return r;
 }
 function rebuildRopes() {
-  ropesGroup.clear();
-  const sheaveY = machGroup.position.y;
-  const sheaveX = 0.42;  // sheave 中心位置
-  // 8 條繩，分佈 sheave 槽
-  for (let i = 0; i < 8; i++) {
-    const grooveX = sheaveX + (i - 3.5) * 0.02;
-    // 繩從 sheave 一端下到 cab anchor，另一端下到 cw 頂
-    // cab side: from (grooveX, sheaveY, 轎廂 z=-0.25)
-    const anchorIdx = Math.min(3, i % 4);
-    const aWorld = new THREE.Vector3();
-    anchorPoints[anchorIdx].getWorldPosition(aWorld);
-    ropesGroup.add(buildRope(grooveX, sheaveY, -0.25, grooveX, aWorld.y, aWorld.z));
-    // cw side: from (grooveX, sheaveY, cw z=-SHAFT_D/2+0.3) to top of cw
+  try {
+    ropesGroup.clear();
+    // 確保 world matrix 為最新
+    ELEV.updateMatrixWorld(true);
+    const sheaveY = machGroup.position.y;
+    const sheaveX = 0.42;
+    const cabTopY = cabGroup.position.y + CAB_H/2 + 0.18;  // anchor 在 cab top
     const cwTopY = cwGroup.position.y + 0.95;
-    ropesGroup.add(buildRope(grooveX, sheaveY, -SHAFT_D/2 + 0.3, grooveX, cwTopY, -SHAFT_D/2 + 0.3));
+    for (let i = 0; i < 8; i++) {
+      const grooveX = sheaveX + (i - 3.5) * 0.025;
+      // cab 側
+      ropesGroup.add(buildRope(grooveX, sheaveY, -0.25, grooveX, cabTopY, -0.25));
+      // cw 側
+      ropesGroup.add(buildRope(grooveX, sheaveY, -SHAFT_D/2 + 0.3, grooveX, cwTopY, -SHAFT_D/2 + 0.3));
+    }
+  } catch (e) {
+    console.error('rebuildRopes failed:', e);
   }
 }
 rebuildRopes();
