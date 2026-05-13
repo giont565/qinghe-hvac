@@ -1461,8 +1461,14 @@ function setDoorMode(on) {
   if (on) {
     // 鏡頭飛到 2F cab 門前（doorMode 強制把 cab 鎖在 2F，這裡用 2F 預測位置）
     const lockedCabY = 1 * FLOOR_H + 1.15;  // 4.65 (2F)
+    // 同時把 cab 立刻拉到 2F，避免動畫 lerp 過程中視覺脫節
+    cabGroup.position.y = lockedCabY;
+    cwGroup.position.y = (FLOOR_H * 2) - (lockedCabY - 1.15) + 0.85;
     doorModeTargetCam.set(cabGroup.position.x + 0.4, lockedCabY + 0.3, CAB_Z + 3.4);
     doorModeTargetTar.set(cabGroup.position.x, lockedCabY + 0.1, CAB_Z + 1.0);
+    // 鏡頭直接 snap 到位（不 lerp 才不會中途經過 1F 看起來鏡頭在錯位）
+    camera.position.copy(doorModeTargetCam);
+    controls.target.copy(doorModeTargetTar);
   } else {
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
@@ -1483,8 +1489,12 @@ function setCabinMode(on) {
   if (on) {
     // 鏡頭飛進 2F cab 內部偏前（看得到後牆鏡 + 兩側扶手 + COP）
     const lockedCabY = 1 * FLOOR_H + 1.15;
+    cabGroup.position.y = lockedCabY;
+    cwGroup.position.y = (FLOOR_H * 2) - (lockedCabY - 1.15) + 0.85;
     doorModeTargetCam.set(cabGroup.position.x + 0.3, lockedCabY + 0.6, CAB_Z + 1.6);
     doorModeTargetTar.set(cabGroup.position.x, lockedCabY, CAB_Z - 0.3);
+    camera.position.copy(doorModeTargetCam);
+    controls.target.copy(doorModeTargetTar);
   } else {
     doorModeTargetCam.set(9, 7, 10);
     doorModeTargetTar.set(0, 6, 0);
