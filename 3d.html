@@ -2536,8 +2536,10 @@ const elecPanel = makeCabinet(
   [["容量","11 kW"],["輸入","380V 3φ"],["保護等級","IP54"],["散熱","下進上排自然對流"]],
   vfdGroup
 );
-// 不旋轉 → cabinet 正面（雙開門）朝 +Z（朝 AHU 那側），維護人員可正面開門
-elecPanel.position.set(-4.0, 0.95, -1.85);  // X 軸左右並排第 1 櫃
+// 旋轉 90° → cabinet 開門面朝 +X (跟 AHU 殼面 ±Z 成垂直)；維護人員從 +X 那側開門
+// 兩個 cabinet 沿 Z 軸並排（X 同 -4.0）— ELEC 在後 (Z=-2.5)、CTRL 在前 (Z=-1.50)
+elecPanel.rotation.y = Math.PI/2;
+elecPanel.position.set(-4.0, 0.95, -2.5);                 // 後排，後方留維護通道
 panelsGroup.add(elecPanel);
 
 // CTRL PANEL (控制盤櫃) — 內裝 BA Controller
@@ -2548,8 +2550,8 @@ const ctrlPanel = makeCabinet(
   [["控制器","Honeywell Niagara 4"],["通訊","BACnet/IP"],["I/O","11 in / 6 out"],["備援","UPS 30 min"]],
   baGroup
 );
-// 不旋轉 → 與 ELEC 同方向（face 朝 +Z）；X 軸左右並排（cabinet W=0.85，相距 0.95 留 10cm gap）
-ctrlPanel.position.set(-3.05, 0.95, -1.85);  // ELEC X=-4.0 → CTRL X=-3.05
+ctrlPanel.rotation.y = Math.PI/2;
+ctrlPanel.position.set(-4.0, 0.95, -1.50);                // 前排（Z gap 15cm 留並肩維護空間）
 panelsGroup.add(ctrlPanel);
 
 // ====== 上進線：天花板雙 cable tray（動力 vs 控制信號分離 — IEC 61439 規範）======
@@ -2557,9 +2559,9 @@ const matConduit = new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 
 const matSignalTray = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.55, metalness: 0.55 });    // 信號 tray 淺色
 const matCtrlCable = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.3, roughness: 0.5 });
 
-// === 動力 tray（Z=-1.85，粗、灰）— 接 ELEC PANEL → AHU 動力線 ===
+// === 動力 tray（Z=-2.5，對齊 ELEC 上方）— 接 ELEC PANEL → AHU 動力線 ===
 const cableTray = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.08, 0.20), matConduit);
-cableTray.position.set(-2.5, 2.70, -1.85);
+cableTray.position.set(-2.5, 2.70, -2.5);
 panelsGroup.add(cableTray);
 // 動力 tray 標籤（紅色 "POWER"）
 {
@@ -2571,12 +2573,18 @@ panelsGroup.add(cableTray);
   cx.fillText('⚡ POWER 380V', 64, 12);
   const tex = new THREE.CanvasTexture(cv);
   const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.06), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
-  tag.position.set(-2.5, 2.78, -1.95);
-  tag.rotation.x = Math.PI/2;  // 朝上
+  tag.position.set(-2.5, 2.78, -2.6);
+  tag.rotation.x = Math.PI/2;
   panelsGroup.add(tag);
 }
+// 動力 tray 獨立 hangers x 4
+[-0.9, -2.0, -3.05, -4.05].forEach(x => {
+  const hanger = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.40, 8), matConduit);
+  hanger.position.set(x, 2.92, -2.5);
+  panelsGroup.add(hanger);
+});
 
-// === 信號 tray（Z=-1.50，淺色、較細）— 接 CTRL PANEL → AHU 控制 + 所有 sensor 信號 ===
+// === 信號 tray（Z=-1.50，對齊 CTRL 上方）— 接 CTRL PANEL → AHU 控制 + 所有 sensor 信號 ===
 const signalTray = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.06, 0.16), matSignalTray);
 signalTray.position.set(-2.5, 2.72, -1.50);
 panelsGroup.add(signalTray);
@@ -2594,66 +2602,61 @@ panelsGroup.add(signalTray);
   tag.rotation.x = Math.PI/2;
   panelsGroup.add(tag);
 }
-
-// 共用吊架（同一根 hanger 撐起兩條 tray）— 4 支間隔分布
+// 信號 tray 獨立 hangers x 4
 [-0.9, -2.0, -3.05, -4.05].forEach(x => {
-  // 主 hanger 桿（從天花板吊下）
   const hanger = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.020, 0.40, 8), matConduit);
-  hanger.position.set(x, 2.92, -1.675);  // 中心在兩 tray 中間
+  hanger.position.set(x, 2.92, -1.50);
   panelsGroup.add(hanger);
-  // 橫梁支撐（沿 Z 跨兩 tray）
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.40), matConduit);
-  beam.position.set(x, 2.74, -1.675);
-  panelsGroup.add(beam);
 });
 
-// ELEC 上進線（粗灰、動力）：tray 往下進入 ELEC 櫃頂
+// ELEC 上進線（粗灰、動力）：動力 tray (Z=-2.5) 直接下行進 ELEC 櫃頂
 const downElec = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.85, 8), matConduit);
-downElec.position.set(-4.0, 2.25, -1.85);
+downElec.position.set(-4.0, 2.25, -2.5);
 panelsGroup.add(downElec);
-// elbow 進口蓋 (cable gland)
 const glandElec = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.04, 12), matConduit);
-glandElec.position.set(-4.0, 1.86, -1.85);
+glandElec.position.set(-4.0, 1.86, -2.5);
 panelsGroup.add(glandElec);
 
-// CTRL 上進線（細綠、控制訊號）：從「信號 tray (Z=-1.50)」下行進入 CTRL 櫃頂
-// 信號 tray 在 cabinet 前方 → 加一段水平段從 Z=-1.50 拉到 Z=-1.85（cabinet 中心）後再下行
-const ctrlHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.35, 8), matCtrlCable);
-ctrlHoriz.rotation.x = Math.PI/2;
-ctrlHoriz.position.set(-3.05, 2.65, -1.675);  // tray 底下水平段
-panelsGroup.add(ctrlHoriz);
-const ctrlElbow = new THREE.Mesh(new THREE.SphereGeometry(0.030, 12, 8), matCtrlCable);
-ctrlElbow.position.set(-3.05, 2.65, -1.85);   // 90° 彎頭
-panelsGroup.add(ctrlElbow);
-const downCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.78, 8), matCtrlCable);
-downCtrl.position.set(-3.05, 2.26, -1.85);
+// CTRL 上進線（細綠、控制訊號）：信號 tray (Z=-1.50) 直接下行進 CTRL 櫃頂（cabinet 跟 tray 同 Z、無需水平段）
+const downCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.85, 8), matCtrlCable);
+downCtrl.position.set(-4.0, 2.25, -1.50);
 panelsGroup.add(downCtrl);
 const glandCtrl = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.04, 12), matConduit);
-glandCtrl.position.set(-3.05, 1.86, -1.85);
+glandCtrl.position.set(-4.0, 1.86, -1.50);
 panelsGroup.add(glandCtrl);
 
-// tray 往 AHU 端的 trunk + 下行 + 90° 彎頭 + 水平接到 AHU 殼頂（控制 + 動力總線）
-// === 1. 下行段：從 cable tray (Y=2.7) 下到殼頂高度 (Y=2.0) ===
+// === 動力 trunk：從動力 tray (Z=-2.5) 下行 → 90° 彎 → 1.5m 水平 → AHU 殼頂 (Z=-1.0) ===
 const trunkDown = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.7, 8), matConduit);
-trunkDown.position.set(-1.0, 2.35, -1.85);
+trunkDown.position.set(-1.0, 2.35, -2.5);
 panelsGroup.add(trunkDown);
-// === 2. 90° 彎頭（球體 elbow） ===
 const trunkElbow = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), matConduit);
-trunkElbow.position.set(-1.0, 2.0, -1.85);
+trunkElbow.position.set(-1.0, 2.0, -2.5);
 panelsGroup.add(trunkElbow);
-// === 3. 水平段：從 elbow 沿 +Z 軸接到 AHU 後緣殼頂 (Z=-1.0) ===
-const trunkHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.85, 8), matConduit);
-trunkHoriz.rotation.x = Math.PI/2;       // 圓柱長軸繞 X 軸 90°，沿 Z 方向延伸
-trunkHoriz.position.set(-1.0, 2.0, -1.425);  // 中點 Z = (-1.85 + -1.0)/2 = -1.425
+const trunkHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 1.5, 8), matConduit);
+trunkHoriz.rotation.x = Math.PI/2;
+trunkHoriz.position.set(-1.0, 2.0, -1.75);  // 中點 Z = (-2.5 + -1.0)/2 = -1.75
 panelsGroup.add(trunkHoriz);
-// === 4. AHU 殼頂入線 cable gland（密封防水接頭） ===
 const trunkGland = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.045, 12), matConduit);
-trunkGland.position.set(-1.0, 1.985, -1.0);  // 卡在 AHU 殼頂表面
+trunkGland.position.set(-1.0, 1.985, -1.0);
 panelsGroup.add(trunkGland);
-// === 5. 入線後 short stub（穿入 AHU 殼內）===
 const trunkStub = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8), matConduit);
 trunkStub.position.set(-1.0, 1.92, -1.0);
 panelsGroup.add(trunkStub);
+
+// === 信號 trunk：從信號 tray (Z=-1.50) 下行 → 90° 彎 → 0.5m 水平 → AHU 殼頂 (Z=-1.0) — 跟動力 trunk 視覺分離 ===
+const trunkSigDown = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.030, 0.7, 8), matCtrlCable);
+trunkSigDown.position.set(-1.0, 2.37, -1.50);
+panelsGroup.add(trunkSigDown);
+const trunkSigElbow = new THREE.Mesh(new THREE.SphereGeometry(0.038, 12, 8), matCtrlCable);
+trunkSigElbow.position.set(-1.0, 2.02, -1.50);
+panelsGroup.add(trunkSigElbow);
+const trunkSigHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.030, 0.030, 0.5, 8), matCtrlCable);
+trunkSigHoriz.rotation.x = Math.PI/2;
+trunkSigHoriz.position.set(-1.0, 2.02, -1.25);  // 中點 Z = (-1.50 + -1.0)/2 = -1.25
+panelsGroup.add(trunkSigHoriz);
+const trunkSigGland = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.038, 0.035, 12), matConduit);
+trunkSigGland.position.set(-1.0, 1.99, -1.0);
+panelsGroup.add(trunkSigGland);
 
 // ============== Click-to-Select ==============
 const raycaster = new THREE.Raycaster();
