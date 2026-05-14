@@ -1664,11 +1664,96 @@ drainGroup.userData = { name:"負壓排水器 P-Trap", kind:"drain", desc:"凝�
 ahuGroup.add(drainGroup);
 
 // ============ MV Globe Valve — 裝在 CHWR 線上 ============
+// ===== MV Globe Valve 升級：DN65 球體閥 + IP65 actuator + LCD + LED + 手輪 + position feedback =====
 const valveGroup = new THREE.Group(); valveGroup.position.set(-0.15, -0.1, -1.46);
+// 球體閥本體（橘色）
 valveGroup.add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 24, 16), matValve));
+// 上下兩端 flange（DN65 法蘭）
+const valveFlangeT = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.025, 16), matFrame);
+valveFlangeT.position.y = 0.13; valveGroup.add(valveFlangeT);
+const valveFlangeB = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.025, 16), matFrame);
+valveFlangeB.position.y = -0.13; valveGroup.add(valveFlangeB);
+// 8 顆 flange 螺栓
+[0, Math.PI/4, Math.PI/2, 3*Math.PI/4].forEach(a => {
+  [0.13, -0.13].forEach(y => {
+    const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 6), new THREE.MeshStandardMaterial({ color: 0xc0a050, metalness: 0.9 }));
+    bolt.position.set(0.085 * Math.cos(a), y, 0.085 * Math.sin(a));
+    valveGroup.add(bolt);
+  });
+});
+// Stem（旋轉表示開度）
 const valveStem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.22), matFrame); valveStem.position.y = 0.18; valveGroup.add(valveStem);
-const valveMotor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.2, 0.26), matMotor); valveMotor.position.y = 0.4; valveGroup.add(valveMotor);
-valveGroup.userData = { name:"MV Globe Valve", kind:"valve", desc:"比例式電動二通閥 DN65（裝於 CHWR）", specs:[["口徑","DN65"],["訊號","0-10V 比例式"],["Cv","48"],["actuator","Honeywell N20010S2"],["位置","CHWR return"]] };
+// Position feedback 連桿（從 stem 到 actuator 內 potentiometer）
+const fbLink = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.10, 6), new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.3 }));
+fbLink.position.set(0.10, 0.30, 0); fbLink.rotation.z = Math.PI/3; valveGroup.add(fbLink);
+// Actuator IP65 housing（橘色 + 上蓋）
+const valveMotor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.20, 0.26), matMotor); valveMotor.position.y = 0.40; valveGroup.add(valveMotor);
+const valveMotorCap = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.025, 0.28), new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.55, metalness: 0.7 }));
+valveMotorCap.position.y = 0.515; valveGroup.add(valveMotorCap);
+// LCD 顯示開度（小螢幕、模擬 65% open）
+{
+  const cv = document.createElement('canvas'); cv.width=128; cv.height=64;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#0a3030'; cx.fillRect(0,0,128,64);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 11px monospace';
+  cx.textAlign = 'left'; cx.fillText('OPEN %', 6, 14);
+  cx.fillStyle = '#86c5a0'; cx.font = 'bold 26px monospace';
+  cx.textAlign = 'center'; cx.fillText('65', 64, 42);
+  cx.fillStyle = '#fbbf24'; cx.font = '10px monospace';
+  cx.textAlign = 'right'; cx.fillText('AUTO', 122, 58);
+  const tex = new THREE.CanvasTexture(cv);
+  const lcd = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.005), new THREE.MeshBasicMaterial({ map: tex }));
+  lcd.position.set(-0.05, 0.42, 0.131); valveGroup.add(lcd);
+}
+// 4 LED 狀態（PWR/RUN/COMM/FAULT）
+[0xa3e635, 0xa3e635, 0x00d4ff, 0xfb923c].forEach((c, i) => {
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.95 }));
+  led.position.set(0.10, 0.46 - i*0.018, 0.131); valveGroup.add(led);
+});
+// 手動 override 手輪（5 輻 spoke wheel）
+const handwheel = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.008, 8, 16), new THREE.MeshStandardMaterial({ color: 0x444, roughness: 0.7, metalness: 0.5 }));
+handwheel.rotation.x = Math.PI/2;
+handwheel.position.set(0, 0.555, 0); valveGroup.add(handwheel);
+for (let i = 0; i < 5; i++) {
+  const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.008, 0.10), new THREE.MeshStandardMaterial({ color: 0x444 }));
+  spoke.position.set(0, 0.555, 0);
+  spoke.rotation.y = (i / 5) * Math.PI;
+  valveGroup.add(spoke);
+}
+// 銘版（型號 + DN65 / Cv 48 / 0-10V）
+{
+  const cv = document.createElement('canvas'); cv.width=192; cv.height=64;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#1a1d24'; cx.fillRect(0,0,192,64);
+  cx.strokeStyle = '#fb923c'; cx.lineWidth = 2; cx.strokeRect(2,2,188,60);
+  cx.fillStyle = '#fb923c'; cx.font = 'bold 14px monospace';
+  cx.textAlign = 'left'; cx.textBaseline = 'middle';
+  cx.fillText('N20010S2', 8, 14);
+  cx.fillStyle = '#86c5a0'; cx.font = '11px monospace';
+  cx.fillText('Honeywell · DN65 · Cv48', 8, 32);
+  cx.fillStyle = '#fbbf24'; cx.font = 'bold 10px monospace';
+  cx.fillText('0-10V · 35Nm · IP65', 8, 50);
+  const tex = new THREE.CanvasTexture(cv);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.06), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  tag.position.set(0, 0.32, 0.131); valveGroup.add(tag);
+}
+// 出線（綠色控制線、上行接信號 tray）
+// valveGroup world (-0.15, -0.1, -1.46)；信號 tray world (Y=2.72, Z=-1.50)
+// actuator 上蓋 world Y = -0.1 + 0.515 = 0.415；上行段長度 = 2.72 - 0.515 = 2.20、中心 local Y = 0.515 + 1.10 = 1.615
+const matValveSig = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.25, roughness: 0.5 });
+const valveUp = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 2.30, 8), matValveSig);
+valveUp.position.set(0, 1.665, 0); valveGroup.add(valveUp);
+// 90° elbow at tray 高度（local Y = 0.515 + 2.30 = 2.815, world Y = -0.1 + 2.815 = 2.715 ✓）
+const valveElbow = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), matValveSig);
+valveElbow.position.set(0, 2.815, 0); valveGroup.add(valveElbow);
+// 短水平段拉到 tray Z=-1.50（valve world Z=-1.46、距 tray Z 只差 0.04 → local Z=-0.04）
+const valveSigHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.04, 8), matValveSig);
+valveSigHoriz.rotation.x = Math.PI/2;
+valveSigHoriz.position.set(0, 2.815, -0.02); valveGroup.add(valveSigHoriz);
+const valveSigGland = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.014, 0.022, 8), new THREE.MeshStandardMaterial({ color: 0x6a6e76 }));
+valveSigGland.position.set(0, 2.815, -0.04); valveGroup.add(valveSigGland);
+
+valveGroup.userData = { name:"MV Globe Valve", kind:"valve", desc:"比例式電動二通閥 DN65 + Honeywell N20010S2 IP65 actuator (含 LCD 開度顯示 + 4 LED + 手輪 override + position feedback link + 銘版)", specs:[["口徑","DN65"],["訊號","0-10V 比例式"],["Cv","48"],["actuator","Honeywell N20010S2"],["扭矩","35 Nm"],["保護","IP65"],["回授","internal pot + feedback link"],["手動","handwheel override"],["位置","CHWR return"]] };
 valveGroup.userData.stem = valveStem;       // 給 sim tick 旋轉用（表示開度）
 valveGroup.userData.actuator = valveMotor;  // 給 sim tick 變色用（active 時亮起）
 ahuGroup.add(valveGroup);
@@ -1859,16 +1944,88 @@ for (let i = -2.5; i <= 2.5; i++) {
   pin.position.set(0.04, i * bladeSpacing, AHU_D*0.31);
   damperGroup.add(pin);
 }
-// 馬達（Honeywell N20010S2 direct coupled actuator）
+// ===== Damper Actuator 升級：Honeywell N20010S2 IP54 housing =====
+// 主體 (橘色)
 const damperMotor = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.22), matMotor);
 damperMotor.position.set(0.15, AHU_H*0.42, AHU_D*0.32);
 damperGroup.add(damperMotor);
+// 上蓋（接線盒、IP54）
+const damperMotorCap = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.025, 0.24), new THREE.MeshStandardMaterial({ color: 0x6a6e76, roughness: 0.55, metalness: 0.7 }));
+damperMotorCap.position.set(0.15, AHU_H*0.42 + 0.10, AHU_D*0.32);
+damperGroup.add(damperMotorCap);
+// 4 LED 狀態列（PWR/RUN/OPEN/CLOSE）
+[0xa3e635, 0xa3e635, 0xfbbf24, 0xf472b6].forEach((c, i) => {
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.95 }));
+  led.position.set(0.06 + i*0.025, AHU_H*0.42 + 0.06, AHU_D*0.32 + 0.112);
+  damperGroup.add(led);
+});
+// 銘版（Honeywell N20010S2 35Nm 0-10V）
+{
+  const cv = document.createElement('canvas'); cv.width=192; cv.height=64;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#1a1d24'; cx.fillRect(0,0,192,64);
+  cx.strokeStyle = '#fb923c'; cx.lineWidth = 2; cx.strokeRect(2,2,188,60);
+  cx.fillStyle = '#fb923c'; cx.font = 'bold 14px monospace';
+  cx.textAlign = 'left'; cx.textBaseline = 'middle';
+  cx.fillText('N20010S2', 8, 14);
+  cx.fillStyle = '#86c5a0'; cx.font = '11px monospace';
+  cx.fillText('Honeywell · 35 Nm', 8, 32);
+  cx.fillStyle = '#fbbf24'; cx.font = 'bold 10px monospace';
+  cx.fillText('0-10V · 0-100%', 8, 50);
+  cx.fillStyle = '#86c5a0'; cx.textAlign = 'right'; cx.font = '11px monospace';
+  cx.fillText('IP54', 184, 14);
+  cx.fillText('150s/90°', 184, 32);
+  const tex = new THREE.CanvasTexture(cv);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.06), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+  tag.position.set(0.15, AHU_H*0.42, AHU_D*0.32 + 0.112);
+  damperGroup.add(tag);
+}
+// 手動 override 旋鈕（圓盤 + 把手）
+const manualKnob = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.012, 16), new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.5, metalness: 0.8 }));
+manualKnob.rotation.x = Math.PI/2;
+manualKnob.position.set(0.26, AHU_H*0.42, AHU_D*0.32 + 0.115);
+damperGroup.add(manualKnob);
+const knobHandle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.012), new THREE.MeshStandardMaterial({ color: 0x444, roughness: 0.7 }));
+knobHandle.position.set(0.26, AHU_H*0.42, AHU_D*0.32 + 0.124);
+damperGroup.add(knobHandle);
+// Position indicator pointer（小箭頭顯示開度 0-100%）
+const indicator = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.04, 8), new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.6 }));
+indicator.rotation.x = Math.PI/2;
+indicator.position.set(0.04, AHU_H*0.42, AHU_D*0.32 + 0.125);
+damperGroup.add(indicator);
+damperGroup.userData.indicator = indicator;  // sim 可旋轉表示開度
 // Crank arm 馬達 → 連桿
 const crank = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.025, 0.03), new THREE.MeshStandardMaterial({ color: 0x9aa0a8, roughness: 0.45, metalness: 0.85 }));
 crank.position.set(0.13, AHU_H*0.36, AHU_D*0.32);
 crank.rotation.z = -Math.PI/6;
 damperGroup.add(crank);
-damperGroup.userData = { name:"DM Outside Air Damper", kind:"damper", desc:"對開式 6 葉電動風閥 + 連桿傳動", specs:[["葉片","6 片對開式 (opposed blade)"],["連桿","公連桿 + 對偶銷"],["驅動","Honeywell N20010S2 (直驅 35Nm)"],["訊號","0-10V 比例式"],["開度","0-100% 可調"]] };
+// Aux limit switch（mini box 裝在 frame 邊、回授極限訊號）
+const limitSw = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.04), new THREE.MeshStandardMaterial({ color: 0xc8cdd4, roughness: 0.45, metalness: 0.55 }));
+limitSw.position.set(-0.02, AHU_H*0.85, AHU_D*0.32);
+damperGroup.add(limitSw);
+const limitSwLED = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.9 }));
+limitSwLED.position.set(-0.02, AHU_H*0.85, AHU_D*0.32 + 0.022);
+damperGroup.add(limitSwLED);
+// 出線（綠色控制線、上行接信號 tray）
+const matSignal = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.25, roughness: 0.5 });
+// 從 actuator 上蓋出線、上行到信號 tray (world Y=2.72)
+// damperGroup world Y center = AHU_H*0.5 = 1.0；actuator 上蓋 local Y = 0.42*2 + 0.10 = 0.94；world = 1.94
+// 上行段長度 = 2.72 - 1.94 = 0.78、中心 local Y = 0.94 + 0.39 = 1.33
+const damperUp = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.78, 8), matSignal);
+damperUp.position.set(0.15, 1.33, AHU_D*0.32); damperGroup.add(damperUp);
+// 90° elbow at tray 高度
+const damperElbow = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), matSignal);
+damperElbow.position.set(0.15, 1.72, AHU_D*0.32); damperGroup.add(damperElbow);
+// 水平段拉到 tray Z=-0.5（damperGroup local Z=-1.5、因 damperGroup world Z=0、tray world Z=-1.50 → local Z=-1.50）
+const damperSigHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.50 + AHU_D*0.32, 8), matSignal);
+damperSigHoriz.rotation.x = Math.PI/2;
+damperSigHoriz.position.set(0.15, 1.72, (AHU_D*0.32 + (-1.50))/2); damperGroup.add(damperSigHoriz);
+const damperSigGland = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.014, 0.022, 8), new THREE.MeshStandardMaterial({ color: 0x6a6e76 }));
+damperSigGland.position.set(0.15, 1.72, -1.50); damperGroup.add(damperSigGland);
+
+damperGroup.userData = { name:"DM Outside Air Damper", kind:"damper", desc:"對開式 6 葉電動風閥 + 連桿傳動 + Honeywell N20010S2 actuator (含 4 LED + 銘版 + 手動 override + position indicator + aux limit switch)", specs:[["葉片","6 片對開式 (opposed blade)"],["連桿","公連桿 + 對偶銷"],["驅動","Honeywell N20010S2 (直驅 35 Nm)"],["訊號","0-10V 比例式"],["開度","0-100% 可調"],["保護","IP54"],["全行程","150s/90°"],["回授","Aux limit switch (NC/NO)"],["手動","override knob"]] };
+damperGroup.userData.indicator = indicator;
+damperGroup.userData.actuatorLEDs = damperGroup.children.filter(c => c.material && c.material.emissiveIntensity);  // 給 sim 動態變色用
 damperGroup.userData.basePos = damperGroup.position.clone();
 interiorGroup.add(damperGroup);
 
@@ -2006,6 +2163,21 @@ function addSensor(name, x, desc, specs, opts) {
   const fitting = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.025, 8), matCap);
   fitting.position.y = -0.085;
   g.add(fitting);
+  // 11. 信號出線 — 從 conduit top 90° 彎水平接到信號 tray (Z=-1.50)
+  const matSignal = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.25, roughness: 0.5 });
+  // 11a. conduit top elbow（球體 90° 彎頭）
+  const sigElbow = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), matSignal);
+  sigElbow.position.set(0, 0.55, 0);  // sensor world Y = 2.15 + 0.55 = 2.70（剛好抵信號 tray 底）
+  g.add(sigElbow);
+  // 11b. 水平段 — 從 sensor (Z=0) 沿 -Z 方向拉到信號 tray (Z=-1.50)
+  const sigHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.50, 8), matSignal);
+  sigHoriz.rotation.x = Math.PI/2;
+  sigHoriz.position.set(0, 0.55, -0.75);  // 水平、中點 Z=-0.75（從 0 到 -1.50）
+  g.add(sigHoriz);
+  // 11c. 進信號 tray 的 cable gland
+  const sigGland = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.014, 0.022, 8), matCap);
+  sigGland.position.set(0, 0.55, -1.50);
+  g.add(sigGland);
 
   g.userData = { name, kind:"sensor", desc, specs };
   g.userData.led = led;        // 給後續劇本變色用
@@ -2077,6 +2249,22 @@ const fsGroup = new THREE.Group(); fsGroup.position.set(-3.2, AHU_H*0.5, 0);
     const clip = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.025, 0.020), matCap);
     clip.position.set(dx, crossY, 0); fsGroup.add(clip);
   });
+  // 10. 信號出線：上行段 + 90° elbow + 水平段 → 信號 tray (world Y=2.72, Z=-1.50)
+  // fsGroup world Y=AHU_H/2=1.0；signal tray world Y=2.72 → local Y=1.72；fs conduit top local Y=0.55
+  const matSignal = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.25, roughness: 0.5 });
+  // 加長上行段（從 fs conduit top 到 tray 高度）
+  const fsUp = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.17, 8), matSignal);
+  fsUp.position.set(0, 1.135, 0); fsGroup.add(fsUp);
+  // 90° elbow
+  const fsElbow = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), matSignal);
+  fsElbow.position.set(0, 1.72, 0); fsGroup.add(fsElbow);
+  // 水平段拉到信號 tray Z=-1.50
+  const fsSigHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.50, 8), matSignal);
+  fsSigHoriz.rotation.x = Math.PI/2;
+  fsSigHoriz.position.set(0, 1.72, -0.75); fsGroup.add(fsSigHoriz);
+  // 進信號 tray 的 cable gland
+  const fsSigGland = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.014, 0.022, 8), matCap);
+  fsSigGland.position.set(0, 1.72, -1.50); fsGroup.add(fsSigGland);
 }
 fsGroup.userData = { name:"FS-100 OA Airflow Station", kind:"sensor", desc:"熱式多點風速陣列（外氣風量換算）— Cross 主梁 + 4 thermal sense heads", specs:[["元件","Honeywell HAFSMT0050"],["範圍","0-10 m/s"],["精度","±2%"],["輸出","I²C / 0-10V"],["探頭","4 點 cross-array"],["材質","SUS304 stem"]] };
 ahuGroup.add(fsGroup);
@@ -2130,10 +2318,26 @@ const co2Group = new THREE.Group(); co2Group.position.set(1.8, -0.05, -1.4);
     screw.position.set(dx, dy, -0.038);
     co2Group.add(screw);
   });
-  // 6. 出線（背面 conduit 短管，往牆內）
+  // 6. 出線：背面 conduit 短管 + 上行 + 90° elbow + 短水平接信號 tray
+  // co2Group world (X=1.8, Y=-0.05, Z=-1.4)；信號 tray world (Y=2.72, Z=-1.50)
+  // 局部目標：上行到 local Y=2.77 (world 2.72)、水平到 local Z=-0.10 (world -1.50)
+  const matSignal = new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x4a6e1c, emissiveIntensity: 0.25, roughness: 0.5 });
   const co2Conduit = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.05, 8), matMount);
   co2Conduit.position.set(0, 0, -0.063);
   co2Group.add(co2Conduit);
+  // 上行段：從牆內背面拉到信號 tray 高度（壁內走線、壁面外可見細綠線）
+  const co2Up = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 2.77, 8), matSignal);
+  co2Up.position.set(0, 1.385, -0.063); co2Group.add(co2Up);
+  // 90° elbow at tray 高度
+  const co2Elbow = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 8), matSignal);
+  co2Elbow.position.set(0, 2.77, -0.063); co2Group.add(co2Elbow);
+  // 短水平段（co2 距 tray Z 只差 0.04）
+  const co2SigHoriz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.04, 8), matSignal);
+  co2SigHoriz.rotation.x = Math.PI/2;
+  co2SigHoriz.position.set(0, 2.77, -0.083); co2Group.add(co2SigHoriz);
+  // 進信號 tray 的 cable gland
+  const co2SigGland = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.014, 0.022, 8), matMount);
+  co2SigGland.position.set(0, 2.77, -0.10); co2Group.add(co2SigGland);
   co2Group.userData = { led: co2Led };
 }
 co2Group.userData.name = "CO2-103 IAQ";
