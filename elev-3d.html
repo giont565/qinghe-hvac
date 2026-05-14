@@ -1694,19 +1694,6 @@ for (let i = 0; i < 8; i++) {
 // sheave 頂跨繩段（弧形示意 — 多條細線跨過）
 const CW_Z = -SHAFT_D/2 + 0.22;  // -0.98
 const horizLen = CAB_Z - CW_Z;   // 0.35 - (-0.98) = 1.33
-// ============ 鋼絲繩行進標誌（環狀標、跟 cab/cw 同步上下、視覺化「sheave 轉 → 繩走 → cab/cw 動」連動）============
-const cabRopeMarker = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.010, 8, 18),
-  new THREE.MeshStandardMaterial({ color: 0x00d4ff, emissive: 0x004060, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3 }));
-cabRopeMarker.rotation.x = Math.PI / 2;
-cabRopeMarker.position.set(0.35, 5.0, CAB_Z);   // Y 在 animate 內動態跟 cabTopNow 同步
-cabRopeMarker.userData = { name:"鋼絲繩行進標誌 (cab 側)", kind:"rope", desc:"視覺化鋼絲繩跟著轎廂同步上下、距 cab 頂固定 +0.5 m — 看出 sheave 轉動拉著繩走、繩拉著 cab 跑", specs:[["顏色","青 #00d4ff"]] };
-ELEV.add(cabRopeMarker);
-const cwRopeMarker = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.010, 8, 18),
-  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x344515, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3 }));
-cwRopeMarker.rotation.x = Math.PI / 2;
-cwRopeMarker.position.set(0.35, 5.0, CW_Z);
-cwRopeMarker.userData = { name:"鋼絲繩行進標誌 (cw 側)", kind:"rope", desc:"視覺化配重側繩運動 — 與 cab 側永遠反向（因為 sheave 一邊上 = 另一邊下）", specs:[["顏色","綠 #a3e635"]] };
-ELEV.add(cwRopeMarker);
 for (let i = 0; i < 8; i++) {
   const grooveX = 0.35 + (i - 3.5) * 0.022;
   const horiz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, horizLen, 6), ropeMat);
@@ -2870,10 +2857,7 @@ function animate() {
       r.mesh.position.y = (sheaveCenterY + cwTopNow) / 2;
       r.mesh.scale.y = len / r.baseLen;
     });
-    // === 機構連動視覺 #1：鋼絲繩標誌跟 cab/cw 同步上下（看出「繩在跑」、不只是 cab 在動）===
-    cabRopeMarker.position.y = cabTopNow + 0.5;
-    cwRopeMarker.position.y  = cwTopNow  + 0.5;
-    // === 機構連動視覺 #2：制動器 caliper / pad 釋放（往外推 35mm）vs 抱閘（回原位）+ 線圈 emissive ===
+    // === 機構連動視覺 #1：制動器 caliper / pad 釋放（往外推 35mm）vs 抱閘（回原位）+ 線圈 emissive ===
     const _brakeOffset = elevSim.brakeReleased ? 0.035 : 0;
     _brakeMovingParts.forEach(m => {
       const sign = Math.sign(m.userData.baseY);
