@@ -860,6 +860,18 @@ const doPulleyL = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.025,
   new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
 doPulleyL.rotation.z = Math.PI/2;
 doPulleyL.position.set(-0.18, 0, 0); doorOpGroup.add(doPulleyL);
+// Motor-Pulley Coupling 聯軸器 — 把馬達輸出軸物理連到主動 pulley（看出「馬達轉 → 軸轉 → pulleyL 轉」連動鏈、不是兩個獨立元件）
+const doCoupling = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.075, 16),
+  new THREE.MeshStandardMaterial({ color: 0x8a8f96, metalness: 0.95, roughness: 0.18 }));
+doCoupling.rotation.z = Math.PI/2;
+doCoupling.position.set(-0.2175, 0, 0);   // 跨 motor X=-0.25 跟 pulleyL X=-0.18 之間
+doCoupling.userData = { name:"Motor-Pulley Coupling 聯軸器", kind:"door",
+  desc:"門機馬達輸出軸 → 聯軸器 → 主動皮帶輪（pulleyL）：扭矩傳遞物理連結、馬達轉一圈 coupling 轉一圈、pulleyL 跟著轉",
+  specs:[["型式","Jaw coupling (彈性爪型)"],["材質","SS 軸 + Hytrel 彈性塊"],["扭矩容量","≥ 4 Nm"]] };
+doorOpGroup.add(doCoupling);
+// coupling 上加紅標記讓旋轉看得見
+const doCouplingMark = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.022, 0.026), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+doCouplingMark.position.set(0, 0.012, 0); doCoupling.add(doCouplingMark);
 // 被動皮帶輪（門中央上方）
 const doPulleyR = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.025, 24),
   new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
@@ -897,7 +909,32 @@ const armR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.02),
   new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
 armR.position.set(cabDoorR_close, doorBaseY + doorPanelH/2 + 0.10, CAB_D/2 - 0.03);
 doorOpGroup.add(armR);
-doorOpGroup.userData = { name:"Door Operator 門機", kind:"door", desc:"轎門驅動：馬達 + 皮帶 + crank arm", specs:[["馬達","VFD 控 DC 馬達"],["驅動","封閉式齒型皮帶"],["開啟時間","2.5s"],["保護","photocell + 防夾邊"]] };
+
+// ===== Belt Clamps 皮帶夾 + Struts 連桿（把 belt → arm → door 的物理連結補上）=====
+// 左門夾「下排」belt（Y=-0.045）、右門夾「上排」belt（Y=+0.045）— 因為齒型 belt 上下排走向相反、所以能實現「中分對開」
+// belt 走時 clamp 跟 belt 同步 X 移動 → strut 拉 arm → arm 帶 cab door 滑開
+const _doorBeltLinks = { L: [], R: [] };
+[ ['L', cabDoorL_close, -0.045], ['R', cabDoorR_close, +0.045] ].forEach(([sideKey, cx, beltY]) => {
+  // Belt Clamp — 夾子本體（夾在 belt 上）
+  const clamp = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.038, 0.058),
+    new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.3 }));
+  clamp.position.set(cx, beltY, 0);
+  clamp.userData = { name:`Belt Clamp ${sideKey} 皮帶夾`, kind:"door",
+    desc:`夾住${sideKey === 'L' ? '下' : '上'}排齒型皮帶連到 arm${sideKey} — 馬達轉 → coupling → pulley → belt 走 → clamp 跟 belt 同步移動 → strut 拉 arm → arm 帶 cab door ${sideKey === 'L' ? '左' : '右'}片滑開。上下 belt 反向 → 左右門對開`,
+    specs:[["型式","Toothed belt clip"],["材質","AL 殼 + EPDM 內襯"],["夾合力","≥ 80 N"]] };
+  doorOpGroup.add(clamp);
+  _doorBeltLinks[sideKey].push(clamp);
+  // Strut 垂直連桿（從 belt clamp 接到 arm 頂端、視覺化「belt 拉 arm」物理連結）
+  const armTopY_local = +0.01;   // arm 頂端在 doorOpGroup local 系統 Y
+  const strut = new THREE.Mesh(new THREE.BoxGeometry(0.015, Math.abs(armTopY_local - beltY), 0.015),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9 }));
+  strut.position.set(cx, (armTopY_local + beltY) / 2, -0.005);
+  strut.userData = { name:`Belt-Arm Strut ${sideKey} 連桿`, kind:"door", desc:"從 belt clamp 垂直接到 arm 頂端的鋼桿、把 belt 的水平位移傳遞到 arm" };
+  doorOpGroup.add(strut);
+  _doorBeltLinks[sideKey].push(strut);
+});
+
+doorOpGroup.userData = { name:"Door Operator 門機", kind:"door", desc:"轎門驅動：馬達 → coupling → 主動 pulley → 齒型皮帶（上下反向）→ 皮帶夾 → 連桿 → arm → 拉 cab door 中分對開", specs:[["馬達","VFD 控 DC 馬達"],["驅動","封閉式齒型皮帶"],["開啟時間","2.5s"],["保護","photocell + 防夾邊"]] };
 cabGroup.add(doorOpGroup);
 
 // Vane（離合葉/扁刀）— 轎門左片上掛的垂直鐵片，到樓層才會夾住 landing door clutch
@@ -3055,10 +3092,14 @@ function animate() {
     photocellR.position.x = cabDoorR_close + openOffset - doorPanelW/2 + 0.04;
     armL.position.x = cabDoorL_close - openOffset;
     armR.position.x = cabDoorR_close + openOffset;
+    // belt clamp + strut 跟 cab door X 同步（視覺化 belt → clamp → strut → arm → door 的連動）
+    _doorBeltLinks.L.forEach(m => { m.position.x = cabDoorL_close - openOffset; });
+    _doorBeltLinks.R.forEach(m => { m.position.x = cabDoorR_close + openOffset; });
     // 馬達輸出軸自轉（門開合中）
     const doorMoving = doorPhase > 0.02 && doorPhase < 0.98;
     if (doorMoving) {
       doMotor.rotation.x += 0.2 * elevSim.speed;
+      doCoupling.rotation.x += 0.2 * elevSim.speed;   // coupling 跟 motor 同步轉（同軸）
       doPulleyL.rotation.x += 0.5 * elevSim.speed;
       doPulleyR.rotation.x += 0.5 * elevSim.speed;
     }
