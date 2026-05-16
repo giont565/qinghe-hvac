@@ -2156,20 +2156,22 @@ const fanGrille = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.030, 0.30),
   new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.7, roughness: 0.5 }));
 fanGrille.position.set(0, 0.92, 0);
 ctrlElev.add(fanGrille);
+const _ctrlFans = [];   // 給 animate 用：cab 運行時轉
 for (let i = 0; i < 2; i++) {
   const fan = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.022, 12),
     new THREE.MeshStandardMaterial({ color: 0x222, metalness: 0.5 }));
   fan.position.set(-0.12 + i * 0.24, 0.90, 0);
-  fan.userData = { name:`櫃頂散熱風扇 ${i+1}`, kind:"controller", desc:"頂部抽風扇 — 24VDC、櫃內溫度 > 40°C 自動啟動" };
+  fan.userData = { name:`櫃頂散熱風扇 ${i+1}`, kind:"controller", desc:"頂部抽風扇 — 24VDC、櫃內溫度 > 40°C 自動啟動、cab 運行時轉速加倍" };
   ctrlElev.add(fan);
-  // 扇葉
+  // 扇葉 — 作為 fan 的 child、跟 fan group 一起 rotation.y 自轉
   for (let j = 0; j < 5; j++) {
     const blade = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.001, 0.012),
       new THREE.MeshStandardMaterial({ color: 0x444 }));
     blade.rotation.y = (j * Math.PI * 2) / 5;
-    blade.position.set(-0.12 + i * 0.24, 0.913, 0);
-    ctrlElev.add(blade);
+    blade.position.set(0, 0.013, 0);   // 相對 fan center
+    fan.add(blade);
   }
+  _ctrlFans.push(fan);
 }
 // 銘版
 {
@@ -2188,6 +2190,7 @@ ELEV.add(ctrlElev);
 // ============ 12. Sensors（每種 sensor 用對應真實形狀 + 共用 bracket / cable / label）============
 function addElevSensor(type, name, pos, desc, specs) {
   const g = new THREE.Group(); g.position.set(...pos);
+  g.userData.dynamicRef = {};   // 給 animate 用：encoder shaft / limit led / loadcell pin / doorzone led
 
   // 共用：L 形 mounting bracket（背面）— 把 sensor 鎖到井道結構上
   const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.080, 0.080, 0.005),
@@ -2230,6 +2233,7 @@ function addElevSensor(type, name, pos, desc, specs) {
     const led = new THREE.Mesh(new THREE.SphereGeometry(0.005, 10, 6),
       new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0xa3e635, emissiveIntensity: 0.9 }));
     led.position.set(0, 0, 0.025); g.add(led);
+    g.userData.dynamicRef.led = led;   // 接近極限時切紅
   }
   else if (type === 'encoder') {
     // 旋轉編碼器 Rotary Encoder：金屬圓筒 + 軸 + 藍標
@@ -2240,6 +2244,7 @@ function addElevSensor(type, name, pos, desc, specs) {
       new THREE.MeshStandardMaterial({ color: 0x9aa1ad, metalness: 0.95 }));
     shaft.rotation.z = Math.PI / 2;
     shaft.position.set(-0.045, 0, 0); g.add(shaft);
+    g.userData.dynamicRef.shaft = shaft;   // 跟 sheave 同步旋轉
     const label = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.025, 0.025),
       new THREE.MeshStandardMaterial({ color: 0x00d4ff, emissive: 0x00d4ff, emissiveIntensity: 0.5 }));
     label.position.set(0.024, 0, 0); g.add(label);
@@ -2253,8 +2258,9 @@ function addElevSensor(type, name, pos, desc, specs) {
       new THREE.MeshStandardMaterial({ color: 0x8a8f96, metalness: 0.92, roughness: 0.2 }));
     g.add(body);
     const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.028, 14),
-      new THREE.MeshStandardMaterial({ color: 0x3a3f48, metalness: 0.9 }));
+      new THREE.MeshStandardMaterial({ color: 0x3a3f48, metalness: 0.9, emissive: 0x000000, emissiveIntensity: 0 }));
     pin.position.y = 0.020; g.add(pin);
+    g.userData.dynamicRef.pin = pin;   // overload 時受壓銷變紅
     const gland = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.014, 10),
       new THREE.MeshStandardMaterial({ color: 0x1a1d24, metalness: 0.7 }));
     gland.rotation.z = Math.PI / 2;
@@ -2269,11 +2275,12 @@ function addElevSensor(type, name, pos, desc, specs) {
       new THREE.MeshStandardMaterial({ color: 0x00d4ff, emissive: 0x002030, emissiveIntensity: 0.3, metalness: 0.7, roughness: 0.3 }));
     g.add(body);
     const led = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 10, 6),
-      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.9 }));
+      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.3 }));
     led.position.set(0, 0.07, 0.013); g.add(led);
     const led2 = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 10, 6),
-      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.9 }));
+      new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.3 }));
     led2.position.set(0, -0.07, 0.013); g.add(led2);
+    g.userData.dynamicRef.leds = [led, led2];   // cab 平層該樓時亮起閃
   }
   else {
     // fallback：仍用原占位方塊但小一號
@@ -2295,15 +2302,27 @@ function addElevSensor(type, name, pos, desc, specs) {
   label.position.set(0, -0.045, 0.001);
   g.add(label);
 
-  g.userData = { name, kind:"sensor", desc, specs };
+  // 保留 dynamicRef 進 userData（addElevSensor() 內已 set）後再合併標準欄位
+  const dynRef = g.userData.dynamicRef;
+  g.userData = { name, kind:"sensor", desc, specs, dynamicRef: dynRef };
   ELEV.add(g);
+  return g;
 }
 // 上下端站 limit switches
-addElevSensor('limit',    "Top Limit 上限位",     [SHAFT_W/2 - 0.1, SHAFT_H - 2.6, -0.3], "頂端強制停止 — 比 final stop 早 5 cm 切斷上行電源",       [["型式","Honeywell SZL Roller Lever"],["接點","NC fail-safe"]]);
-addElevSensor('limit',    "Bottom Limit 下限位",  [SHAFT_W/2 - 0.1, -0.4, -0.3],          "底端強制停止 — 比 buffer 早 5 cm 切斷下行電源",            [["型式","Honeywell SZL Roller Lever"],["接點","NC fail-safe"]]);
-addElevSensor('encoder',  "Encoder 編碼器",       [-0.4, SHAFT_H - 1.8, -0.3],            "馬達絕對位置回授 — 控制盤靠它做平層精確度",               [["型式","Heidenhain EBI 1135"],["分辨率","2¹⁹ × 4096"],["介面","EnDat 2.2"]]);
-addElevSensor('loadcell', "Load Cell 載重",       [0, initialCabY + 1.3, 0.5],            "轎廂底架受壓式應變片 — 超載 110% 觸發警示、阻止運轉",     [["範圍","0–1,200 kg"],["精度","±0.5%"],["110% 過載警報",""]]);
-addElevSensor('doorzone', "Door Zone 樓層感應",   [-0.85, FLOOR_H + 1.5, -0.3],           "井道上每層裝一個磁感應條、cab 上的 reader 經過時觸發平層", [["精度","±3 mm"],["型式","Magnetic reed + IR backup"]]);
+const topLimitRef    = addElevSensor('limit',    "Top Limit 上限位",     [SHAFT_W/2 - 0.1, SHAFT_H - 2.6, -0.3], "頂端強制停止 — 比 final stop 早 5 cm 切斷上行電源",       [["型式","Honeywell SZL Roller Lever"],["接點","NC fail-safe"]]);
+const botLimitRef    = addElevSensor('limit',    "Bottom Limit 下限位",  [SHAFT_W/2 - 0.1, -0.4, -0.3],          "底端強制停止 — 比 buffer 早 5 cm 切斷下行電源",            [["型式","Honeywell SZL Roller Lever"],["接點","NC fail-safe"]]);
+const encoderRef     = addElevSensor('encoder',  "Encoder 編碼器",       [-0.4, SHAFT_H - 1.8, -0.3],            "馬達絕對位置回授 — 控制盤靠它做平層精確度",               [["型式","Heidenhain EBI 1135"],["分辨率","2¹⁹ × 4096"],["介面","EnDat 2.2"]]);
+const loadCellRef    = addElevSensor('loadcell', "Load Cell 載重",       [0, initialCabY + 1.3, 0.5],            "轎廂底架受壓式應變片 — 超載 110% 觸發警示、阻止運轉",     [["範圍","0–1,200 kg"],["精度","±0.5%"],["110% 過載警報",""]]);
+// 4 樓層各裝一個 Door Zone（cab 到該樓時對應 sensor 亮起）
+const doorZoneRefs = [];
+for (let f = 1; f <= FLOORS; f++) {
+  const ref = addElevSensor('doorzone', `Door Zone ${f}F 樓層感應`,
+    [-0.85, (f - 1) * FLOOR_H + 1.5, -0.3],
+    "井道上每層裝一個磁感應條、cab 上的 reader 經過時觸發平層",
+    [["樓層", `${f}F`], ["精度", "±3 mm"], ["型式", "Magnetic reed + IR backup"]]);
+  ref.userData.floorIdx = f - 1;
+  doorZoneRefs.push(ref);
+}
 
 // ============ Click-to-Select ==============
 const raycaster = new THREE.Raycaster();
@@ -3159,6 +3178,79 @@ function animate() {
       sheave.rotation.x += 0.12 * elevSim.speed;
       motor.rotation.x += 0.12 * elevSim.speed;
       fanBlade.rotation.x += 0.35 * elevSim.speed;  // 風扇高速旋轉
+    }
+
+    // === 機構連動視覺 #7：Encoder shaft 跟 sheave 同步旋轉（馬達回授訊號源頭）===
+    if (encoderRef && encoderRef.userData.dynamicRef.shaft && moving) {
+      encoderRef.userData.dynamicRef.shaft.rotation.x += 0.12 * elevSim.speed;
+    }
+
+    // === 機構連動視覺 #8：Governor Wheel 跟 cab 速度同步、OSG 跳脫時停止 ===
+    if (govWheel) {
+      if (elevSim.osgTripped) {
+        // OSG 跳脫 → governor 機械夾住 rope、wheel 停止
+      } else if (moving) {
+        // cab 移動 → governor rope 拉動 wheel 同步轉（rope 線速度 = cab 速度）
+        govWheel.rotation.x += 0.12 * elevSim.speed * (movingFrac > 0 ? 1 : -1);
+      }
+    }
+
+    // === 機構連動視覺 #9：Door Zone LED 平層時該樓亮（cab 對位該樓 ±150mm 內 LED 黃閃）===
+    doorZoneRefs.forEach(dz => {
+      const fIdx = dz.userData.floorIdx;
+      const cabFloorY = targetFloor * FLOOR_H + 1.15;
+      const sensorY = fIdx * FLOOR_H + 1.5;
+      const dist = Math.abs(cabFloorY - sensorY);
+      const triggered = dist < 0.30;   // cab 接近該層 30cm 內
+      const leds = dz.userData.dynamicRef.leds;
+      if (leds) {
+        const I = triggered ? (1.0 + Math.sin(t * 30) * 0.4) : 0.25;
+        leds.forEach(led => { led.material.emissiveIntensity = I; });
+      }
+    });
+
+    // === 機構連動視覺 #10：Load Cell 受壓銷 overload 時變紅（搭配 overload 劇本）===
+    if (loadCellRef && loadCellRef.userData.dynamicRef.pin) {
+      const pin = loadCellRef.userData.dynamicRef.pin;
+      if (elevSim.overloadAlarm) {
+        pin.material.emissive.setHex(0xef4444);
+        pin.material.emissiveIntensity = 0.8 + Math.sin(t * 22) * 0.5;
+      } else {
+        pin.material.emissive.setHex(0x000000);
+        pin.material.emissiveIntensity = 0;
+      }
+    }
+
+    // === 機構連動視覺 #11：控制盤散熱風扇旋轉（cab 運行時加倍轉、待機時微轉散熱）===
+    _ctrlFans.forEach(fan => {
+      const spd = moving ? 0.25 : 0.04;   // 運行時高速、待機微轉
+      fan.rotation.y += spd * elevSim.speed;
+    });
+
+    // === 機構連動視覺 #12：HMI / VFD LCD emissive 表示「CPU 計算中」（cab 運行時亮、停機時暗）===
+    if (typeof hmiScreen !== 'undefined' && hmiScreen.material) {
+      hmiScreen.material.emissiveIntensity = moving ? (0.9 + Math.sin(t * 15) * 0.2) : 0.5;
+    }
+    if (typeof vfdLCD !== 'undefined' && vfdLCD.material) {
+      vfdLCD.material.emissiveIntensity = moving ? (0.9 + Math.sin(t * 20) * 0.2) : 0.4;
+    }
+
+    // === 機構連動視覺 #13：Top/Bottom Limit Switch LED 接近極限時轉紅 ===
+    if (topLimitRef && topLimitRef.userData.dynamicRef.led) {
+      const cabY = targetFloor * FLOOR_H + 1.15;
+      const topY = SHAFT_H - 2.6;
+      const near = cabY > topY - 0.5;
+      const led = topLimitRef.userData.dynamicRef.led;
+      led.material.color.setHex(near ? 0xef4444 : 0xa3e635);
+      led.material.emissive.setHex(near ? 0xef4444 : 0xa3e635);
+    }
+    if (botLimitRef && botLimitRef.userData.dynamicRef.led) {
+      const cabY = targetFloor * FLOOR_H + 1.15;
+      const botY = -0.4;
+      const near = cabY < botY + 1.0;   // 1F 平層 cab Y=1.15、bot limit Y=-0.4、平常距離 1.55
+      const led = botLimitRef.userData.dynamicRef.led;
+      led.material.color.setHex(near ? 0xef4444 : 0xa3e635);
+      led.material.emissive.setHex(near ? 0xef4444 : 0xa3e635);
     }
 
     // === 門特寫步驟指示（依 doorPhase 顯示對應箭頭 + 文字）===
