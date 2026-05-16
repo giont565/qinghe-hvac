@@ -1967,20 +1967,20 @@ ldFloors.forEach(f => {
   lockBody.userData = { name:`Door Lock Body ${f}F 鎖體承壓塊`, kind:"safety", desc:"承壓塊 — 跟 hook 配合、平常被鉤住" };
   landingFloorGroup.add(lockBody);
 
-  // Door Interlock Contact Box 電氣接點箱（NC contact、鎖緊時通電）
-  const interlockBox = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.030),
+  // Door Interlock Contact Box 電氣接點箱（NC contact、鎖緊時通電）— 裝在 landing door 井道側（hoistway side）
+  const interlockBox = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.040, 0.022),
     new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.85, roughness: 0.3 }));
   interlockBox.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 + 0.075);
   interlockBox.userData = { name:`Door Interlock Contact ${f}F 門電氣接點`, kind:"safety",
-    desc:"門電氣聯鎖接點 — 機械鎖鉤勾緊時 NC 閉合、給主迴路通電；門開瞬斷使電梯立刻停止（雙重保護：機械鎖 + 電氣 contact）",
-    specs:[["型式","NC contact, force-guided"],["雙路","主+備兩組獨立"],["反饋","控制盤 I/O"],["失效模式","fail-safe（斷路即停）"]] };
+    desc:"門電氣聯鎖接點 — 裝在層門「井道側 (hoistway side)」、實機從廳堂搭電梯時看不到（被門板擋住）；3D 模型為了教學把它顯示出來。鎖鉤勾緊時 NC 閉合給主迴路通電；門開瞬斷使電梯立刻停止（雙重保護：機械鎖 + 電氣 contact）",
+    specs:[["位置","hoistway side · maintenance access only"],["型式","NC contact, force-guided"],["雙路","主+備兩組獨立"],["失效模式","fail-safe（斷路即停）"]] };
   landingFloorGroup.add(interlockBox);
 
-  // Interlock Status LED 狀態指示燈（綠=鎖緊通電 / 紅閃=門開斷電）
-  const interlockLED = new THREE.Mesh(new THREE.SphereGeometry(0.013, 14, 10),
-    new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 1.2 }));
-  interlockLED.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 + 0.092);
-  interlockLED.userData = { name:`Interlock LED ${f}F`, kind:"light", desc:"狀態指示 — 綠=鎖緊允許運轉 / 紅閃=門開禁止運轉" };
+  // Interlock Status LED 狀態指示燈（綠=鎖緊通電 / 紅閃=門開斷電）— 同樣 hoistway side、實機乘客看不到
+  const interlockLED = new THREE.Mesh(new THREE.SphereGeometry(0.0075, 12, 8),
+    new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 0.55 }));
+  interlockLED.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 + 0.090);
+  interlockLED.userData = { name:`Interlock LED ${f}F`, kind:"light", desc:"狀態指示 — 綠=鎖緊允許運轉 / 紅閃=門開禁止運轉。位於井道側、實機從廳堂看不到、僅維修開啟門板才見" };
   landingFloorGroup.add(interlockLED);
 
   // ===== 外叫面板 Hall Call Station（門框右側，廳堂可見）=====
@@ -2375,13 +2375,48 @@ canvas.addEventListener('click', e => {
 });
 
 // HUD Controls
+// ============ Exploded View 分層 + lerp 平滑過渡 ============
 let exploded = false;
+let explodeAnimT = 0;       // 0 = 完全收回、1 = 完全展開
+let explodeAnimTarget = 0;
+// 每個元件以「邏輯方向」拉開：機構往上、cab/cw 對稱兩側、ctrlElev 朝外、層門朝各自廳堂
+function _getBase(obj) {
+  if (!obj.userData.basePos) obj.userData.basePos = obj.position.clone();
+  return obj.userData.basePos;
+}
+const explodeRules = [
+  // 機械（往上抽離、露出機房結構）
+  { getObj: () => machGroup, off: { x:  0,    y:  2.5, z: -0.6 } },
+  { getObj: () => govGroup,  off: { x:  1.5,  y:  1.5, z: -0.5 } },
+  // 主體（轎廂前出、配重後抽，對稱 X-Z 拉開）
+  { getObj: () => cabGroup,  off: { x:  2.5,  y:  0,   z:  2.0 } },
+  { getObj: () => cwGroup,   off: { x: -2.5,  y:  0,   z: -2.0 } },
+  // 電控盤（朝井道外側拉、看到 cable 走線）
+  { getObj: () => ctrlElev,  off: { x: -3.0,  y:  0,   z:  0   } },
+];
 function setExplode(on) {
   exploded = on;
-  const f = on ? 1 : 0;
-  cabGroup.position.set(cabGroup.userData.basePos.x + f*3, cabGroup.userData.basePos.y, cabGroup.userData.basePos.z + f*2);
-  cwGroup.position.set(cwGroup.userData.basePos.x - f*2, cwGroup.userData.basePos.y, cwGroup.userData.basePos.z - f*2);
-  machGroup.position.set(machGroup.userData.basePos.x, machGroup.userData.basePos.y + f*2, machGroup.userData.basePos.z);
+  explodeAnimTarget = on ? 1 : 0;
+  if (on) {                                  // explode 前取消衝突模式
+    if (doorMode) setDoorMode(false);
+    if (cabinMode) setCabinMode(false);
+  }
+  // 預先快取 basePos
+  explodeRules.forEach(r => _getBase(r.getObj()));
+}
+// landing doors：on→各層門 + 鎖機構往 +Z 廳堂方向 + Y 上下錯開
+function _explodeLandingDoors(t) {
+  const ease = 1 - Math.pow(1 - t, 3);   // ease-out cubic
+  landingDoors.forEach((ld, idx) => {
+    const offZ = ease * 0.8;              // 朝廳堂方向開散
+    const offY = ease * (idx - 1.5) * 0.25;  // 上下錯開避免重疊
+    [ld.L, ld.R, ld.clutchL, ld.clutchR, ld.lockHookGroup, ld.interlockLED].forEach(m => {
+      if (!m) return;
+      if (!m.userData.basePos) m.userData.basePos = m.position.clone();
+      m.position.z = m.userData.basePos.z + offZ;
+      m.position.y = m.userData.basePos.y + offY;
+    });
+  });
 }
 let shaftOn = true;
 function setShaftVis(on) { shaftOn = on; shaftBox.visible = on; shaftEdges.visible = on; }
@@ -3111,6 +3146,22 @@ function animate() {
   // === 動作劇本 tick（推進 step + lerp 接管值 + 視覺異常）===
   elevSim.tick();
 
+  // === Exploded View 分層 lerp 過渡（ease-out cubic、每幀拉近 target）===
+  if (Math.abs(explodeAnimT - explodeAnimTarget) > 0.001) {
+    explodeAnimT += (explodeAnimTarget - explodeAnimT) * 0.06 * Math.max(1, elevSim.speed);
+    const easeT = 1 - Math.pow(1 - explodeAnimT, 3);
+    explodeRules.forEach(r => {
+      const obj = r.getObj();
+      const bp = obj.userData.basePos;
+      if (bp) {
+        obj.position.x = bp.x + r.off.x * easeT;
+        obj.position.y = bp.y + r.off.y * easeT;
+        obj.position.z = bp.z + r.off.z * easeT;
+      }
+    });
+    _explodeLandingDoors(easeT);
+  }
+
   // === 電梯運行 + 門開合狀態機 ===
   if (!exploded) {
     let targetFloor = 0;
@@ -3521,7 +3572,7 @@ function animate() {
         const _green = 0x22c55e, _red = 0xf43f5e;
         ld.interlockLED.material.color.setHex(_locked ? _green : _red);
         ld.interlockLED.material.emissive.setHex(_locked ? _green : _red);
-        ld.interlockLED.material.emissiveIntensity = _locked ? 1.2 : (0.8 + Math.sin(t * 25) * 0.5);
+        ld.interlockLED.material.emissiveIntensity = _locked ? 0.55 : (0.45 + Math.sin(t * 25) * 0.35);
       }
     });
     // === 機構連動視覺 #6：cab vane skate roller (門刀輪) 對位時微亮（看出 vane 是用滾輪接觸 landing door 的 lock roller、不是死碰）===
