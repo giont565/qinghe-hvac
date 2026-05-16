@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機電動作原理手冊 — 青禾半導體 PUSD 辦公室 MEP</title>
+<style>
+  :root {
+    --ink:#f5f5f7; --sub:#86868b; --dim:#5d6068;
+    --sensor:#A3E635; --actuator:#FB923C; --rope:#00D4FF; --safety:#F472B6;
+    --warn:#FBBF24; --err:#EF4444; --ok:#22C55E;
+    --bg:#0a0b0e; --panel:#15161a; --line:#2a2c33;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:var(--bg); color:var(--ink); font-family:-apple-system, "SF Pro Display", "Noto Sans TC", sans-serif; line-height:1.7; font-size:14px; }
+
+  /* 共用導覽（跟其他檔一致） */
+  .site-nav { position:fixed; top:0; left:0; right:0; z-index:200; height:46px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; background:rgba(10,11,14,.85); backdrop-filter:blur(20px); border-bottom:1px solid rgba(255,255,255,.06); font-size:12px; }
+  .site-brand { display:flex; align-items:center; gap:8px; color:var(--ink); text-decoration:none; font-weight:600; }
+  .brand-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:linear-gradient(135deg,#a3e635,#00d4ff); box-shadow:0 0 8px rgba(163,230,53,.5); }
+  .site-sys { display:flex; align-items:center; gap:6px; padding:4px 10px; margin-left:10px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:6px; font-size:11px; color:var(--sub); }
+  .site-sys select { background:transparent; border:none; color:var(--ink); font-size:12px; font-family:inherit; cursor:pointer; }
+  .site-tabs { display:flex; gap:4px; padding:3px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:9px; flex-wrap:wrap; }
+  .site-tabs a { padding:6px 12px; border-radius:6px; color:var(--sub); text-decoration:none; font-size:12px; display:flex; align-items:center; gap:6px; }
+  .site-tabs a:hover { background:rgba(255,255,255,.06); color:var(--ink); }
+  .site-tabs a.is-active { background:rgba(163,230,53,.14); color:#a3e635; border:1px solid rgba(163,230,53,.3); }
+
+  /* Layout */
+  .container { max-width:1100px; margin:60px auto 80px; padding:24px 32px; }
+  .hero { text-align:left; padding:32px 0 16px; border-bottom:1px solid var(--line); margin-bottom:32px; }
+  .hero h1 { font-size:32px; font-weight:700; letter-spacing:-.02em; margin-bottom:8px; }
+  .hero .sub { font-size:14px; color:var(--sub); margin-top:8px; }
+  .hero .meta { display:flex; gap:20px; margin-top:14px; font-size:12px; color:var(--sub); }
+  .hero .meta span { display:inline-flex; align-items:center; gap:6px; }
+  .hero .meta b { color:var(--ink); font-weight:600; }
+
+  /* TOC sticky */
+  .layout { display:grid; grid-template-columns:240px 1fr; gap:48px; align-items:start; }
+  .toc { position:sticky; top:78px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px; font-size:12.5px; max-height:calc(100vh - 100px); overflow-y:auto; }
+  .toc h4 { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--sub); margin-bottom:10px; }
+  .toc ol { list-style:none; counter-reset:section; }
+  .toc li { counter-increment:section; margin-bottom:4px; }
+  .toc a { color:var(--ink); text-decoration:none; display:block; padding:6px 8px; border-radius:5px; transition:background .15s; line-height:1.4; }
+  .toc a:hover { background:rgba(255,255,255,.05); color:var(--sensor); }
+  .toc a::before { content:counter(section) ". "; color:var(--sub); font-family:"SF Mono",monospace; font-size:11px; }
+  .toc .sub-list { padding-left:14px; margin-top:4px; counter-reset:subsec; }
+  .toc .sub-list li { counter-increment:subsec; }
+  .toc .sub-list a { font-size:11.5px; color:var(--sub); padding:3px 6px; }
+  .toc .sub-list a::before { content:counter(subsec, lower-alpha) ". "; }
+
+  /* Content */
+  .content section { margin-bottom:48px; scroll-margin-top:80px; }
+  .content h2 { font-size:22px; font-weight:700; margin-bottom:6px; padding-top:8px; }
+  .content h2 .num { color:var(--actuator); font-family:"SF Mono",monospace; font-size:18px; margin-right:10px; }
+  .content h2 + .ch-intro { color:var(--sub); font-size:13px; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+  .content h3 { font-size:16px; font-weight:600; margin:28px 0 12px; color:var(--ink); display:flex; align-items:center; gap:10px; }
+  .content h3::before { content:""; display:inline-block; width:3px; height:16px; background:var(--sensor); border-radius:2px; }
+  .content h4 { font-size:13.5px; font-weight:600; color:var(--rope); margin:16px 0 6px; }
+  .content p { margin-bottom:10px; color:#dcdde2; }
+  .content code, .content kbd { font-family:"SF Mono",monospace; font-size:12px; background:rgba(0,212,255,.10); border:1px solid rgba(0,212,255,.25); padding:1px 6px; border-radius:4px; color:var(--rope); }
+
+  /* Component cards */
+  .module { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 22px; margin:14px 0; }
+  .module-head { display:flex; align-items:baseline; gap:12px; margin-bottom:12px; padding-bottom:8px; border-bottom:1px dashed var(--line); }
+  .module-head .badge { font-size:9px; padding:2px 8px; border-radius:99px; letter-spacing:.15em; text-transform:uppercase; font-family:"SF Mono",monospace; }
+  .badge-mech { background:rgba(163,230,53,.12); border:1px solid rgba(163,230,53,.35); color:var(--sensor); }
+  .badge-elec { background:rgba(0,212,255,.12); border:1px solid rgba(0,212,255,.35); color:var(--rope); }
+  .badge-safe { background:rgba(244,114,182,.12); border:1px solid rgba(244,114,182,.35); color:var(--safety); }
+  .badge-ctrl { background:rgba(251,146,60,.12); border:1px solid rgba(251,146,60,.35); color:var(--actuator); }
+  .module-head h5 { font-size:15px; font-weight:600; flex:1; }
+
+  /* Tables */
+  table.spec { width:100%; border-collapse:collapse; margin:8px 0 12px; font-size:12.5px; }
+  table.spec th, table.spec td { padding:7px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+  table.spec th { color:var(--sub); font-weight:500; font-size:11px; letter-spacing:.1em; text-transform:uppercase; width:30%; }
+  table.spec td { color:#dcdde2; font-family:"SF Mono",monospace; font-size:12px; }
+  table.spec td.note { font-family:inherit; color:var(--sub); }
+
+  /* Flow chain */
+  .chain { background:#0d1117; border:1px solid var(--line); border-radius:8px; padding:14px 18px; margin:12px 0; font-family:"SF Mono",monospace; font-size:12px; color:#dcdde2; white-space:pre-wrap; line-height:1.8; overflow-x:auto; }
+  .chain b { color:var(--sensor); font-weight:600; }
+  .chain .arr { color:var(--actuator); font-weight:700; padding:0 2px; }
+  .chain .step { color:var(--rope); }
+  .chain .alert { color:var(--err); font-weight:600; }
+
+  /* Callout */
+  .callout { padding:12px 16px; margin:12px 0; border-radius:8px; border-left:3px solid; font-size:13px; line-height:1.7; }
+  .callout-safe { background:rgba(244,114,182,.08); border-color:var(--safety); }
+  .callout-warn { background:rgba(251,191,36,.08); border-color:var(--warn); }
+  .callout-info { background:rgba(0,212,255,.08); border-color:var(--rope); }
+  .callout strong { display:block; font-size:11px; letter-spacing:.15em; text-transform:uppercase; margin-bottom:6px; }
+  .callout-safe strong { color:var(--safety); }
+  .callout-warn strong { color:var(--warn); }
+  .callout-info strong { color:var(--rope); }
+
+  /* Step list */
+  ol.steps { list-style:none; counter-reset:step; padding:8px 0 4px; }
+  ol.steps li { counter-increment:step; padding:10px 16px 10px 50px; margin-bottom:6px; background:rgba(255,255,255,.02); border-radius:6px; position:relative; font-size:13px; }
+  ol.steps li::before { content:counter(step); position:absolute; left:14px; top:50%; transform:translateY(-50%); width:24px; height:24px; background:var(--actuator); color:#0a0b0e; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:"SF Mono",monospace; }
+  ol.steps li b { color:var(--sensor); }
+
+  ul.bul { list-style:none; padding:0; margin:8px 0; }
+  ul.bul li { padding:5px 0 5px 18px; position:relative; font-size:13px; color:#dcdde2; }
+  ul.bul li::before { content:"▸"; position:absolute; left:0; color:var(--sub); }
+
+  /* footer */
+  .footer { margin-top:64px; padding-top:24px; border-top:1px solid var(--line); color:var(--sub); font-size:11px; text-align:center; }
+
+  @media (max-width:900px) {
+    .layout { grid-template-columns:1fr; }
+    .toc { position:static; max-height:none; }
+    .container { padding:16px 18px; margin-top:54px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div style="display:flex;align-items:center">
+    <a class="site-brand" href="index.html">
+      <span class="brand-dot"></span>
+      <span>PUSD辦公室MEP · 機電系統</span>
+    </a>
+    <div class="site-sys">
+      <span>系統</span>
+      <select onchange="if(this.value)location.href=this.value">
+        <option value="index.html">HVAC 空調</option>
+        <option value="elev.html">🛗 客梯</option>
+        <option value="operations-manual.html" selected>📖 動作原理手冊</option>
+      </select>
+    </div>
+  </div>
+  <div class="site-tabs">
+    <a href="index.html"><span>▣</span> HVAC</a>
+    <a href="3d.html"><span>◆</span> HVAC 3D</a>
+    <a href="elev.html"><span>▣</span> 客梯</a>
+    <a href="elev-3d.html"><span>◆</span> 客梯 3D</a>
+    <a href="operations-manual.html" class="is-active"><span>📖</span> 動作原理</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <header class="hero">
+    <h1>機電動作原理手冊</h1>
+    <div class="sub">本手冊整理 PUSD 辦公室 HVAC 空調系統 + 客梯系統所有元件的動作原理、控制邏輯、安全防護機制與故障處理。</div>
+    <div class="meta">
+      <span><b>系統範圍：</b>HVAC AHU + 客梯</span>
+      <span><b>建築：</b>PUSD 辦公室（B1 → RF，4 stops）</span>
+      <span><b>規範：</b>EN 81-20 / CNS 17436 / ANSI A17.1</span>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <!-- TOC -->
+    <aside class="toc">
+      <h4>目錄 Contents</h4>
+      <ol>
+        <li><a href="#sec-traction">客梯曳引機系統</a>
+          <ol class="sub-list">
+            <li><a href="#m-motor">PMSM 曳引馬達</a></li>
+            <li><a href="#m-coupling">軸—Sheave 連動</a></li>
+            <li><a href="#m-brake">電磁制動器（雙鉗）</a></li>
+            <li><a href="#m-rope">鋼絲繩 + 配重</a></li>
+          </ol>
+        </li>
+        <li><a href="#sec-door">客梯門系統</a>
+          <ol class="sub-list">
+            <li><a href="#d-operator">門機 Door Operator</a></li>
+            <li><a href="#d-belt">皮帶夾連桿</a></li>
+            <li><a href="#d-vane">門刀 / 門刀輪</a></li>
+            <li><a href="#d-clutch">層門 Clutch + 鎖鉤</a></li>
+          </ol>
+        </li>
+        <li><a href="#sec-safety">客梯安全防護鏈</a>
+          <ol class="sub-list">
+            <li><a href="#s-osg">限速器 OSG</a></li>
+            <li><a href="#s-wedge">安全鉗 Safety Gear</a></li>
+            <li><a href="#s-interlock">門電氣聯鎖</a></li>
+            <li><a href="#s-buffer">緩衝器 + 極限開關</a></li>
+            <li><a href="#s-photo">光電光幕</a></li>
+          </ol>
+        </li>
+        <li><a href="#sec-ctrl">客梯電控系統</a>
+          <ol class="sub-list">
+            <li><a href="#c-panel">控制盤模組組成</a></li>
+            <li><a href="#c-sensor">Sensor 訊號流</a></li>
+            <li><a href="#c-seq">運行時序邏輯</a></li>
+          </ol>
+        </li>
+        <li><a href="#sec-hvac">HVAC 空調系統</a>
+          <ol class="sub-list">
+            <li><a href="#h-ahu">AHU 主機模組</a></li>
+            <li><a href="#h-vfd">VFD 風機速控</a></li>
+            <li><a href="#h-damper">Damper 模式切換</a></li>
+            <li><a href="#h-ctrl">控制邏輯 PID + CO₂</a></li>
+          </ol>
+        </li>
+      </ol>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+
+      <!-- ========== 1. 曳引機系統 ========== -->
+      <section id="sec-traction">
+        <h2><span class="num">1</span>客梯曳引機系統 — Traction Machine</h2>
+        <div class="ch-intro">永磁同步無齒輪曳引機（PMSM Gearless / MRL）為核心驅動器。馬達轉動 → 聯軸器 → 牽引輪 → 鋼絲繩 → 同時拉動轎廂上行 + 配重下行（或反向）。整段傳動為純摩擦力傳遞，無齒輪、無齒隙、效率 IE5、噪音 < 55 dB。</div>
+
+        <!-- 1.1 PMSM 馬達 -->
+        <div class="module" id="m-motor">
+          <div class="module-head">
+            <span class="badge badge-ctrl">驅動</span>
+            <h5>1.1 PMSM 永磁同步曳引馬達</h5>
+          </div>
+          <table class="spec">
+            <tr><th>型式</th><td>PMSM Gearless（永磁同步無齒輪）</td></tr>
+            <tr><th>額定功率</th><td>8.5 kW</td></tr>
+            <tr><th>額定轉速</th><td>119 rpm（對應 cab 1.0 m/s）</td></tr>
+            <tr><th>額定扭矩</th><td>580 Nm</td></tr>
+            <tr><th>效率等級</th><td>IE5</td></tr>
+            <tr><th>位置回授</th><td>Heidenhain EBI 1135 絕對編碼器（2¹⁹ × 4096，EnDat 2.2 介面）</td></tr>
+            <tr><th>散熱</th><td>外加離心扇 450 m³/h（馬達 &gt; 60°C 自啟）</td></tr>
+          </table>
+          <h4>動作原理</h4>
+          <p>VFD 把 380 V 三相市電解碼成定頻定壓三相電→由內部 IGBT 模組逆變成可變頻、可變壓的 PWM 波形→驅動 PMSM 馬達定子線圈。永磁轉子被旋轉磁場拖動，產生扭矩。馬達跟皮帶輪（sheave）<b>無齒輪直驅</b>，所以馬達一圈 = sheave 一圈 = 鋼絲繩走 sheave 周長距離。</p>
+          <div class="chain">VFD 輸出 PWM <span class="arr">→</span> <span class="step">定子三相線圈</span> <span class="arr">→</span> 旋轉磁場 <span class="arr">→</span> <span class="step">永磁轉子被拖動</span> <span class="arr">→</span> 同軸 sheave 旋轉</div>
+        </div>
+
+        <!-- 1.2 軸-sheave -->
+        <div class="module" id="m-coupling">
+          <div class="module-head">
+            <span class="badge badge-mech">機構</span>
+            <h5>1.2 馬達軸 → 聯軸器 → Sheave 牽引輪</h5>
+          </div>
+          <p>PMSM 屬於 gearless 直驅機構，馬達輸出軸與 sheave 共用同一根軸。彈性聯軸器負責吸收軸向偏差、避免馬達軸承受到鋼絲繩拉力造成早期損壞。</p>
+          <table class="spec">
+            <tr><th>Sheave 直徑</th><td>Φ400 mm</td></tr>
+            <tr><th>鋼絲繩槽數</th><td>8 槽（每槽 V 形、繩槽角 35–40°）</td></tr>
+            <tr><th>摩擦係數</th><td>0.10–0.12（鑄鐵繩槽 + 鋼絲繩）</td></tr>
+            <tr><th>包覆角</th><td>≥ 180°（單繞 single wrap）</td></tr>
+            <tr><th>軸承</th><td>SKF 雙列圓錐滾子軸承（永久封閉式潤滑）</td></tr>
+          </table>
+          <h4>力學原理</h4>
+          <p>鋼絲繩跟 sheave 之間靠<b>摩擦力</b>傳遞動力。Sheave 旋轉時，cab 側鋼絲繩被往上拉，cw 側鋼絲繩同時被放下。鋼絲繩本身不滑動、繩槽內摩擦使繩跟著 sheave 一起跑。</p>
+        </div>
+
+        <!-- 1.3 制動器 -->
+        <div class="module" id="m-brake">
+          <div class="module-head">
+            <span class="badge badge-safe">安全</span>
+            <h5>1.3 電磁制動器 Brake（雙鉗夾煞車碟）</h5>
+          </div>
+          <table class="spec">
+            <tr><th>型式</th><td>Disc brake, fail-safe（失電抱閘）</td></tr>
+            <tr><th>釋放方式</th><td>電磁線圈通電 → 推開鉗</td></tr>
+            <tr><th>抱閘方式</th><td>斷電 → 彈簧推鉗夾碟</td></tr>
+            <tr><th>靜止扭矩</th><td>≥ 2 × 額定載重扭矩</td></tr>
+            <tr><th>雙迴路</th><td>主 + 備兩組獨立鉗（任一組可單獨抱閘）</td></tr>
+            <tr><th>反饋</th><td>caliper 位置 sensor → 控制盤確認真實 release / set 狀態</td></tr>
+          </table>
+          <h4>動作原理（看 3D 模型）</h4>
+          <ol class="steps">
+            <li><b>通電釋放：</b>控制盤確認所有安全條件 → 通電給線圈 → 線圈電磁力推開鉗 → caliper + 剎車片往外推 35 mm → 碟可自由旋轉、馬達才能轉動</li>
+            <li><b>運行中：</b>線圈持續通電、保持鉗張開狀態（耗電 ≈ 30 W）</li>
+            <li><b>失電抱閘：</b>任何安全故障 / 停機指令 → 切斷線圈電源 → 彈簧瞬間推鉗夾碟 → 摩擦阻止 sheave 旋轉 → cab 被鋼絲繩拉住停止</li>
+          </ol>
+          <div class="callout callout-safe">
+            <strong>Fail-safe 安全特性</strong>
+            電磁失電型制動器是「Fail-safe」設計：失電 = 抱閘。因此任何電源故障、線圈斷線、保險絲熔斷、急停按下，都會立刻夾緊煞車碟。<b>絕對不會出現「停電下墜」狀況</b>。
+          </div>
+        </div>
+
+        <!-- 1.4 鋼絲繩 / cab / cw -->
+        <div class="module" id="m-rope">
+          <div class="module-head">
+            <span class="badge badge-mech">機構</span>
+            <h5>1.4 鋼絲繩 + 轎廂 + 配重 連動</h5>
+          </div>
+          <table class="spec">
+            <tr><th>鋼絲繩規格</th><td>Φ10 mm × 8 條 / 8×19 Seale</td></tr>
+            <tr><th>安全係數</th><td>≥ 12 : 1（破斷負荷 / 工作負荷）</td></tr>
+            <tr><th>cab 載重</th><td>13 人 / 900 kg</td></tr>
+            <tr><th>cw 重量</th><td>2,100 kg（≈ cab 自重 + 50% 額定載重）</td></tr>
+            <tr><th>速度</th><td>1.0 m/s</td></tr>
+          </table>
+          <h4>配重設計原理</h4>
+          <p>配重 = 轎廂自重 + 50% 額定載重。半載時馬達扭矩需求接近零（cab + 半載 ≈ cw、力矩平衡）。空載上行或滿載下行才需要全力扭矩。這樣<b>馬達平均扭矩減半、能耗降低 40–60%</b>，這就是為什麼電梯有配重。</p>
+          <div class="chain">空載上行：cab 輕 <span class="arr">↑</span>、cw 重 <span class="arr">↓</span>、cw 自己會往下拉 → 馬達只需「煞住別讓 cw 過快」+ 推 cab 上去
+滿載下行：cab 重 <span class="arr">↓</span>、cw 不夠重、cab 自己往下走 → 馬達也是「煞住」+ 推 cw 上去
+平衡點（cab + 50% 載重）：馬達零扭矩、僅克服摩擦</div>
+        </div>
+      </section>
+
+      <!-- ========== 2. 門系統 ========== -->
+      <section id="sec-door">
+        <h2><span class="num">2</span>客梯門系統 — Door System</h2>
+        <div class="ch-intro">門系統包含「轎門 cab door」+ 4 個「層門 landing door」。所有層門皆<b>無獨立馬達</b>，被動跟隨 cab door — cab 對位後 vane（門刀）卡住 landing clutch（離合塊）一起拉開。整個 4 層樓只有一台 door operator（在 cab 頂）。</div>
+
+        <!-- 2.1 門機 -->
+        <div class="module" id="d-operator">
+          <div class="module-head">
+            <span class="badge badge-ctrl">驅動</span>
+            <h5>2.1 Door Operator 門機 — 馬達 → 聯軸器 → 主動 Pulley</h5>
+          </div>
+          <table class="spec">
+            <tr><th>馬達型式</th><td>VFD 控 DC 馬達 / BLDC</td></tr>
+            <tr><th>聯軸器</th><td>Jaw coupling 彈性爪型（SS 軸 + Hytrel 中間塊）</td></tr>
+            <tr><th>主動 pulley</th><td>Φ90 mm 鋁合金齒型輪</td></tr>
+            <tr><th>從動 pulley</th><td>Φ90 mm（位於門中央上方）</td></tr>
+            <tr><th>傳動皮帶</th><td>封閉式齒型皮帶（HTD 8M）</td></tr>
+            <tr><th>開啟時間</th><td>2.5 s（門距 800 mm）</td></tr>
+            <tr><th>保護</th><td>photocell + 防夾邊扭矩限制</td></tr>
+          </table>
+          <h4>動作鏈</h4>
+          <div class="chain">馬達轉一圈 <span class="arr">→</span> <b>聯軸器</b>同步轉一圈 <span class="arr">→</span> <b>主動 pulley</b> 轉一圈 <span class="arr">→</span> 齒型皮帶移動 πD = 282 mm <span class="arr">→</span> 從動 pulley 同步轉一圈</div>
+        </div>
+
+        <!-- 2.2 belt clamp + strut -->
+        <div class="module" id="d-belt">
+          <div class="module-head">
+            <span class="badge badge-mech">機構</span>
+            <h5>2.2 皮帶夾 Belt Clamp + 連桿 Strut</h5>
+          </div>
+          <p>齒型皮帶為封閉迴路：上排與下排走向永遠相反（pulley 順時針轉 → 上 belt 往右 + 下 belt 往左）。利用這個機械特性實現中分對開門：</p>
+          <ul class="bul">
+            <li><b>左門</b> 的 belt clamp 夾在「下排」belt → 隨下 belt 往左移動</li>
+            <li><b>右門</b> 的 belt clamp 夾在「上排」belt → 隨上 belt 往右移動</li>
+            <li>兩片門以相同速度反向打開、中間對開</li>
+          </ul>
+          <h4>連桿傳力</h4>
+          <p>每個 belt clamp 透過垂直連桿 strut 接到 arm，arm 連到 cab door panel 的吊架 hanger，hanger 在 cab track 上滑動。皮帶移動 → clamp 移動 → strut 拉 arm → arm 拉 hanger → cab door 滑開。</p>
+        </div>
+
+        <!-- 2.3 vane + skate roller -->
+        <div class="module" id="d-vane">
+          <div class="module-head">
+            <span class="badge badge-mech">機構</span>
+            <h5>2.3 門刀 Vane + 門刀輪 Skate Rollers</h5>
+          </div>
+          <p>cab door 左片外緣垂直方向裝有一塊鐵片，稱為<b>門刀（vane / skate）</b>。門刀末端裝有上下兩顆<b>門刀輪（skate rollers）</b>，每顆 Φ40 mm 硬化鋼 + Delrin 外圈 + precision deep groove 軸承。</p>
+          <h4>對位條件</h4>
+          <ul class="bul">
+            <li>cab 對位 landing 樓層水平誤差 ±50 mm 內</li>
+            <li>cab vane 跟 landing clutch 進入接合區（重疊距離 &gt; 10 mm）</li>
+            <li>滿足對位條件後、cab door 開門時、vane skate roller 才會頂到 landing 鎖機構</li>
+          </ul>
+          <div class="callout callout-info">
+            <strong>為什麼一定要對位才連動</strong>
+            如果 cab 沒對位、vane 跟 landing clutch 沒重疊：cab door 自己開、landing door 不動（鎖鉤還勾著）。這是<b>故意設計的安全機制</b> — 萬一 cab 卡在樓層中間，乘客即便扳開 cab door 也無法打開 landing door 走出去（會掉井道）。
+          </div>
+        </div>
+
+        <!-- 2.4 clutch + lock + interlock -->
+        <div class="module" id="d-clutch">
+          <div class="module-head">
+            <span class="badge badge-safe">安全</span>
+            <h5>2.4 層門 Clutch + 鎖鉤 + 電氣聯鎖</h5>
+          </div>
+          <p>每個樓層門裝有完整的鎖機構（4 樓共 4 套）：</p>
+          <ul class="bul">
+            <li><b>Clutch 離合塊</b>：U 形夾鉤、跟 cab vane 接合用</li>
+            <li><b>Lock Hook 鎖鉤</b>：機械鎖鉤、平常下垂勾住鎖體（lock body）</li>
+            <li><b>Lock Body 鎖體</b>：被 hook 鉤住的承壓塊</li>
+            <li><b>Door Interlock Contact 電氣接點</b>：NC contact, force-guided, 雙路、fail-safe</li>
+            <li><b>Interlock LED</b>：綠 = 鎖緊允許運轉 / 紅閃 = 門開禁止</li>
+          </ul>
+          <h4>機械鎖原理</h4>
+          <ol class="steps">
+            <li><b>門關閉狀態：</b>hook 下垂勾住 lock body → 即便外人扳門、機械鎖鉤頂住、無法打開</li>
+            <li><b>cab 對位開門：</b>cab vane skate roller 推 clutch → hook 被槓桿翻起 -π/4 → 釋放 lock body → 機械鎖解除 → vane 帶 clutch 一起拉、landing door 跟 cab door 同步打開</li>
+            <li><b>關門完成：</b>cab door 跟 landing door 一起回到關門位置 → hook 重力下垂 → 重新勾住 lock body → 鎖緊</li>
+          </ol>
+          <h4>電氣聯鎖原理（雙重保護）</h4>
+          <p>機械鎖之外、再加一層<b>電氣 NC 接點</b>：鎖鉤勾緊時、接點同步閉合、給主迴路通電允許運轉。任何一個樓層門被打開、對應的 NC contact 瞬斷、整個主迴路斷電、馬達立刻 STO（Safe Torque Off）、cab 緊急停車。</p>
+          <div class="chain">門關 + hook 勾鎖體 <span class="arr">→</span> NC contact 閉合 <span class="arr">→</span> <span class="step">主迴路通電</span> <span class="arr">→</span> 允許電梯運轉
+門開 (任意一層) <span class="arr">→</span> NC contact 瞬斷 <span class="arr">→</span> <span class="step">主迴路斷電</span> <span class="arr">→</span> <span class="alert">STO → 急停</span></div>
+          <div class="callout callout-safe">
+            <strong>EN 81-20 / CNS 17436 規範要求</strong>
+            門電氣聯鎖必須是「force-guided contact」、機械強制連動，不能用一般繼電器。任一接點熔接故障時，另一接點仍能正確切斷。雙路冗餘設計、SIL-3 等級認證。
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 3. 安全防護鏈 ========== -->
+      <section id="sec-safety">
+        <h2><span class="num">3</span>客梯安全防護鏈 — Safety Chain</h2>
+        <div class="ch-intro">電梯的安全是<b>多重冗餘</b>設計、不是「一道防線」。任何單一保護失效時、後續至少還有 2–3 道防線。整個 chain 任一節點斷開、安全繼電器（SIL-3）立刻切斷 VFD 使能、Brake 抱閘、Safety Gear 待命。</div>
+
+        <!-- 3.1 OSG -->
+        <div class="module" id="s-osg">
+          <div class="module-head">
+            <span class="badge badge-safe">安全</span>
+            <h5>3.1 限速器 Over-Speed Governor (OSG)</h5>
+          </div>
+          <table class="spec">
+            <tr><th>動作速度</th><td>1.4 × 額定速度 = 1.4 m/s</td></tr>
+            <tr><th>機械動作</th><td>離心式飛球 → 觸發 trip jaw → 夾住 governor rope</td></tr>
+            <tr><th>電氣訊號</th><td>NC contact 切斷主迴路</td></tr>
+            <tr><th>重設方式</th><td>技師手動 reset（不會自動恢復）</td></tr>
+          </table>
+          <h4>動作原理</h4>
+          <ol class="steps">
+            <li><b>正常運行：</b>governor rope 跟著 cab 同步上下、governor wheel 旋轉、飛球離心力 &lt; 彈簧復位力</li>
+            <li><b>cab 超速 1.4×：</b>governor wheel 轉速超過設定 → 飛球離心力 &gt; 彈簧 → 飛球外擴觸發 trip jaw → 機械夾頭瞬間咬住 governor rope</li>
+            <li><b>同時兩件事：</b>(a) governor rope 被卡住停止跟 cab 同步 → rope 拉力傳到 cab 上的 safety gear 楔塊 (b) governor NC 接點瞬斷主迴路</li>
+            <li><b>重設：</b>技師到場、人工 reset trip jaw、檢查 governor 機構、檢查 safety gear、調查超速原因（VFD 故障 / 編碼器訊號丟失 / brake 卡住未抱閘）</li>
+          </ol>
+        </div>
+
+        <!-- 3.2 safety gear -->
+        <div class="module" id="s-wedge">
+          <div class="module-head">
+            <span class="badge badge-safe">安全</span>
+            <h5>3.2 安全鉗 Safety Gear（楔塊式）</h5>
+          </div>
+          <table class="spec">
+            <tr><th>型式</th><td>Type A Wedge (instantaneous 瞬時式)</td></tr>
+            <tr><th>數量</th><td>cab 兩側各一組（左右 T 軌各一）</td></tr>
+            <tr><th>夾緊力</th><td>≥ 6 × 額定載重</td></tr>
+            <tr><th>觸發方式</th><td>governor rope 拉動 → 楔塊往 T 軌方向衝 60 mm</td></tr>
+            <tr><th>重設</th><td>不可逆、需技師現場手動 reset</td></tr>
+          </table>
+          <h4>動作原理</h4>
+          <p>cab 底兩側各有一個鋼性楔塊（wedge），平常隱藏在 cab 內。OSG 跳脫時、governor rope 被拉住、cab 繼續往下 → rope 相對 cab 往上、透過 cab 上的連桿機構往內推楔塊 → 楔塊衝出 60 mm、楔形咬入 T 型導軌兩側 → 摩擦力 &gt; cab 重量 → cab 急停。</p>
+          <div class="callout callout-warn">
+            <strong>瞬時式 vs 漸進式</strong>
+            <b>Type A 瞬時式</b>用於低速電梯（≤ 0.63 m/s）。本案速度 1.0 m/s 應採用 <b>Type B 漸進式（Progressive）</b>：靠摩擦面逐漸增加咬合力、減速 g ≤ 1.0、降低乘客傷害。模型示意用瞬時式表示，實際施工須依規範升級。
+          </div>
+        </div>
+
+        <!-- 3.3 interlock -->
+        <div class="module" id="s-interlock">
+          <div class="module-head">
+            <span class="badge badge-safe">安全</span>
+            <h5>3.3 門電氣聯鎖 Door Interlock</h5>
+          </div>
+          <p>請參考 <a href="#d-clutch" style="color:var(--rope)">§2.4 層門 Clutch + 鎖鉤 + 電氣聯鎖</a>。重點：每個樓層門配備 force-guided NC contact、4 樓 × 2 路（主+備）= 8 個接點全串聯、任一斷則整個主迴路斷電。</p>
+        </div>
+
+        <!-- 3.4 buffer + limit -->
+        <div class="module" id="s-buffer">
+          <div class="module-head">
+            <span class="badge badge-safe">安全</span>
+            <h5>3.4 緩衝器 Buffer + 終端極限開關</h5>
+          </div>
+          <table class="spec">
+            <tr><th>cab 緩衝器</th><td>聚胺酯油壓緩衝器 × 1（cab 正下方坑底）</td></tr>
+            <tr><th>cw 緩衝器</th><td>聚胺酯緩衝器 × 1（cw 正下方坑底）</td></tr>
+            <tr><th>Top Limit</th><td>Honeywell SZL Roller Lever、NC contact、頂端強制停止 — 比 final stop 早 5 cm 切斷上行電源</td></tr>
+            <tr><th>Bottom Limit</th><td>Honeywell SZL Roller Lever、NC contact、底端強制停止 — 比 buffer 早 5 cm 切斷下行電源</td></tr>
+            <tr><th>Final Limit</th><td>主接觸器強制切斷（極限的極限）</td></tr>
+          </table>
+          <h4>三段保護</h4>
+          <ol class="steps">
+            <li><b>第一段（軟體）：</b>VFD 接近終點減速、平層、停車</li>
+            <li><b>第二段（機械開關）：</b>VFD 失效時、Top / Bottom Limit Switch 強制切斷馬達電源、brake 抱閘</li>
+            <li><b>第三段（緩衝器）：</b>前面兩段都失效時、緩衝器吸收動能（最大可吸收 1.115 × 額定速度 = 1.115 m/s² 衝擊）</li>
+          </ol>
+        </div>
+
+        <!-- 3.5 photocell -->
+        <div class="module" id="s-photo">
+          <div class="module-head">
+            <span class="badge badge-safe">安全</span>
+            <h5>3.5 門光電光幕 Photocell Curtain</h5>
+          </div>
+          <p>cab door 兩側各裝一根紅外線光幕（光電 photocell + 紅外線發射）、垂直方向 64 道紅外線光束、保護範圍 0–1800 mm 高、5 ms 內偵測。任一光束被遮 → door operator 立刻反轉 → 門重新打開、等障礙物離開後再關。</p>
+          <div class="chain">關門中 <span class="arr">→</span> 任一光束被遮 <span class="arr">→</span> <span class="step">Photocell 觸發</span> <span class="arr">→</span> Door operator 反轉 <span class="arr">→</span> 門重新全開 <span class="arr">→</span> 等光束復原 + 3 秒延遲 <span class="arr">→</span> 重新關門</div>
+        </div>
+      </section>
+
+      <!-- ========== 4. 電控系統 ========== -->
+      <section id="sec-ctrl">
+        <h2><span class="num">4</span>客梯電控系統 — Electrical Control</h2>
+        <div class="ch-intro">電控系統集中在井道外的控制盤（ctrlElev）。櫃內依功能分層：主開關 / 變頻器 / CPU+HMI / I/O 模組 / 電源 + 接觸器 + 安全繼電器 / 端子排 / 散熱。每個訊號從感測器經 I/O 模組進 CPU、再由 CPU 輸出命令給 VFD 與接觸器。</div>
+
+        <!-- 4.1 panel -->
+        <div class="module" id="c-panel">
+          <div class="module-head">
+            <span class="badge badge-elec">電控</span>
+            <h5>4.1 控制盤模組組成（從上到下 8 層）</h5>
+          </div>
+          <table class="spec">
+            <tr><th>第 1 層</th><td class="note"><b>MCB 斷路器排（×5）</b> + 主隔離開關手把 — 過載 / 短路保護、維修必先轉 OFF</td></tr>
+            <tr><th>第 2 層</th><td class="note"><b>VFD KEB Combivert F6 11 kW</b> + 散熱鰭片 + 藍 LCD — 主驅動器、內建 STO/SBC/SS1</td></tr>
+            <tr><th>第 3 層</th><td class="note"><b>HMI 7" 觸控屏</b> — 故障歷史 / I/O 狀態 / 樓層位置、技師現場參數調整</td></tr>
+            <tr><th>第 4 層</th><td class="note"><b>Motion CPU</b>（32-bit ARM Cortex-M7、1ms 控制週期）+ 4 顆 LED（PWR/RUN/FAULT/COM）</td></tr>
+            <tr><th>第 5 層</th><td class="note"><b>I/O 模組 ×6</b>（DI8×2、DO8×2、AI4、AO2）— 32 個數位輸入 / 16 個數位輸出 / 4 個類比輸入 / 2 個類比輸出</td></tr>
+            <tr><th>第 6 層</th><td class="note"><b>24V PSU + 主接觸器 K1/K2/K3 + Safety Relay SIL-3</b> — 整合 STO/SBC/SS1、急停 / OSG / 門接點任一斷則切斷 VFD 使能</td></tr>
+            <tr><th>第 7 層</th><td class="note"><b>端子排 Terminal Blocks ×16</b> + 接線螺釘 — 外部 cable 進櫃接點</td></tr>
+            <tr><th>第 8 層</th><td class="note"><b>散熱風扇 ×2</b>（grille + 各 5 片扇葉、24VDC、櫃內 &gt; 40°C 自啟）</td></tr>
+          </table>
+        </div>
+
+        <!-- 4.2 sensor signal flow -->
+        <div class="module" id="c-sensor">
+          <div class="module-head">
+            <span class="badge badge-elec">電控</span>
+            <h5>4.2 Sensor 訊號流</h5>
+          </div>
+          <table class="spec">
+            <tr><th>Top / Bottom Limit</th><td>NC 接點 → DI 模組 → CPU 邏輯（極限觸發 → 接觸器斷電）</td></tr>
+            <tr><th>Encoder 編碼器</th><td>EnDat 2.2 序列訊號 → VFD（位置反饋）+ CPU（樓層計算）</td></tr>
+            <tr><th>Load Cell 載重</th><td>應變片電壓 → AI 模組 → CPU（過載判斷 / 補償扭矩計算）</td></tr>
+            <tr><th>Door Zone 樓層感應</th><td>磁感應 + IR backup → DI 模組 → CPU（平層精度 ±3 mm）</td></tr>
+            <tr><th>Door Interlock</th><td>NC 接點串聯 → 主迴路串聯（不經 CPU）→ Safety Relay → VFD 使能</td></tr>
+            <tr><th>OSG Contact</th><td>NC 接點 → Safety Relay → VFD 使能 + DI 模組 → CPU 故障紀錄</td></tr>
+            <tr><th>Brake Sensor</th><td>caliper 位置感測 → DI 模組 → CPU（驗證真實 release / set 狀態、防止 brake 卡住）</td></tr>
+            <tr><th>Photocell</th><td>光幕控制器 → DI 模組 → Door Operator CPU（門開合決策）</td></tr>
+          </table>
+          <div class="callout callout-info">
+            <strong>安全訊號 vs 控制訊號</strong>
+            <b>安全訊號</b>（門接點、OSG、急停、Limit）：直接串聯進主迴路、不經 CPU 處理、CPU 只「監看」紀錄事件。即使 CPU 死機也不影響安全動作。<b>控制訊號</b>（編碼器、載重、樓層）：進 CPU 處理後再輸出命令。設計上 SIL-3 安全功能完全獨立於 CPU。
+          </div>
+        </div>
+
+        <!-- 4.3 sequence -->
+        <div class="module" id="c-seq">
+          <div class="module-head">
+            <span class="badge badge-ctrl">時序</span>
+            <h5>4.3 運行時序邏輯（以「1F → 3F 召喚」為例）</h5>
+          </div>
+          <ol class="steps">
+            <li><b>Hall Call Registered：</b>1F 大廳按上行按鈕 → DI 模組 → CPU 接收 → 燈號變綠</li>
+            <li><b>Door Status Check：</b>CPU 確認所有 4 樓 interlock 都閉合 + 急停未按 + OSG 未跳脫 → Safety Relay 通電允許 VFD 使能</li>
+            <li><b>Brake Release：</b>CPU 命令 → 制動器線圈通電 → caliper 張開 35 mm → brake sensor 確認真實 release → CPU 收到 OK 才下一步</li>
+            <li><b>VFD Start：</b>CPU 送速度曲線 (S-curve) 給 VFD → VFD 解碼為 PWM → PMSM 啟動 → 編碼器回授 → 閉迴路速度控制</li>
+            <li><b>Cab Travel：</b>cab 上行、每經樓層感應條 → CPU 更新樓層計算 → 接近 3F 時觸發減速曲線</li>
+            <li><b>Door Zone Detected：</b>3F 樓層感應條被 reader 觸發 → CPU 切換到平層模式 → 微速 0.05 m/s 對準</li>
+            <li><b>Stop + Brake Set：</b>平層精度 ±5 mm 內 → VFD 零速 → brake 通電狀態切換成失電 → caliper 抱閘 → 確認真實 set → VFD 主接觸器斷電</li>
+            <li><b>Door Open：</b>CPU 命令 → Door Operator 啟動 → vane skate roller 推 landing 鎖機構 → hook 翻起 → interlock NC 斷 → LED 紅閃 → cab door + landing door 同步打開</li>
+            <li><b>Door Hold + Close Timer：</b>門全開保持 4 秒 → 開始關門</li>
+            <li><b>Door Close + Lock：</b>cab door + landing door 同步關閉 → hook 重力下垂 → 勾住 lock body → interlock NC 閉合 → LED 變綠 → CPU 等下一個 call</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ========== 5. HVAC ========== -->
+      <section id="sec-hvac">
+        <h2><span class="num">5</span>HVAC 空調系統 — Air Handling Unit</h2>
+        <div class="ch-intro">PUSD 辦公室採用單一 AHU（Air Handling Unit）+ 冰水盤管（CHW Coil）+ 全變頻送風機（VFD-VAV）的中央空調系統。室外新風經 F7 袋式濾網過濾、冰水盤管冷卻除濕、VFD 控制送風量、回風混和後再循環。控制以 BA Controller 為核心、依 CO₂ / 溫度 / 靜壓 PID 調節。</div>
+
+        <!-- 5.1 AHU modules -->
+        <div class="module" id="h-ahu">
+          <div class="module-head">
+            <span class="badge badge-mech">機構</span>
+            <h5>5.1 AHU 主機模組（氣流順序）</h5>
+          </div>
+          <ol class="steps">
+            <li><b>OA Damper（外氣風閥 DM）：</b>馬達驅動葉片、開度 0–100%、決定引進新風比例</li>
+            <li><b>F7 袋式濾網：</b>過濾 PM2.5、空氣品質、初始壓損 80 Pa、終止壓損 250 Pa（換濾警示）</li>
+            <li><b>冰水盤管 CHW Coil：</b>7°C 冰水進、12°C 出、銅管 + 鋁鰭片、冷量 25 RT</li>
+            <li><b>離心送風機 Centrifugal Fan：</b>BLDC 馬達 + VFD 變頻、額定風量 6000 CMH、靜壓 500 Pa</li>
+            <li><b>VFD 變頻器：</b>調節送風機轉速、隨負荷變化、節能 30–50%</li>
+            <li><b>回風混和：</b>從室內回風 + 新風混合、再循環</li>
+          </ol>
+        </div>
+
+        <!-- 5.2 VFD -->
+        <div class="module" id="h-vfd">
+          <div class="module-head">
+            <span class="badge badge-ctrl">驅動</span>
+            <h5>5.2 VFD 風機速度控制</h5>
+          </div>
+          <p>送風機馬達為 BLDC、轉速由 VFD 透過改變頻率調節。靜壓感測器 PDT-107 即時量測管路靜壓、回授到 BA Controller、PID 計算後給 VFD 速度命令、實現定靜壓變風量（VAV）控制。</p>
+          <table class="spec">
+            <tr><th>VFD 型式</th><td>標準 ABB ACS580 或同級品</td></tr>
+            <tr><th>輸入</th><td>380V 3φ</td></tr>
+            <tr><th>輸出頻率</th><td>0–60 Hz 連續調節</td></tr>
+            <tr><th>控制週期</th><td>10 ms PI loop</td></tr>
+            <tr><th>節能效果</th><td>相較定速 30–50%</td></tr>
+          </table>
+        </div>
+
+        <!-- 5.3 damper -->
+        <div class="module" id="h-damper">
+          <div class="module-head">
+            <span class="badge badge-mech">機構</span>
+            <h5>5.3 Damper 模式切換</h5>
+          </div>
+          <p>OA Damper 由 BA Controller 控制、依 CO₂ 濃度 + 室外溫度自動切換 3 種模式：</p>
+          <table class="spec">
+            <tr><th>最小新風模式</th><td>CO₂ &lt; 800 ppm + 室外溫差 &gt; 6°C → 新風比 20%（節能、減少冷負荷）</td></tr>
+            <tr><th>標準模式</th><td>CO₂ 800–1000 ppm → 新風比 30% PID 調節</td></tr>
+            <tr><th>強制換氣模式</th><td>CO₂ &gt; 1200 ppm → 新風 100%（IAQ 警示）</td></tr>
+            <tr><th>Free Cooling</th><td>室外溫度 &lt; 18°C + 室內需冷 → 新風 100%、關冰水閥（免費冷氣）</td></tr>
+          </table>
+        </div>
+
+        <!-- 5.4 control logic -->
+        <div class="module" id="h-ctrl">
+          <div class="module-head">
+            <span class="badge badge-ctrl">時序</span>
+            <h5>5.4 BA Controller 控制邏輯（PID + CO₂ + 安全聯鎖）</h5>
+          </div>
+          <h4>主要控制環路（4 條）</h4>
+          <ul class="bul">
+            <li><b>送風溫度環：</b>TT-105（送風溫度）回授 → PID → MV-01 冰水二通閥開度（PI、Kp=2.5, Ti=180s）</li>
+            <li><b>靜壓環：</b>PDT-107 → PID → VFD 速度命令（PI、Kp=0.8, Ti=60s）</li>
+            <li><b>新風環：</b>CO2-103 → PID → DM 外氣風閥開度（PI、Kp=1.5, Ti=240s、慢調避免震盪）</li>
+            <li><b>濾網警報：</b>ΔP-101 過濾器壓差 &gt; 250 Pa → 警示 + 仍持續運轉</li>
+          </ul>
+          <h4>安全聯鎖</h4>
+          <ol class="steps">
+            <li><b>SD-201 煙感觸發：</b>立刻停送風機、關 OA damper、防止煙擴散</li>
+            <li><b>VFD 故障：</b>BA Controller 收到 fault → 關 OA damper、關冰水閥、警報</li>
+            <li><b>FS-100 風速異常：</b>送風機運轉中、風速 sensor 沒讀數 → 5 秒後判定皮帶斷或葉片卡 → 停機警報</li>
+          </ol>
+        </div>
+      </section>
+
+      <div class="footer">
+        © PUSD 半導體 · 機電動作原理手冊 v1.0 · 2026<br>
+        本手冊為內部技術文件、機構動作描述參考實機規範 EN 81-20 / CNS 17436 / ANSI A17.1
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// 簡易 smooth scroll + 高亮當前章節
+document.querySelectorAll('.toc a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+
+</body>
+</html>
