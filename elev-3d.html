@@ -1706,6 +1706,91 @@ sump.userData = { name:"集水坑 Sump Pit", kind:"safety",
   specs:[["容量","20 L"],["泵","自動液位開關"],["標準","EN 81-20 §5.2.2.4"]] };
 ELEV.add(sump);
 
+// ===== 機房 4 面牆 + 天花 + 通風百葉（讓有機房 MR 看起來像真實機房、不是飄在空中的平台）=====
+const MR_TOP_Y    = SHAFT_H - 0.05;                 // 機房天花板 Y ≈ 13.95
+const MR_FLOOR_TOP_Y = MR_FLOOR_Y + MR_FLOOR_THICK/2;  // 11.575
+const MR_HEIGHT   = MR_TOP_Y - MR_FLOOR_TOP_Y;       // ~2.375
+const MR_MID_Y    = (MR_TOP_Y + MR_FLOOR_TOP_Y) / 2;
+const MR_WALL_T   = 0.06;                            // 牆厚 60mm RC
+// 機房牆面材質（半透明、淡灰、看得到內部）
+const mrWallMat = new THREE.MeshStandardMaterial({
+  color: 0x9aa1ad, transparent: true, opacity: 0.18, roughness: 0.95, metalness: 0.05, side: THREE.DoubleSide
+});
+// 左牆
+const mrWallL = new THREE.Mesh(new THREE.BoxGeometry(MR_WALL_T, MR_HEIGHT, SHAFT_D), mrWallMat);
+mrWallL.position.set(-SHAFT_W/2 - MR_WALL_T/2, MR_MID_Y, 0);
+mrWallL.userData = { name:"機房左牆 MR Wall L", kind:"machine", desc:"RC 結構牆、防火 2hr、隔音 35 dB", specs:[["厚度","60 mm + RC 150 mm"]] };
+ELEV.add(mrWallL); addMR(mrWallL);
+// 右牆
+const mrWallR = new THREE.Mesh(new THREE.BoxGeometry(MR_WALL_T, MR_HEIGHT, SHAFT_D), mrWallMat);
+mrWallR.position.set(SHAFT_W/2 + MR_WALL_T/2, MR_MID_Y, 0);
+mrWallR.userData = { name:"機房右牆 MR Wall R", kind:"machine", desc:"RC 結構牆 + 通風百葉開口" };
+ELEV.add(mrWallR); addMR(mrWallR);
+// 後牆
+const mrWallB = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W + MR_WALL_T*2, MR_HEIGHT, MR_WALL_T), mrWallMat);
+mrWallB.position.set(0, MR_MID_Y, -SHAFT_D/2 - MR_WALL_T/2);
+mrWallB.userData = { name:"機房後牆 MR Wall Back", kind:"machine", desc:"RC 結構牆" };
+ELEV.add(mrWallB); addMR(mrWallB);
+// 前牆（左右兩段、中間留維修門開口寬 0.9m）
+const MR_DOOR_W = 0.90;
+const mrWallF_L = new THREE.Mesh(new THREE.BoxGeometry((SHAFT_W - MR_DOOR_W)/2 + MR_WALL_T, MR_HEIGHT, MR_WALL_T), mrWallMat);
+mrWallF_L.position.set(-(MR_DOOR_W/2 + (SHAFT_W - MR_DOOR_W)/4), MR_MID_Y, SHAFT_D/2 + MR_WALL_T/2);
+ELEV.add(mrWallF_L); addMR(mrWallF_L);
+const mrWallF_R = new THREE.Mesh(new THREE.BoxGeometry((SHAFT_W - MR_DOOR_W)/2 + MR_WALL_T, MR_HEIGHT, MR_WALL_T), mrWallMat);
+mrWallF_R.position.set( (MR_DOOR_W/2 + (SHAFT_W - MR_DOOR_W)/4), MR_MID_Y, SHAFT_D/2 + MR_WALL_T/2);
+ELEV.add(mrWallF_R); addMR(mrWallF_R);
+// 機房維修門（中央、不透明深灰、含把手）
+const mrDoor = new THREE.Mesh(new THREE.BoxGeometry(MR_DOOR_W - 0.02, MR_HEIGHT - 0.30, 0.04),
+  new THREE.MeshStandardMaterial({ color: 0x3a3f48, metalness: 0.4, roughness: 0.5 }));
+mrDoor.position.set(0, MR_MID_Y - 0.05, SHAFT_D/2 + 0.03);
+mrDoor.userData = { name:"機房維修門 MR Access Door", kind:"machine",
+  desc:"防火維修門（A 類 1hr）、上鎖、僅有持鑰匙技師可進入；門內側貼警示『高壓危險』",
+  specs:[["尺寸","900×2,075 mm"],["防火","A 類 1hr"],["鎖","電子鎖 + 機械備援"],["管理","建管單位列管"]] };
+ELEV.add(mrDoor); addMR(mrDoor);
+// 門把手
+const mrDoorHandle = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.025, 0.025),
+  new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.95 }));
+mrDoorHandle.position.set(MR_DOOR_W/2 - 0.10, MR_MID_Y - 0.10, SHAFT_D/2 + 0.055);
+ELEV.add(mrDoorHandle); addMR(mrDoorHandle);
+// 警示銘版「機房 — 高壓危險 ELEV MACHINE ROOM」
+{
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 96;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#1a1d24'; cx.fillRect(0, 0, 512, 96);
+  cx.strokeStyle = '#fbbf24'; cx.lineWidth = 4; cx.strokeRect(4, 4, 504, 88);
+  cx.fillStyle = '#fbbf24'; cx.font = 'bold 28px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText('⚠ 機房 · MACHINE ROOM ⚠', 256, 34);
+  cx.fillStyle = '#f5f5f7'; cx.font = '18px sans-serif';
+  cx.fillText('非授權人員禁止進入  Authorized Personnel Only', 256, 64);
+  const tex = new THREE.CanvasTexture(cv);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.105),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+  tag.position.set(0, MR_TOP_Y - 0.30, SHAFT_D/2 + 0.052);
+  ELEV.add(tag); addMR(tag);
+}
+// 天花板（不透明、含照明嵌入）
+const mrCeiling = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W + MR_WALL_T*2, 0.08, SHAFT_D + MR_WALL_T*2),
+  new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.85, metalness: 0.1, transparent: true, opacity: 0.30, side: THREE.DoubleSide }));
+mrCeiling.position.set(0, MR_TOP_Y + 0.04, 0);
+mrCeiling.userData = { name:"機房天花板 MR Ceiling", kind:"machine", desc:"RC 樓板 250mm、隔音 + 防火" };
+ELEV.add(mrCeiling); addMR(mrCeiling);
+// 通風百葉 Louver（右牆上方、自然通風散熱）
+const mrLouverFrame = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.50, 0.80),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.7, roughness: 0.4 }));
+mrLouverFrame.position.set(SHAFT_W/2 + MR_WALL_T + 0.005, MR_MID_Y + 0.50, 0);
+mrLouverFrame.userData = { name:"機房通風百葉 Louver", kind:"machine",
+  desc:"自然通風進氣口 — 雨遮 + 防蟲網、面積 ≥ 機房面積 1% (法規)",
+  specs:[["尺寸","800×500 mm"],["材質","6063 鋁擠型 + SS 防蟲網"],["風量","自然通風 ≥ 6 ACH"]] };
+ELEV.add(mrLouverFrame); addMR(mrLouverFrame);
+// 百葉橫條（8 片）
+for (let i = 0; i < 8; i++) {
+  const slat = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.040, 0.75),
+    new THREE.MeshStandardMaterial({ color: 0x9aa1ad, metalness: 0.85 }));
+  slat.position.set(SHAFT_W/2 + MR_WALL_T + 0.008, MR_MID_Y + 0.50 + (i - 3.5) * 0.055, 0);
+  slat.rotation.x = -Math.PI / 8;   // 葉片斜向下避免雨水進入
+  ELEV.add(slat); addMR(slat);
+}
+
 // ===== 機房 LED 主照明 =====
 const mrLight = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.30),
   new THREE.MeshStandardMaterial({ color: 0xfff4d6, emissive: 0xfff4d6, emissiveIntensity: 0.8 }));
@@ -1749,14 +1834,23 @@ for (let i = 0; i < 8; i++) {
   ELEV.add(rCw);
   cwRopes.push({ mesh: rCw, baseLen: ropeLenCw });
 }
-// sheave 頂跨繩段（弧形示意 — 多條細線跨過）
+// sheave 頂跨繩段 — 用 CatmullRomCurve3 + TubeGeometry 沿 sheave 上半圓弧自然彎曲（取代直角直線）
 const CW_Z = -SHAFT_D/2 + 0.22;  // -0.98
 const horizLen = CAB_Z - CW_Z;   // 0.35 - (-0.98) = 1.33
 for (let i = 0; i < 8; i++) {
   const grooveX = 0.35 + (i - 3.5) * 0.022;
-  const horiz = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, horizLen, 6), ropeMat);
-  horiz.rotation.x = Math.PI/2;
-  horiz.position.set(grooveX, SHAFT_H - 1.45, (CAB_Z + CW_Z)/2);
+  // 5 點通過：cab 側水平起 → sheave 右切離點 → sheave 頂 → sheave 左切離點 → cw 側水平終
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(grooveX, sheaveCenterY,       CAB_Z),
+    new THREE.Vector3(grooveX, sheaveCenterY + 0.10, +0.18),  // sheave 右切離（接近 sheave radius）
+    new THREE.Vector3(grooveX, sheaveCenterY + 0.20, 0),       // sheave 正上方
+    new THREE.Vector3(grooveX, sheaveCenterY + 0.10, -0.18),  // sheave 左切離
+    new THREE.Vector3(grooveX, sheaveCenterY,       CW_Z),
+  ]);
+  const horiz = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 24, 0.012, 6, false),
+    ropeMat
+  );
   ELEV.add(horiz);
 }
 
@@ -1847,9 +1941,9 @@ const govBase = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.25),
 govBase.position.set(-0.1, -0.15, 0); govGroup.add(govBase);
 govGroup.userData = { name:"Governor 限速器", kind:"safety", desc:"超速保護 — 觸發安全鉗夾緊導軌", specs:[["動作速度","1.4 × 額定 = 1.4 m/s"],["重設","手動 reset"],["訊號","NC 切斷主迴路"]] };
 ELEV.add(govGroup);
-// 限速器繩（細鋼絲，貫穿全井道）
+// 限速器繩（細鋼絲、Φ8mm、金屬色 — 跟 hoist rope 同質、實機是 1×19 / 6×19 鍍鋅鋼絲繩；之前粉紅色不對）
 const govRope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, SHAFT_H - 1.5, 6),
-  new THREE.MeshStandardMaterial({ color: 0xf472b6, metalness: 0.7 }));
+  new THREE.MeshStandardMaterial({ color: 0xa3afbc, metalness: 0.85, roughness: 0.35 }));
 govRope.position.set(SHAFT_W/2 - 0.15, (SHAFT_H - 2.3 - 0.5)/2, -0.3);
 ELEV.add(govRope);
 
@@ -1943,9 +2037,11 @@ ldFloors.forEach(f => {
   landingFloorGroup.add(clutchR);
 
   // ===== 門鎖機構 Door Interlock（cab vane 必須推開鎖鉤、電氣接點才閉合允許運轉）=====
+  // 全部裝在 landing door「井道側 (hoistway side)」、即 Z < SHAFT_D/2 + 0.005 (門板背面)
+  // 實機從廳堂搭電梯時被門板擋住完全看不到、僅維修打開時可見
   // Lock Hook 鎖鉤 — 用 group 把 pivot 移到頂端、cab 對位 vane 推開時翻起釋放
   const lockHookGroup = new THREE.Group();
-  lockHookGroup.position.set(ldL_close + ldPanelW/2 - 0.030, doorCenterY + 0.22, SHAFT_D/2 + 0.075);
+  lockHookGroup.position.set(ldL_close + ldPanelW/2 - 0.030, doorCenterY + 0.22, SHAFT_D/2 - 0.025);
   const lockHook = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.07, 0.025),
     new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.25 }));
   lockHook.position.y = -0.035;   // 相對 group origin（軸）下垂 35mm 形成「鉤住」姿勢
@@ -1963,14 +2059,14 @@ ldFloors.forEach(f => {
   // Lock Body 鎖體（被鉤住的長條）
   const lockBody = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.025, 0.04),
     new THREE.MeshStandardMaterial({ color: 0x9aa1ad, metalness: 0.9, roughness: 0.25 }));
-  lockBody.position.set(ldL_close + ldPanelW/2 - 0.045, doorCenterY + 0.135, SHAFT_D/2 + 0.075);
+  lockBody.position.set(ldL_close + ldPanelW/2 - 0.045, doorCenterY + 0.135, SHAFT_D/2 - 0.025);
   lockBody.userData = { name:`Door Lock Body ${f}F 鎖體承壓塊`, kind:"safety", desc:"承壓塊 — 跟 hook 配合、平常被鉤住" };
   landingFloorGroup.add(lockBody);
 
   // Door Interlock Contact Box 電氣接點箱（NC contact、鎖緊時通電）— 裝在 landing door 井道側（hoistway side）
   const interlockBox = new THREE.Mesh(new THREE.BoxGeometry(0.040, 0.040, 0.022),
     new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.85, roughness: 0.3 }));
-  interlockBox.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 + 0.075);
+  interlockBox.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 - 0.025);
   interlockBox.userData = { name:`Door Interlock Contact ${f}F 門電氣接點`, kind:"safety",
     desc:"門電氣聯鎖接點 — 裝在層門「井道側 (hoistway side)」、實機從廳堂搭電梯時看不到（被門板擋住）；3D 模型為了教學把它顯示出來。鎖鉤勾緊時 NC 閉合給主迴路通電；門開瞬斷使電梯立刻停止（雙重保護：機械鎖 + 電氣 contact）",
     specs:[["位置","hoistway side · maintenance access only"],["型式","NC contact, force-guided"],["雙路","主+備兩組獨立"],["失效模式","fail-safe（斷路即停）"]] };
@@ -1979,7 +2075,7 @@ ldFloors.forEach(f => {
   // Interlock Status LED 狀態指示燈（綠=鎖緊通電 / 紅閃=門開斷電）— 同樣 hoistway side、實機乘客看不到
   const interlockLED = new THREE.Mesh(new THREE.SphereGeometry(0.0075, 12, 8),
     new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 0.55 }));
-  interlockLED.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 + 0.090);
+  interlockLED.position.set(ldL_close + ldPanelW/2 - 0.065, doorCenterY + 0.27, SHAFT_D/2 - 0.040);
   interlockLED.userData = { name:`Interlock LED ${f}F`, kind:"light", desc:"狀態指示 — 綠=鎖緊允許運轉 / 紅閃=門開禁止運轉。位於井道側、實機從廳堂看不到、僅維修開啟門板才見" };
   landingFloorGroup.add(interlockLED);
 
