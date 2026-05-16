@@ -924,11 +924,11 @@ for (let i = 0; i < 8; i++) {
 // crank arm 從皮帶下方接到門吊架（驅動門開合）
 const armL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.02),
   new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
-armL.position.set(cabDoorL_close, doorBaseY + doorPanelH/2 + 0.10, CAB_D/2 - 0.03);
+armL.position.set(cabDoorL_close, -0.08, CAB_D/2 - 0.03);   // doorOpGroup-local Y、arm 頂端剛好對齊 belt（+0.01）
 doorOpGroup.add(armL);
 const armR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.02),
   new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
-armR.position.set(cabDoorR_close, doorBaseY + doorPanelH/2 + 0.10, CAB_D/2 - 0.03);
+armR.position.set(cabDoorR_close, -0.08, CAB_D/2 - 0.03);   // doorOpGroup-local Y
 doorOpGroup.add(armR);
 
 // ===== Belt Clamps 皮帶夾 + Struts 連桿（把 belt → arm → door 的物理連結補上）=====
@@ -2081,7 +2081,7 @@ ldFloors.forEach(f => {
 
   // ===== 外叫面板 Hall Call Station（門框右側，廳堂可見）=====
   const hallStation = new THREE.Group();
-  hallStation.position.set(CAB_W/2 + 0.30, y + 1.20, SHAFT_D/2 + 0.04);
+  hallStation.position.set(SHAFT_W/2 + 0.20, y + 1.20, SHAFT_D/2 + 0.06);   // 移到井道牆外 20cm + 前緣 6cm、避免 landing door 全開時 panel 右緣擋到
   // 黑色面板背景
   const hallBg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.32, 0.025),
     new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.4 }));
@@ -2142,7 +2142,8 @@ ldFloors.forEach(f => {
 
 // ============ 11. Controller Cabinet (旁置控制盤) ============
 const ctrlElev = new THREE.Group();
-ctrlElev.position.set(-SHAFT_W/2 - 1.2, 0.95, 0);
+// 初始位置依預設 isMR=true：放機房內（左後角、距牆內 45cm + 距後牆 55cm）
+ctrlElev.position.set(-SHAFT_W/2 + 0.45, MR_FLOOR_Y + 1.05, -SHAFT_D/2 + 0.55);
 const ctrlBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.85, 0.35),
   new THREE.MeshStandardMaterial({ color: 0xd0d3da, metalness: 0.7, roughness: 0.4 }));
 ctrlElev.add(ctrlBox);
@@ -2981,6 +2982,15 @@ function setMRType(mr) {
   const lbl = document.getElementById('mrTypeLabel');
   if (lbl) lbl.textContent = mr ? '🏠 有機房 MR' : '🏗 無機房 MRL';
   document.querySelector('[data-action="mrtype"]').classList.toggle('active', mr);
+  // 控制盤位置依機型切換：MR 放機房內 / MRL 放 cab 同樓層門框旁
+  if (mr) {
+    ctrlElev.position.set(-SHAFT_W/2 + 0.45, MR_FLOOR_Y + 1.05, -SHAFT_D/2 + 0.55);
+  } else {
+    // MRL：跟 cab 同層、井道右外側、貼著 hallway 牆（合到 hallway 設備區）
+    ctrlElev.position.set(SHAFT_W/2 + 0.55, 0.95, -SHAFT_D/2 + 0.30);
+  }
+  // explode 用的 basePos 跟著更新（不然 explode 後會跳回舊位置）
+  ctrlElev.userData.basePos = ctrlElev.position.clone();
 }
 
 document.querySelectorAll('.ctrl-btn').forEach(btn => {
@@ -3576,7 +3586,7 @@ function animate() {
     }
 
     // === 門開合（cab + 對應 landing 同步）===
-    const openOffset = doorPhase * (CAB_W/2 - 0.1);  // 最大開啟距離
+    const openOffset = doorPhase * (CAB_W/4 - 0.025);  // 中分對開：每片從中心滑 ~panel 寬、不超出 cab 內壁
     cabDoorL.position.x = cabDoorL_close - openOffset;
     cabDoorR.position.x = cabDoorR_close + openOffset;
     hangerL.position.x = cabDoorL_close - openOffset;
