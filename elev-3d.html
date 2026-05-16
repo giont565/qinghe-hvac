@@ -2032,13 +2032,144 @@ ctrlElev.add(ctrlBox);
 const ctrlWin = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.1, 0.005),
   new THREE.MeshStandardMaterial({ color: 0x0a0d12, transparent: true, opacity: 0.25 }));
 ctrlWin.position.z = 0.18; ctrlElev.add(ctrlWin);
-// 內部 VFD + CPU + 安全模組
-const cabVFD = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.5, 0.15),
-  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.6 }));
-cabVFD.position.set(0, 0.3, 0.08); ctrlElev.add(cabVFD);
-const cabCPU = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.12),
-  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.4 }));
-cabCPU.position.set(0, -0.1, 0.08); ctrlElev.add(cabCPU);
+// ===== 內部模組陣列（透過 ctrlWin 可看到、由上到下分層）=====
+
+// 1. MCB 斷路器排（Y=0.65）+ 主開關把手
+const masterHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.05, 12),
+  new THREE.MeshStandardMaterial({ color: 0x1a1d24, metalness: 0.7, roughness: 0.3 }));
+masterHandle.rotation.x = Math.PI/2;
+masterHandle.position.set(-0.22, 0.65, 0.15);
+masterHandle.userData = { name:"主隔離開關 Main Isolator", kind:"controller", desc:"櫃外手動旋鈕、切斷主電源 — 維修必須先轉到 OFF" };
+ctrlElev.add(masterHandle);
+for (let i = 0; i < 5; i++) {
+  const mcb = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.05, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.3, roughness: 0.5 }));
+  mcb.position.set(-0.10 + i * 0.034, 0.65, 0.08);
+  ctrlElev.add(mcb);
+  const sw = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.015, 0.010),
+    new THREE.MeshStandardMaterial({ color: 0x222, metalness: 0.5 }));
+  sw.position.set(-0.10 + i * 0.034, 0.655, 0.115);
+  ctrlElev.add(sw);
+}
+
+// 2. VFD 變頻器（Y=0.32）+ 散熱鰭片
+const cabVFD = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.32, 0.13),
+  new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.6, roughness: 0.4 }));
+cabVFD.position.set(-0.12, 0.32, 0.08);
+cabVFD.userData = { name:"VFD 變頻器 KEB Combivert F6", kind:"controller", desc:"主驅動器 — 接收 CPU 速度命令、驅動 PMSM 曳引機。內建 STO/SBC/SS1 安全功能", specs:[["容量","11 kW"],["輸入","380V 3φ"],["回授","Heidenhain EnDat 2.2"],["通訊","CANopen + Modbus"]] };
+ctrlElev.add(cabVFD);
+for (let i = 0; i < 6; i++) {
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.28, 0.004),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9 }));
+  fin.position.set(-0.12 + (i - 2.5) * 0.020, 0.32, 0.150);
+  ctrlElev.add(fin);
+}
+const vfdLCD = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.035, 0.005),
+  new THREE.MeshStandardMaterial({ color: 0x0a0d12, emissive: 0x00d4ff, emissiveIntensity: 0.6 }));
+vfdLCD.position.set(-0.12, 0.42, 0.148); ctrlElev.add(vfdLCD);
+
+// 3. HMI 觸控屏（Y=0.30 右上、貼齊 window）
+const hmiScreen = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.13, 0.012),
+  new THREE.MeshStandardMaterial({ color: 0x1a1d24, emissive: 0x002030, emissiveIntensity: 0.7, metalness: 0.5 }));
+hmiScreen.position.set(0.12, 0.30, 0.150);
+hmiScreen.userData = { name:"HMI 觸控操作屏", kind:"controller", desc:"7\" 彩色觸控屏 — 顯示故障歷史 / 樓層位置 / I/O 狀態、技師現場參數調整介面", specs:[["尺寸","7 inch"],["解析","800×480"],["通訊","Modbus RTU"]] };
+ctrlElev.add(hmiScreen);
+const hmiContent = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.108),
+  new THREE.MeshBasicMaterial({ color: 0x00d4ff, transparent: true, opacity: 0.35 }));
+hmiContent.position.set(0.12, 0.30, 0.157); ctrlElev.add(hmiContent);
+
+// 4. CPU/PLC（Y=0.05）+ LED indicator array (PWR/RUN/FAULT/COM)
+const cabCPU = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.16, 0.11),
+  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.3 }));
+cabCPU.position.set(0.12, 0.05, 0.08);
+cabCPU.userData = { name:"Motion CPU 主控制器", kind:"controller", desc:"主邏輯處理器 — 接收 hall call / car call、規劃移動軌跡、發送速度曲線給 VFD、處理門控時序", specs:[["平台","32-bit ARM Cortex-M7"],["I/O","32 DI / 16 DO / 4 AI"],["RT","硬實時、1ms 控制週期"]] };
+ctrlElev.add(cabCPU);
+const _ledArr = [[0xa3e635, 'PWR'], [0xfbbf24, 'RUN'], [0xef4444, 'FAULT'], [0x00d4ff, 'COM']];
+_ledArr.forEach(([col, lbl], i) => {
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.0075, 12, 8),
+    new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.95 }));
+  led.position.set(0.12 + (i - 1.5) * 0.022, 0.115, 0.137);
+  led.userData = { name:`CPU ${lbl} LED`, kind:"light", desc:`狀態指示燈 — ${lbl}` };
+  ctrlElev.add(led);
+});
+
+// 5. I/O 模組陣列（Y=-0.20、橫排 6 個 — 數位輸入 + 數位輸出 + 類比 IO）
+const _ioLabels = ['DI8', 'DI8', 'DO8', 'DO8', 'AI4', 'AO2'];
+const _ioColors = [0x4a5568, 0x4a5568, 0x5a6578, 0x5a6578, 0x6a7785, 0x7a8595];
+_ioLabels.forEach((lbl, i) => {
+  const io = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.11, 0.085),
+    new THREE.MeshStandardMaterial({ color: _ioColors[i], metalness: 0.5, roughness: 0.4 }));
+  io.position.set(-0.20 + i * 0.038, -0.20, 0.08);
+  io.userData = { name:`I/O 模組 ${lbl}`, kind:"controller", desc:`輸入/輸出擴充模組 — ${lbl}（${lbl[0]==='D' ? '數位' : '類比'} ${lbl[1]==='I' ? '輸入' : '輸出'} ${lbl.slice(2)}點）` };
+  ctrlElev.add(io);
+  // 每個模組頂部 status LED
+  for (let j = 0; j < 4; j++) {
+    const ioLed = new THREE.Mesh(new THREE.SphereGeometry(0.003, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0xa3e635, emissiveIntensity: 0.7 }));
+    ioLed.position.set(-0.20 + i * 0.038, -0.155 - j * 0.012, 0.124);
+    ctrlElev.add(ioLed);
+  }
+});
+
+// 6. 24V PSU 電源供應 + 接觸器 contactor row（Y=-0.45）
+const psu = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.13, 0.10),
+  new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.4, roughness: 0.5 }));
+psu.position.set(-0.20, -0.45, 0.08);
+psu.userData = { name:"24V 控制電源 PSU", kind:"controller", desc:"控制迴路電源 — 220V→24VDC 整流穩壓、給 I/O / sensor / LED 用電" };
+ctrlElev.add(psu);
+const psuLed = new THREE.Mesh(new THREE.SphereGeometry(0.005, 10, 6),
+  new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0xa3e635, emissiveIntensity: 1.0 }));
+psuLed.position.set(-0.20, -0.40, 0.135); ctrlElev.add(psuLed);
+for (let i = 0; i < 3; i++) {
+  const ct = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.10, 0.10),
+    new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.4, roughness: 0.6 }));
+  ct.position.set(-0.07 + i * 0.040, -0.45, 0.08);
+  ct.userData = { name:`主接觸器 K${i+1}`, kind:"controller", desc:"380V 主電路接觸器 — VFD 啟動時通電、停機後斷電" };
+  ctrlElev.add(ct);
+}
+// 安全繼電器 SIL-3
+const safetyRelay = new THREE.Mesh(new THREE.BoxGeometry(0.080, 0.11, 0.10),
+  new THREE.MeshStandardMaterial({ color: 0xefcc00, metalness: 0.4, roughness: 0.5 }));
+safetyRelay.position.set(0.13, -0.45, 0.08);
+safetyRelay.userData = { name:"Safety Relay 安全繼電器 SIL-3", kind:"safety", desc:"SIL-3 認證安全繼電器 — 整合 STO/SBC/SS1、急停 / OSG / 門接點任一斷則切斷 VFD 使能" };
+ctrlElev.add(safetyRelay);
+
+// 7. 端子排 Terminal blocks（Y=-0.70、底部一整排）
+for (let i = 0; i < 16; i++) {
+  const tb = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.04, 0.035),
+    new THREE.MeshStandardMaterial({ color: 0xe5e7eb, metalness: 0.3 }));
+  tb.position.set(-0.225 + i * 0.030, -0.70, 0.08);
+  ctrlElev.add(tb);
+}
+// 端子排頂部接線螺釘（小銀點）
+for (let i = 0; i < 16; i++) {
+  const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.005, 8),
+    new THREE.MeshStandardMaterial({ color: 0x9aa1ad, metalness: 0.95 }));
+  screw.rotation.x = Math.PI/2;
+  screw.position.set(-0.225 + i * 0.030, -0.685, 0.103);
+  ctrlElev.add(screw);
+}
+
+// 8. 散熱風扇 grille（頂部）+ 風扇本體
+const fanGrille = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.030, 0.30),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.7, roughness: 0.5 }));
+fanGrille.position.set(0, 0.92, 0);
+ctrlElev.add(fanGrille);
+for (let i = 0; i < 2; i++) {
+  const fan = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.022, 12),
+    new THREE.MeshStandardMaterial({ color: 0x222, metalness: 0.5 }));
+  fan.position.set(-0.12 + i * 0.24, 0.90, 0);
+  fan.userData = { name:`櫃頂散熱風扇 ${i+1}`, kind:"controller", desc:"頂部抽風扇 — 24VDC、櫃內溫度 > 40°C 自動啟動" };
+  ctrlElev.add(fan);
+  // 扇葉
+  for (let j = 0; j < 5; j++) {
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.001, 0.012),
+      new THREE.MeshStandardMaterial({ color: 0x444 }));
+    blade.rotation.y = (j * Math.PI * 2) / 5;
+    blade.position.set(-0.12 + i * 0.24, 0.913, 0);
+    ctrlElev.add(blade);
+  }
+}
 // 銘版
 {
   const cv = document.createElement('canvas'); cv.width=512; cv.height=80;
@@ -2053,9 +2184,34 @@ cabCPU.position.set(0, -0.1, 0.08); ctrlElev.add(cabCPU);
 ctrlElev.userData = { name:"Elevator Controller 控制盤", kind:"controller", desc:"電梯控制櫃 — 含 VFD + CPU + 安全繼電器", specs:[["VFD","KEB Combivert F6"],["CPU","Motion controller"],["安全","SIL-3 STO/SBC/SS1"],["通訊","CANopen + Modbus"]] };
 ELEV.add(ctrlElev);
 
-// ============ 12. Sensors（每種 sensor 用對應真實形狀，不再共用占位綠方塊）============
+// ============ 12. Sensors（每種 sensor 用對應真實形狀 + 共用 bracket / cable / label）============
 function addElevSensor(type, name, pos, desc, specs) {
   const g = new THREE.Group(); g.position.set(...pos);
+
+  // 共用：L 形 mounting bracket（背面）— 把 sensor 鎖到井道結構上
+  const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.080, 0.080, 0.005),
+    new THREE.MeshStandardMaterial({ color: 0x9aa1ad, metalness: 0.85, roughness: 0.4 }));
+  bracket.position.set(0, 0, -0.022);
+  bracket.userData = { name:`Mounting Bracket — ${name}`, kind:"sensor", desc:"L 形支架、鋼板厚 3mm、4 點 M5 螺栓固定到井道" };
+  g.add(bracket);
+  // 4 個固定螺栓（小銀點）
+  [[-0.030, 0.030], [0.030, 0.030], [-0.030, -0.030], [0.030, -0.030]].forEach(([bx, by]) => {
+    const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.008, 8),
+      new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.95 }));
+    bolt.rotation.x = Math.PI/2;
+    bolt.position.set(bx, by, -0.018);
+    g.add(bolt);
+  });
+  // 共用：cable 出線（從 sensor 背面拉出 cable 進線槽）
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.15, 8),
+    new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.3, roughness: 0.7 }));
+  cable.position.set(0.035, -0.085, -0.012);
+  g.add(cable);
+  // cable gland（出線螺紋頭）
+  const cableGland = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.010, 10),
+    new THREE.MeshStandardMaterial({ color: 0x222, metalness: 0.7 }));
+  cableGland.position.set(0.035, -0.015, -0.015);
+  g.add(cableGland);
 
   if (type === 'limit') {
     // 限位開關 Limit Switch：橘殼 + roller arm + 小 LED — 標準 Honeywell SZL 系列外觀
@@ -2123,6 +2279,21 @@ function addElevSensor(type, name, pos, desc, specs) {
     g.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.04),
       new THREE.MeshStandardMaterial({ color: 0xa3e635, emissive: 0x52731c, emissiveIntensity: 0.4 })));
   }
+  // 共用：型號銘版（canvas texture 小貼紙）
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#1f2937'; cx.fillRect(0, 0, 256, 64);
+  cx.strokeStyle = '#9aa1ad'; cx.lineWidth = 2; cx.strokeRect(2, 2, 252, 60);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 18px sans-serif'; cx.textAlign = 'left'; cx.textBaseline = 'top';
+  cx.fillText(name.split(' ')[0], 8, 6);
+  cx.fillStyle = '#86868b'; cx.font = '14px sans-serif';
+  cx.fillText((specs && specs[0]) ? specs[0][1].slice(0, 18) : '', 8, 30);
+  const tex = new THREE.CanvasTexture(cv);
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(0.060, 0.015),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+  label.position.set(0, -0.045, 0.001);
+  g.add(label);
+
   g.userData = { name, kind:"sensor", desc, specs };
   ELEV.add(g);
 }
