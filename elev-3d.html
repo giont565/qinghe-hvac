@@ -2019,7 +2019,7 @@ ELEV.add(govRope);
 // ============ 廳堂 (Hallway) 前牆 — 讓 hall call station 嵌在牆上、不飄空中 ============
 // 井道前左右兩側、半透明灰、模擬建築 hallway 牆面
 const hallwayWallMat = new THREE.MeshStandardMaterial({
-  color: 0x8a8e96, transparent: true, opacity: 0.20, roughness: 0.95, metalness: 0.05, side: THREE.DoubleSide
+  color: 0xa3a7af, transparent: true, opacity: 0.55, roughness: 0.95, metalness: 0.05, side: THREE.DoubleSide
 });
 // 牆面 X 範圍從 cab door panel 全開 right edge (~1.10) 之外開始、避免擋到 panel 動畫
 const HALL_WALL_X_INNER = 1.15;   // 內緣（panel 滑開後不擋）
@@ -2106,6 +2106,34 @@ ldFloors.forEach(f => {
   ldL.userData = { name:`Landing Door ${f}F (Left)`, kind:"door", desc:`${f} 樓層門左片 — passive 跟隨轎門 vane`, specs:[["材質","髮絲紋 SUS304"],["驅動","passive（被 cab vane 拉動）"],["互鎖","mechanical + electrical"]] };
   landingFloorGroup.add(ldL); landingFloorGroup.add(ldR);
 
+  // ===== 層門金屬門框（jamb 左右柱 + header 上方門楣）— 實機 cab opening 都有完整金屬框 =====
+  const jambMat = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, metalness: 0.85, roughness: 0.25 });
+  const JAMB_W = 0.10, JAMB_D = 0.10;
+  const FRAME_H = ldPanelH + 0.35;   // 比 panel 高 35cm（含 header 跟下方門檻空間）
+  // 左門框柱
+  const jambL = new THREE.Mesh(new THREE.BoxGeometry(JAMB_W, FRAME_H, JAMB_D), jambMat);
+  jambL.position.set(-CAB_W/2 - JAMB_W/2, y + FRAME_H/2 + 0.02, SHAFT_D/2 + JAMB_D/2);
+  jambL.userData = { name:`Door Jamb ${f}F 左柱`, kind:"machine",
+    desc:"層門金屬門框柱（左）— 不鏽鋼 SUS304 髮絲紋、結構固定 + 飾面 + 內藏滑軌與門鎖",
+    specs:[["材質","SUS304 髮絲紋"],["截面","100×100 mm 中空鋼"],["功能","panel 滑軌支撐 + 內藏 lock"]] };
+  landingFloorGroup.add(jambL);
+  // 右門框柱
+  const jambR = new THREE.Mesh(new THREE.BoxGeometry(JAMB_W, FRAME_H, JAMB_D), jambMat);
+  jambR.position.set(CAB_W/2 + JAMB_W/2, y + FRAME_H/2 + 0.02, SHAFT_D/2 + JAMB_D/2);
+  jambR.userData = { name:`Door Jamb ${f}F 右柱`, kind:"machine", desc:"層門金屬門框柱（右）— 內側嵌 hall call panel" };
+  landingFloorGroup.add(jambR);
+  // 上方門楣 (header / lintel)
+  const jambHeader = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + JAMB_W*2, 0.18, JAMB_D), jambMat);
+  jambHeader.position.set(0, y + FRAME_H + 0.11, SHAFT_D/2 + JAMB_D/2);
+  jambHeader.userData = { name:`Door Header ${f}F 門楣`, kind:"machine", desc:"層門上方金屬橫樑 — 內藏門吊軌道 cabTrack + door operator 馬達" };
+  landingFloorGroup.add(jambHeader);
+  // 下方門檻 (sill)
+  const jambSill = new THREE.Mesh(new THREE.BoxGeometry(CAB_W + JAMB_W*2, 0.04, JAMB_D + 0.04),
+    new THREE.MeshStandardMaterial({ color: 0xa8acb4, metalness: 0.9, roughness: 0.5 }));
+  jambSill.position.set(0, y + 0.02, SHAFT_D/2 + JAMB_D/2);
+  jambSill.userData = { name:`Door Sill ${f}F 門檻`, kind:"machine", desc:"鋁合金擠型門檻 — 內含 panel 下方導向溝、防止 panel 晃" };
+  landingFloorGroup.add(jambSill);
+
   // 門吊架 + 滑輪 (掛在上方軌道)
   for (let h of [{x: ldL_close, off: -0.06}, {x: ldL_close, off: 0.06}, {x: ldR_close, off: -0.06}, {x: ldR_close, off: 0.06}]) {
     const hg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12),
@@ -2170,7 +2198,7 @@ ldFloors.forEach(f => {
 
   // ===== 外叫面板 Hall Call Station（門框右側，廳堂可見）=====
   const hallStation = new THREE.Group();
-  hallStation.position.set(SHAFT_W/2 + 0.20, y + 1.20, SHAFT_D/2 + 0.06);   // 移到井道牆外 20cm + 前緣 6cm、避免 landing door 全開時 panel 右緣擋到
+  hallStation.position.set(CAB_W/2 + JAMB_W + 0.10, y + 1.10, SHAFT_D/2 + JAMB_D + 0.02);   // 緊鄰右門框柱外側、嵌在 hallway 牆上、看起來像實機 wall-mount call panel
   // 黑色面板背景
   const hallBg = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.32, 0.025),
     new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.85, roughness: 0.4 }));
