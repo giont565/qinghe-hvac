@@ -1233,17 +1233,66 @@ const railMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.8
 // ============ 6. Machine Group (頂部馬達 + 牽引輪) ============
 const machGroup = new THREE.Group();
 machGroup.position.set(0, SHAFT_H - 1.8, -0.25);  // sheave 中心，介於 cab(+0.4) 與 cw(-0.9) 之間
-// 馬達 + 永磁齒輪 (gearless)
-const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.55, 24),
+// ===== PMSM Gearless 永磁同步無齒輪曳引機（扁圓盤型、馬達跟 sheave 同軸）=====
+// PM 主機特徵：直徑大、軸長短、housing 平滑無齒輪箱凸起、IE5 效率
+// 馬達 housing — 大徑扁圓盤（Φ500 × 軸長 0.22）
+const motor = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.22, 32),
   new THREE.MeshStandardMaterial({ color: 0xfb923c, metalness: 0.7, roughness: 0.35 }));
 motor.rotation.z = Math.PI/2;
+motor.position.x = -0.15;   // 跟 sheave 同軸（X=0.35）、馬達盤在後 50cm 內
 machGroup.add(motor);
-// 牽引輪 (sheave)
-const sheave = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.12, 32),
+// 馬達後面散熱端蓋（更扁的 disc）
+const motorRearCap = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.25, 0.05, 32),
+  new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9, roughness: 0.25 }));
+motorRearCap.rotation.z = Math.PI/2;
+motorRearCap.position.x = -0.28;
+machGroup.add(motorRearCap);
+// PMSM 散熱鰭片（圍 motor 外緣）
+for (let i = 0; i < 16; i++) {
+  const ang = i * Math.PI * 2 / 16;
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.030, 0.005),
+    new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.9 }));
+  fin.rotation.x = ang;
+  fin.position.set(-0.15, 0.26 * Math.sin(ang), 0.26 * Math.cos(ang));
+  machGroup.add(fin);
+}
+// 銘版「PMSM Gearless」貼在 motor 圓盤側面（Y 軸正向、camera 看得到的面）
+{
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 96;
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#1a1d24'; cx.fillRect(0, 0, 256, 96);
+  cx.strokeStyle = '#a3e635'; cx.lineWidth = 2; cx.strokeRect(3, 3, 250, 90);
+  cx.fillStyle = '#a3e635'; cx.font = 'bold 24px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.fillText('PMSM GEARLESS', 128, 30);
+  cx.fillStyle = '#86868b'; cx.font = '16px sans-serif';
+  cx.fillText('8.5 kW · 580 Nm · IE5', 128, 55);
+  cx.fillStyle = '#fb923c'; cx.font = '12px sans-serif';
+  cx.fillText('永磁同步無齒輪曳引機', 128, 78);
+  const tex = new THREE.CanvasTexture(cv);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.12),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+  plate.position.set(-0.15, 0.27, 0);
+  plate.rotation.x = -Math.PI / 2;
+  machGroup.add(plate);
+}
+motor.userData = { name:"PMSM Gearless 永磁同步無齒輪曳引機", kind:"machine",
+  desc:"主驅動馬達 — 永磁同步無齒輪型（PM Gearless / Otis Gen2 級）。馬達直接跟 sheave 同軸、無齒輪箱、效率 IE5、噪音 ≤ 55 dB",
+  specs:[["型式","PMSM Permanent Magnet Synchronous"],["額定功率","8.5 kW"],["額定扭矩","580 Nm"],["額定轉速","119 rpm"],["效率","IE5"],["無齒輪","Gearless (馬達 ↔ sheave 直驅)"]] };
+// 牽引輪 (sheave) — 跟 motor 同軸、實機 PM 主機 sheave 在 motor 軸前端
+const sheave = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.10, 32),
   new THREE.MeshStandardMaterial({ color: 0xc8cdd4, metalness: 0.9, roughness: 0.25 }));
 sheave.rotation.z = Math.PI/2;
 sheave.position.x = 0.35;
 machGroup.add(sheave);
+// sheave 上 8 條繩槽（淺凹）
+for (let i = 0; i < 8; i++) {
+  const grooveX = 0.35 + (i - 3.5) * 0.011;
+  const groove = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.003, 4, 24),
+    new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.9 }));
+  groove.rotation.y = Math.PI/2;
+  groove.position.x = grooveX;
+  machGroup.add(groove);
+}
 // ===== 制動器 Brake（電磁失電制動 — 雙鉗夾煞車碟）=====
 const brakeGroup = new THREE.Group();
 brakeGroup.position.set(-0.18, 0, 0);  // 馬達與 sheave 之間
@@ -1310,9 +1359,11 @@ function addMR(o) { mrOnlyObjects.push(o); return o; }
 const mrFloorMat = new THREE.MeshStandardMaterial({ color: 0x8a8e96, roughness: 0.9, metalness: 0.1 });
 const MR_FLOOR_Y = 11.50;       // 機房地坪中心 Y
 const MR_FLOOR_THICK = 0.15;    // 樓板厚 (RC 150 mm)
-const HATCH_X_HALF = 0.80;      // 維修開口 1.6 m 寬
-const HATCH_Z_FRONT = 1.15;     // 開口前緣（讓 cab 頂部 + 鋼索通過）
-const HATCH_Z_BACK  = -0.45;    // 開口後緣
+const HATCH_X_HALF = 0.40;      // 維修開口 0.8 m 寬（縮小、實機機房開口通常 0.7×0.7 ~ 0.9×0.9）
+const HATCH_Z_FRONT = 0.55;     // 開口前緣（讓 cab 頂部 + 鋼索通過、cab side rope Z=0.35）
+const HATCH_Z_BACK  = -1.05;    // 開口後緣（涵蓋 cw rope Z=-0.98 通過）
+// 機房比井道大每邊 0.4 m（規範要求 ≥ 井道 + 維修空間）
+const MR_EXT = 0.40;
 // 左側板
 const mrFloorL = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W/2 - HATCH_X_HALF, MR_FLOOR_THICK, SHAFT_D), mrFloorMat);
 mrFloorL.position.set(-(SHAFT_W/2 + HATCH_X_HALF) / 2, MR_FLOOR_Y, 0);
@@ -1326,9 +1377,24 @@ const mrFloorFront = new THREE.Mesh(new THREE.BoxGeometry(HATCH_X_HALF * 2, MR_F
 mrFloorFront.position.set(0, MR_FLOOR_Y, (HATCH_Z_FRONT + SHAFT_D/2) / 2);
 ELEV.add(mrFloorFront); addMR(mrFloorFront);
 // 後緣板（開口後緣到 shaft 後牆）
-const mrFloorBack = new THREE.Mesh(new THREE.BoxGeometry(HATCH_X_HALF * 2, MR_FLOOR_THICK, -SHAFT_D/2 - HATCH_Z_BACK), mrFloorMat);
+const mrFloorBack = new THREE.Mesh(new THREE.BoxGeometry(HATCH_X_HALF * 2, MR_FLOOR_THICK, Math.abs(-SHAFT_D/2 - HATCH_Z_BACK)), mrFloorMat);
 mrFloorBack.position.set(0, MR_FLOOR_Y, (HATCH_Z_BACK - SHAFT_D/2) / 2);
 ELEV.add(mrFloorBack); addMR(mrFloorBack);
+// ===== 機房延伸地坪（井道外 4 邊、讓機房比井道大每邊 MR_EXT m）=====
+const mrExtFloorL = new THREE.Mesh(new THREE.BoxGeometry(MR_EXT, MR_FLOOR_THICK, SHAFT_D + 2*MR_EXT), mrFloorMat);
+mrExtFloorL.position.set(-(SHAFT_W/2 + MR_EXT/2), MR_FLOOR_Y, 0);
+mrExtFloorL.userData = { name:"機房延伸地坪 左 MR Ext Floor L", kind:"machine", desc:"機房比井道每邊外擴 40cm 的維修地坪 — 規範要求機房面積 ≥ 井道 + 維修空間" };
+ELEV.add(mrExtFloorL); addMR(mrExtFloorL);
+const mrExtFloorR = new THREE.Mesh(new THREE.BoxGeometry(MR_EXT, MR_FLOOR_THICK, SHAFT_D + 2*MR_EXT), mrFloorMat);
+mrExtFloorR.position.set( (SHAFT_W/2 + MR_EXT/2), MR_FLOOR_Y, 0);
+mrExtFloorR.userData = { name:"機房延伸地坪 右 MR Ext Floor R", kind:"machine", desc:"" };
+ELEV.add(mrExtFloorR); addMR(mrExtFloorR);
+const mrExtFloorF = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W, MR_FLOOR_THICK, MR_EXT), mrFloorMat);
+mrExtFloorF.position.set(0, MR_FLOOR_Y, SHAFT_D/2 + MR_EXT/2);
+ELEV.add(mrExtFloorF); addMR(mrExtFloorF);
+const mrExtFloorB = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W, MR_FLOOR_THICK, MR_EXT), mrFloorMat);
+mrExtFloorB.position.set(0, MR_FLOOR_Y, -SHAFT_D/2 - MR_EXT/2);
+ELEV.add(mrExtFloorB); addMR(mrExtFloorB);
 mrFloorL.userData = { name:"機房樓板 MR Floor", kind:"machine",
   desc:"分隔井道與機房 — RC 150mm 樓板含 1.6×1.6 m 維修開口（hatch）",
   specs:[["材質","RC C30 + Φ12 雙層雙向鋼筋"],["承重","≥ 600 kg/m²"],["防火","2 hr 防火時效"],["開口","1.6 × 1.6 m 給鋼索 + 維修通過"]] };
@@ -1716,33 +1782,36 @@ const MR_WALL_T   = 0.06;                            // 牆厚 60mm RC
 const mrWallMat = new THREE.MeshStandardMaterial({
   color: 0x9aa1ad, transparent: true, opacity: 0.18, roughness: 0.95, metalness: 0.05, side: THREE.DoubleSide
 });
+// 機房尺寸：比井道大每邊 MR_EXT m
+const MR_W_HALF = SHAFT_W/2 + MR_EXT;   // 機房寬半 = 1.5
+const MR_D_HALF = SHAFT_D/2 + MR_EXT;   // 機房深半 = 1.6
 // 左牆
-const mrWallL = new THREE.Mesh(new THREE.BoxGeometry(MR_WALL_T, MR_HEIGHT, SHAFT_D), mrWallMat);
-mrWallL.position.set(-SHAFT_W/2 - MR_WALL_T/2, MR_MID_Y, 0);
+const mrWallL = new THREE.Mesh(new THREE.BoxGeometry(MR_WALL_T, MR_HEIGHT, MR_D_HALF * 2), mrWallMat);
+mrWallL.position.set(-MR_W_HALF - MR_WALL_T/2, MR_MID_Y, 0);
 mrWallL.userData = { name:"機房左牆 MR Wall L", kind:"machine", desc:"RC 結構牆、防火 2hr、隔音 35 dB", specs:[["厚度","60 mm + RC 150 mm"]] };
 ELEV.add(mrWallL); addMR(mrWallL);
 // 右牆
-const mrWallR = new THREE.Mesh(new THREE.BoxGeometry(MR_WALL_T, MR_HEIGHT, SHAFT_D), mrWallMat);
-mrWallR.position.set(SHAFT_W/2 + MR_WALL_T/2, MR_MID_Y, 0);
+const mrWallR = new THREE.Mesh(new THREE.BoxGeometry(MR_WALL_T, MR_HEIGHT, MR_D_HALF * 2), mrWallMat);
+mrWallR.position.set(MR_W_HALF + MR_WALL_T/2, MR_MID_Y, 0);
 mrWallR.userData = { name:"機房右牆 MR Wall R", kind:"machine", desc:"RC 結構牆 + 通風百葉開口" };
 ELEV.add(mrWallR); addMR(mrWallR);
 // 後牆
-const mrWallB = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W + MR_WALL_T*2, MR_HEIGHT, MR_WALL_T), mrWallMat);
-mrWallB.position.set(0, MR_MID_Y, -SHAFT_D/2 - MR_WALL_T/2);
+const mrWallB = new THREE.Mesh(new THREE.BoxGeometry(MR_W_HALF * 2 + MR_WALL_T*2, MR_HEIGHT, MR_WALL_T), mrWallMat);
+mrWallB.position.set(0, MR_MID_Y, -MR_D_HALF - MR_WALL_T/2);
 mrWallB.userData = { name:"機房後牆 MR Wall Back", kind:"machine", desc:"RC 結構牆" };
 ELEV.add(mrWallB); addMR(mrWallB);
 // 前牆（左右兩段、中間留維修門開口寬 0.9m）
 const MR_DOOR_W = 0.90;
-const mrWallF_L = new THREE.Mesh(new THREE.BoxGeometry((SHAFT_W - MR_DOOR_W)/2 + MR_WALL_T, MR_HEIGHT, MR_WALL_T), mrWallMat);
-mrWallF_L.position.set(-(MR_DOOR_W/2 + (SHAFT_W - MR_DOOR_W)/4), MR_MID_Y, SHAFT_D/2 + MR_WALL_T/2);
+const mrWallF_L = new THREE.Mesh(new THREE.BoxGeometry(MR_W_HALF - MR_DOOR_W/2 + MR_WALL_T, MR_HEIGHT, MR_WALL_T), mrWallMat);
+mrWallF_L.position.set(-(MR_DOOR_W/2 + (MR_W_HALF - MR_DOOR_W/2)/2), MR_MID_Y, MR_D_HALF + MR_WALL_T/2);
 ELEV.add(mrWallF_L); addMR(mrWallF_L);
-const mrWallF_R = new THREE.Mesh(new THREE.BoxGeometry((SHAFT_W - MR_DOOR_W)/2 + MR_WALL_T, MR_HEIGHT, MR_WALL_T), mrWallMat);
-mrWallF_R.position.set( (MR_DOOR_W/2 + (SHAFT_W - MR_DOOR_W)/4), MR_MID_Y, SHAFT_D/2 + MR_WALL_T/2);
+const mrWallF_R = new THREE.Mesh(new THREE.BoxGeometry(MR_W_HALF - MR_DOOR_W/2 + MR_WALL_T, MR_HEIGHT, MR_WALL_T), mrWallMat);
+mrWallF_R.position.set( (MR_DOOR_W/2 + (MR_W_HALF - MR_DOOR_W/2)/2), MR_MID_Y, MR_D_HALF + MR_WALL_T/2);
 ELEV.add(mrWallF_R); addMR(mrWallF_R);
 // 機房維修門（中央、不透明深灰、含把手）
 const mrDoor = new THREE.Mesh(new THREE.BoxGeometry(MR_DOOR_W - 0.02, MR_HEIGHT - 0.30, 0.04),
   new THREE.MeshStandardMaterial({ color: 0x3a3f48, metalness: 0.4, roughness: 0.5 }));
-mrDoor.position.set(0, MR_MID_Y - 0.05, SHAFT_D/2 + 0.03);
+mrDoor.position.set(0, MR_MID_Y - 0.05, MR_D_HALF + 0.03);
 mrDoor.userData = { name:"機房維修門 MR Access Door", kind:"machine",
   desc:"防火維修門（A 類 1hr）、上鎖、僅有持鑰匙技師可進入；門內側貼警示『高壓危險』",
   specs:[["尺寸","900×2,075 mm"],["防火","A 類 1hr"],["鎖","電子鎖 + 機械備援"],["管理","建管單位列管"]] };
@@ -1750,7 +1819,7 @@ ELEV.add(mrDoor); addMR(mrDoor);
 // 門把手
 const mrDoorHandle = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.025, 0.025),
   new THREE.MeshStandardMaterial({ color: 0xc0c5cd, metalness: 0.95 }));
-mrDoorHandle.position.set(MR_DOOR_W/2 - 0.10, MR_MID_Y - 0.10, SHAFT_D/2 + 0.055);
+mrDoorHandle.position.set(MR_DOOR_W/2 - 0.10, MR_MID_Y - 0.10, MR_D_HALF + 0.055);
 ELEV.add(mrDoorHandle); addMR(mrDoorHandle);
 // 警示銘版「機房 — 高壓危險 ELEV MACHINE ROOM」
 {
@@ -1765,11 +1834,11 @@ ELEV.add(mrDoorHandle); addMR(mrDoorHandle);
   const tex = new THREE.CanvasTexture(cv);
   const tag = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.105),
     new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
-  tag.position.set(0, MR_TOP_Y - 0.30, SHAFT_D/2 + 0.052);
+  tag.position.set(0, MR_TOP_Y - 0.30, MR_D_HALF + 0.052);
   ELEV.add(tag); addMR(tag);
 }
 // 天花板（不透明、含照明嵌入）
-const mrCeiling = new THREE.Mesh(new THREE.BoxGeometry(SHAFT_W + MR_WALL_T*2, 0.08, SHAFT_D + MR_WALL_T*2),
+const mrCeiling = new THREE.Mesh(new THREE.BoxGeometry(MR_W_HALF*2 + MR_WALL_T*2, 0.08, MR_D_HALF*2 + MR_WALL_T*2),
   new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.85, metalness: 0.1, transparent: true, opacity: 0.30, side: THREE.DoubleSide }));
 mrCeiling.position.set(0, MR_TOP_Y + 0.04, 0);
 mrCeiling.userData = { name:"機房天花板 MR Ceiling", kind:"machine", desc:"RC 樓板 250mm、隔音 + 防火" };
@@ -1777,7 +1846,7 @@ ELEV.add(mrCeiling); addMR(mrCeiling);
 // 通風百葉 Louver（右牆上方、自然通風散熱）
 const mrLouverFrame = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.50, 0.80),
   new THREE.MeshStandardMaterial({ color: 0x6a6e76, metalness: 0.7, roughness: 0.4 }));
-mrLouverFrame.position.set(SHAFT_W/2 + MR_WALL_T + 0.005, MR_MID_Y + 0.50, 0);
+mrLouverFrame.position.set(MR_W_HALF + MR_WALL_T + 0.005, MR_MID_Y + 0.50, 0);
 mrLouverFrame.userData = { name:"機房通風百葉 Louver", kind:"machine",
   desc:"自然通風進氣口 — 雨遮 + 防蟲網、面積 ≥ 機房面積 1% (法規)",
   specs:[["尺寸","800×500 mm"],["材質","6063 鋁擠型 + SS 防蟲網"],["風量","自然通風 ≥ 6 ACH"]] };
@@ -1786,7 +1855,7 @@ ELEV.add(mrLouverFrame); addMR(mrLouverFrame);
 for (let i = 0; i < 8; i++) {
   const slat = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.040, 0.75),
     new THREE.MeshStandardMaterial({ color: 0x9aa1ad, metalness: 0.85 }));
-  slat.position.set(SHAFT_W/2 + MR_WALL_T + 0.008, MR_MID_Y + 0.50 + (i - 3.5) * 0.055, 0);
+  slat.position.set(MR_W_HALF + MR_WALL_T + 0.008, MR_MID_Y + 0.50 + (i - 3.5) * 0.055, 0);
   slat.rotation.x = -Math.PI / 8;   // 葉片斜向下避免雨水進入
   ELEV.add(slat); addMR(slat);
 }
@@ -2143,7 +2212,7 @@ ldFloors.forEach(f => {
 // ============ 11. Controller Cabinet (旁置控制盤) ============
 const ctrlElev = new THREE.Group();
 // 初始位置依預設 isMR=true：放機房內（左後角、距牆內 45cm + 距後牆 55cm）
-ctrlElev.position.set(-SHAFT_W/2 + 0.45, MR_FLOOR_Y + 1.05, -SHAFT_D/2 + 0.55);
+ctrlElev.position.set(-MR_W_HALF + 0.55, MR_FLOOR_Y + 1.05, -MR_D_HALF + 0.55);
 const ctrlBox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.85, 0.35),
   new THREE.MeshStandardMaterial({ color: 0xd0d3da, metalness: 0.7, roughness: 0.4 }));
 ctrlElev.add(ctrlBox);
@@ -2984,7 +3053,7 @@ function setMRType(mr) {
   document.querySelector('[data-action="mrtype"]').classList.toggle('active', mr);
   // 控制盤位置依機型切換：MR 放機房內 / MRL 放 cab 同樓層門框旁
   if (mr) {
-    ctrlElev.position.set(-SHAFT_W/2 + 0.45, MR_FLOOR_Y + 1.05, -SHAFT_D/2 + 0.55);
+    ctrlElev.position.set(-MR_W_HALF + 0.55, MR_FLOOR_Y + 1.05, -MR_D_HALF + 0.55);
   } else {
     // MRL：跟 cab 同層、井道右外側、貼著 hallway 牆（合到 hallway 設備區）
     ctrlElev.position.set(SHAFT_W/2 + 0.55, 0.95, -SHAFT_D/2 + 0.30);
