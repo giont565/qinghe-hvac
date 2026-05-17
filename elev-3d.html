@@ -2558,6 +2558,29 @@ canvas.addEventListener('click', e => {
       });
       selectedEl.classList.add('show'); return;
     }
+    // Fallback：mesh 或所有 ancestor 都沒 userData.name → 顯示原始 mesh 偵錯資訊（方便回報「這零件是啥」）
+    const m = hits[0].object;
+    const wp = new THREE.Vector3();
+    m.getWorldPosition(wp);
+    document.getElementById('sel-name').textContent = `❓ 未命名 mesh (${m.geometry?.type || 'unknown'})`;
+    document.getElementById('sel-desc').textContent = `沒有 userData.name — 把以下資訊告訴 Claude 修位置：`;
+    const specs = document.getElementById('sel-specs');
+    while (specs.firstChild) specs.removeChild(specs.firstChild);
+    const info = [
+      ['type', m.geometry?.type || 'n/a'],
+      ['world.x', wp.x.toFixed(2)],
+      ['world.y', wp.y.toFixed(2)],
+      ['world.z', wp.z.toFixed(2)],
+      ['parent', m.parent?.userData?.name || m.parent?.type || 'scene'],
+      ['mat.color', m.material?.color ? '#' + m.material.color.getHexString() : 'n/a'],
+    ];
+    info.forEach(([k, v]) => {
+      const r = document.createElement('div'); r.className = 'row';
+      const sk = document.createElement('span'); sk.className = 'k'; sk.textContent = k;
+      const sv = document.createElement('span'); sv.className = 'v'; sv.textContent = v;
+      r.appendChild(sk); r.appendChild(sv); specs.appendChild(r);
+    });
+    selectedEl.classList.add('show'); return;
   }
   selectedEl.classList.remove('show');
 });
