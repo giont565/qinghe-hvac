@@ -2542,7 +2542,28 @@ canvas.addEventListener('click', e => {
   mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   raycaster.setFromCamera(mouse, camera);
-  const hits = raycaster.intersectObjects(scene.children, true);
+  let hits = raycaster.intersectObjects(scene.children, true);
+  // Fallback：raycaster 沒精準命中（細長 mesh 常見）→ 找螢幕空間 60px 內最近的 mesh
+  if (!hits.length) {
+    const tmp = new THREE.Vector3();
+    const W = window.innerWidth, H = window.innerHeight;
+    const cands = [];
+    scene.traverse(o => {
+      if (!o.isMesh || !o.visible || !o.geometry) return;
+      o.getWorldPosition(tmp);
+      const sp = tmp.clone().project(camera);
+      if (sp.z >= 1 || sp.z <= -1) return;   // 在 camera 後或太遠
+      const sx = (sp.x + 1) / 2 * W;
+      const sy = (-sp.y + 1) / 2 * H;
+      const dx = sx - e.clientX, dy = sy - e.clientY;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < 60) cands.push({ obj: o, d });
+    });
+    if (cands.length) {
+      cands.sort((a, b) => a.d - b.d);
+      hits = [{ object: cands[0].obj }];
+    }
+  }
   if (hits.length) {
     const root = findRoot(hits[0].object);
     if (root?.userData?.name) {
