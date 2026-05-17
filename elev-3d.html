@@ -2016,6 +2016,26 @@ const govRope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, SHAFT_H 
 govRope.position.set(SHAFT_W/2 - 0.15, (SHAFT_H - 2.3 - 0.5)/2, -0.3);
 ELEV.add(govRope);
 
+// ============ 廳堂 (Hallway) 前牆 — 讓 hall call station 嵌在牆上、不飄空中 ============
+// 井道前左右兩側、半透明灰、模擬建築 hallway 牆面
+const hallwayWallMat = new THREE.MeshStandardMaterial({
+  color: 0x8a8e96, transparent: true, opacity: 0.20, roughness: 0.95, metalness: 0.05, side: THREE.DoubleSide
+});
+// 牆面 X 範圍從 cab door panel 全開 right edge (~1.10) 之外開始、避免擋到 panel 動畫
+const HALL_WALL_X_INNER = 1.15;   // 內緣（panel 滑開後不擋）
+const HALL_WALL_X_OUTER = MR_W_HALF;  // 外緣對齊機房寬
+const HALL_WALL_W = HALL_WALL_X_OUTER - HALL_WALL_X_INNER;
+// 右側 hallway 前牆
+const hallwayWallR = new THREE.Mesh(new THREE.BoxGeometry(HALL_WALL_W, SHAFT_H, 0.04), hallwayWallMat);
+hallwayWallR.position.set((HALL_WALL_X_INNER + HALL_WALL_X_OUTER)/2, SHAFT_H/2, SHAFT_D/2 + 0.03);
+hallwayWallR.userData = { name:"廳堂前牆 Hallway Wall (右)", kind:"machine", desc:"廳堂側牆面 — hall call panel 嵌入此牆、實機是 RC + 飾面" };
+ELEV.add(hallwayWallR);
+// 左側 hallway 前牆（對稱）
+const hallwayWallL = new THREE.Mesh(new THREE.BoxGeometry(HALL_WALL_W, SHAFT_H, 0.04), hallwayWallMat);
+hallwayWallL.position.set(-(HALL_WALL_X_INNER + HALL_WALL_X_OUTER)/2, SHAFT_H/2, SHAFT_D/2 + 0.03);
+hallwayWallL.userData = { name:"廳堂前牆 Hallway Wall (左)", kind:"machine", desc:"" };
+ELEV.add(hallwayWallL);
+
 // ============ 10. Landing Doors (3 層) + 門框 + 軌道 + 吊架 + Clutch ============
 const landingDoors = [];  // [{floor, L, R, clutchL, clutchR, baseL_X, baseR_X, y}]
 const hallDisplays = [];  // [{canvas, tex, floor}] — 每層門框上方 LED 顯示器
